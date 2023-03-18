@@ -6,15 +6,20 @@ import argparse
 from lib.pychat import PyChat
 
 def main():
-	parser = argparse.ArgumentParser(prog='pychat_app', description='PyChat App')
+	parser = argparse.ArgumentParser(prog='server_app', description='Server App')
 	parser.add_argument('-c', '--config', type=str, nargs=1, required=True, help='Path to Config File')
+	# parser.add_argument('command', choices=['server'])
 
 	args = parser.parse_args()
 
 	print('-> pid:', os.getpid())
 
 	app = PyChat(args.config[0])
-	app.run()
+	try:
+		app.run()
+	except KeyboardInterrupt as e:
+		print()
+		app.shutdown()
 
 	print('-> done')
 

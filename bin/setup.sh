@@ -8,7 +8,7 @@ which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; e
 cd "${SCRIPT_BASEDIR}/.."
 pwd
 
-mkdir -p var tmp
+mkdir -p var/data1 tmp
 
 if [[ ! -d ./.venv ]]; then
 	if ! virtualenv --system-site-packages -p python3 ./.venv ; then
