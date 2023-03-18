@@ -21,15 +21,15 @@ class Server():
 		self._selectors.register(self._socket, selectors.EVENT_READ, data=None)
 
 		print('-> accept')
-		# conn, addr = self._socket.accept()
+		conn, addr = self._socket.accept()
 
-		# print('-> conn', conn)
-		# print('-> addr', addr)
+		print('-> conn', conn)
+		print('-> addr', addr)
 
-		# with conn:
-		# 	print(f'Connected by {addr}')
-		# 	while True:
-		# 		data = conn.recv(1024)
-		# 		if not data:
-		# 			break
-		# 		conn.sendall(data)
+		with conn:
+			print(f'Connected by {addr}')
+			while True:
+				data = conn.recv(1024)
+				if not data:
+					break
+				conn.sendall(data)
