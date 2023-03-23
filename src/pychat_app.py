@@ -8,7 +8,6 @@ from lib.pychat import PyChat
 def main():
 	parser = argparse.ArgumentParser(prog='server_app', description='Server App')
 	parser.add_argument('-c', '--config', type=str, nargs=1, required=True, help='Path to Config File')
-	# parser.add_argument('command', choices=['server'])
 
 	args = parser.parse_args()
 

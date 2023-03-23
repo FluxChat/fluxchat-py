@@ -1,6 +1,7 @@
 
 import os
 import json
+import time
 
 from sty import fg
 from lib.json_file import JsonFile
@@ -10,6 +11,7 @@ class PyChat(JsonFile):
 	_config_file: str
 	_config: dict
 	_running: bool
+	_server: Server
 
 	def __init__(self, config_file: str = None):
 		print('-> PyChat.__init__()')
@@ -18,6 +20,8 @@ class PyChat(JsonFile):
 
 		# Init
 		self._load_config()
+		self._running = True
+		self._server = Server(self._config)
 
 	def __del__(self):
 		print('-> PyChat.__del__()')
@@ -28,10 +32,13 @@ class PyChat(JsonFile):
 		self._config = self._read_json_file(self._config_file)
 
 	def run(self):
-		print('-> PyChat.run()')
-		self._running = True
+		while self._running:
+			#print('-> PyChat.run()')
+			self._server.run()
 
-		server = Server(self._config['node'])
+			#print('-> sleep')
+			time.sleep(1)
 
 	def shutdown(self):
+		print('-> PyChat.shutdown()')
 		self._running = False
