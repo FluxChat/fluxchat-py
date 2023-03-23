@@ -1,4 +1,6 @@
 
 class Scheduler():
-	def __init__(self, config):
-		print('-> Scheduler.__init__()')
+	_tasks = []
+
+	def __init__(self, execf):
+		print('-> Scheduler.__init__({})', execf)

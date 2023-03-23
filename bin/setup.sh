@@ -6,6 +6,7 @@ which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 1; }
 which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 1; }
 which openssl &> /dev/null || { echo 'ERROR: openssl not found in PATH'; exit 1; }
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
+which curl &> /dev/null || { echo 'ERROR: curl not found in PATH'; exit 1; }
 
 export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/node1.json}
 export PYCHAT_ADDRESS=${PYCHAT_ADDRESS:-0.0.0.0}
@@ -15,9 +16,16 @@ export PYCHAT_DATA_DIR=${PYCHAT_DATA_DIR:-var/data1}
 cd "${SCRIPT_BASEDIR}/.."
 pwd
 
+export PYCHAT_CONTACT_IP=${PYCHAT_CONTACT_IP:-$(curl -s https://httpbin.org/ip | jq -r .origin)}
+export PYCHAT_CONTACT_PORT=${PYCHAT_CONTACT_PORT:-${PYCHAT_PORT}}
+export PYCHAT_CONTACT=${PYCHAT_CONTACT:-${PYCHAT_CONTACT_IP}:${PYCHAT_CONTACT_PORT}}
+
 echo "-> PYCHAT_CONFIG: ${PYCHAT_CONFIG}"
 echo "-> PYCHAT_ADDRESS: ${PYCHAT_ADDRESS}"
 echo "-> PYCHAT_PORT: ${PYCHAT_PORT}"
+echo "-> PYCHAT_CONTACT_IP: ${PYCHAT_CONTACT_IP}"
+echo "-> PYCHAT_CONTACT_PORT: ${PYCHAT_CONTACT_PORT}"
+echo "-> PYCHAT_CONTACT: ${PYCHAT_CONTACT}"
 echo "-> PYCHAT_DATA_DIR: ${PYCHAT_DATA_DIR}"
 
 mkdir -p ${PYCHAT_DATA_DIR}

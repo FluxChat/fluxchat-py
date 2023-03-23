@@ -42,12 +42,12 @@ class AddressBook(JsonFile):
 			return None
 
 	def add_client(self, items: list):
-		print('-> AddressBook.add_client()'.format(items[2]))
+		print('-> AddressBook.add_client({})'.format(items))
 
 		client = Client()
 		client.from_list(items)
 
-		self._clients[client.get_id()] = client
+		self._clients[client.id] = client
 		self._changes = True
 
 		return client

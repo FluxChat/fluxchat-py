@@ -1,6 +1,7 @@
 {
 	"address": "${PYCHAT_ADDRESS}",
 	"port": ${PYCHAT_PORT},
+	"contact": "${PYCHAT_CONTACT}",
 	"id": "${PYCHAT_ID}",
 	"data_dir": "${PYCHAT_DATA_DIR}"
 }

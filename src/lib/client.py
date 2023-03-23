@@ -1,44 +1,64 @@
 
-import socket
+#import socket
 import uuid
+import datetime as dt
 
 class Client():
-	_address: str
-	_port: int
-	_id: str
+	rt: str
+	address: str
+	port: int
+	id: str
+	seen_at: dt.datetime
+	#sock: socket.socket
+
+	# Data Mode
+	# t = TEXT
+	# b = BINARY
+	data_mode: str
+
+	# Connection Mode
+	# 0 = DISCONNECTED
+	# 1 = CONNECTED
+	# 2 = AUTHENTICATED
+	conn_mode: int
+
+	# Directory Mode
+	# None, in, out
+	dir_mode: str
 
 	def __init__(self):
-		print('-> Client.__init__()')
+		self.rt = str(uuid.uuid4())
+		print('-> Client.__init__({})'.format(self.rt))
+		self.address = None
+		self.port = None
+		self.id = None
+		self.data_mode = 't'
+		self.conn_mode = 0
+		self.dir_mode = None
 
 	def __del__(self):
-		print('-> Client.__del__()')
+		print('-> Client.__del__({})'.format(self.rt))
+
+	def __str__(self):
+		return 'Client({},{},{})'.format(self.id, self.address, self.port)
 
 	def as_dict(self) -> dict:
 		return {
-			'address': self._address,
-			'port': self._port,
-			'id': self._id,
+			'address': self.address,
+			'port': int(self.port),
+			'id': self.id,
 		}
 
 	def from_dict(self, data: dict):
 		print('-> Client.from_dict()')
-		print(data)
-		print()
+		# print(data)
+		# print()
 
-		self._address = data['address']
-		self._port = data['port']
-		self._id = data['id']
+		self.address = data['address']
+		self.port = int(data['port'])
+		self.id = data['id']
 
 	def from_list(self, data: list):
-		self._address = data[0]
-		self._port = data[1]
-		self._id = data[2]
-
-	def get_address(self) -> str:
-		return self._address
-
-	def get_port(self) -> int:
-		return self._port
-
-	def get_id(self) -> str:
-		return self._id
+		self.address = data[0]
+		self.port = int(data[1])
+		self.id = data[2]
