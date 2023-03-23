@@ -47,8 +47,8 @@ class Server():
 			'type': 'new_client',
 		})
 
-	def _client_read(self, sock, mask, client: Client = None):
-		print('-> Server._client_read({}, {}, {})'.format(type(sock), type(mask), type(client)))
+	def _client_read(self, sock: socket.socket, mask: int, client: Client = None):
+		print('-> Server._client_read()'.format())
 
 		raw = sock.recv(1024)
 		if raw:
@@ -63,8 +63,10 @@ class Server():
 				if client == None:
 					print('-> client not found')
 					self._address_book.add_client(items)
+					sock.send("OK A\r\n".encode('utf-8'))
 				else:
 					print('-> client found')
+					sock.send("OK B\r\n".encode('utf-8'))
 
 				self._selectors.unregister(sock)
 				self._selectors.register(sock, selectors.EVENT_READ, data={
@@ -72,7 +74,6 @@ class Server():
 					'client': client,
 				})
 
-				sock.send("OK\r\n".encode('utf-8'))
 		else:
 			print('-> no data')
 			self._selectors.unregister(sock)
@@ -93,3 +94,6 @@ class Server():
 
 				elif key.data['type'] == 'new_client':
 					self._client_read(key.fileobj, mask)
+
+				elif key.data['type'] == 'full_client':
+					self._client_read(key.fileobj, mask, key.data['client'])

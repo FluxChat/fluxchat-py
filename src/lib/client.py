@@ -21,6 +21,10 @@ class Client():
 		}
 
 	def from_dict(self, data: dict):
+		print('-> Client.from_dict()')
+		print(data)
+		print()
+
 		self._address = data['address']
 		self._port = data['port']
 		self._id = data['id']
