@@ -62,6 +62,7 @@ class Server():
 				client = self._address_book.get_client(items[2])
 				if client == None:
 					print('-> client not found')
+					self._address_book.add_client(items)
 				else:
 					print('-> client found')
 
