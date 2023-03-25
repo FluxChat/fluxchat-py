@@ -13,8 +13,10 @@ class Server():
 	_selectors: selectors.DefaultSelector
 	_socket: socket.socket
 	_address_book: AddressBook
-	_clients_in: dict
-	_clients_out: dict
+
+	_new_clients: list
+	_in_clients: list
+	_out_clients: list
 
 	def __init__(self, config: dict):
 		print('-> Server.__init__()')
@@ -23,6 +25,12 @@ class Server():
 
 		address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
 		self._address_book = AddressBook(address_book_path)
+
+		bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
+		if os.path.isfile(bootstrap_path):
+			self._address_book.add_bootstrap(bootstrap_path)
+
+		self._new_clients = []
 
 		self._selectors = selectors.DefaultSelector()
 		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,15 +57,17 @@ class Server():
 		print('-> conn: {}'.format(conn))
 		print('-> addr: {}'.format(addr))
 		print('-> accepted: {} {}'.format(addr[0], addr[1]))
+
 		client = Client()
 		client.conn_mode = 1
+		client.refresh_seen_at()
+
 		self._selectors.register(conn, selectors.EVENT_READ, data={
 			'type': 'client',
 			'client': client,
 		})
 
-		conn.send("BINARY\r\n".encode('utf-8'))
-		self._client_send_id(conn)
+		self._new_clients.append(client)
 
 	def _client_read(self, sock: socket.socket, client: Client):
 		print('-> Server._client_read({})'.format(client))
@@ -125,6 +135,7 @@ class Server():
 
 				if group == 1:
 					if command == 1:
+						print('-> ID command')
 						pass
 
 		else:
@@ -140,10 +151,9 @@ class Server():
 			payload_l.append(item)
 		payload = ''.join(payload_l)
 
-		#n.to_bytes(4, byteorder='little')
 		raw = (chr(group) + chr(command)).encode('utf-8') + len(payload).to_bytes(4, byteorder='little') + payload.encode('utf-8')
 
-		print('-> raw', raw)
+		print('-> send raw', raw)
 		sock.send(raw)
 
 	def _client_send_id(self, sock: socket.socket):
@@ -176,3 +186,25 @@ class Server():
 			data_processed = True
 
 		return data_processed # will be returned to the Scheduler
+
+	def contact_address_book(self):
+		print('-> Server.contact_address_book()')
+
+		for client_uuid, client in self._address_book.get_clients().items():
+			pass
+		# TODO
+
+	def handle_new_clients(self):
+		print('-> Server.handle_new_clients() -> {}'.format(len(self._new_clients)))
+
+		for client in self._new_clients:
+			self._client_send_id(client.conn)
+
+		self._new_clients = []
+
+	def handle_out_clients(self):
+		print('-> Server.handle_out_clients()')
+
+		for client in self._out_clients:
+			pass
+		# TODO

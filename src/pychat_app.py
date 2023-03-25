@@ -20,7 +20,5 @@ def main():
 		print()
 		app.shutdown()
 
-	print('-> done')
-
 if __name__ == '__main__':
 	main()

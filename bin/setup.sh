@@ -6,7 +6,7 @@ which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 1; }
 which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 1; }
 which openssl &> /dev/null || { echo 'ERROR: openssl not found in PATH'; exit 1; }
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
-which curl &> /dev/null || { echo 'ERROR: curl not found in PATH'; exit 1; }
+#which curl &> /dev/null || { echo 'ERROR: curl not found in PATH'; exit 1; }
 
 export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/node1.json}
 export PYCHAT_ADDRESS=${PYCHAT_ADDRESS:-0.0.0.0}
@@ -16,7 +16,8 @@ export PYCHAT_DATA_DIR=${PYCHAT_DATA_DIR:-var/data1}
 cd "${SCRIPT_BASEDIR}/.."
 pwd
 
-export PYCHAT_CONTACT_IP=${PYCHAT_CONTACT_IP:-$(curl -s https://httpbin.org/ip | jq -r .origin)}
+#$(curl -s https://httpbin.org/ip | jq -r .origin)
+export PYCHAT_CONTACT_IP=${PYCHAT_CONTACT_IP:-127.0.0.1}
 export PYCHAT_CONTACT_PORT=${PYCHAT_CONTACT_PORT:-${PYCHAT_PORT}}
 export PYCHAT_CONTACT=${PYCHAT_CONTACT:-${PYCHAT_CONTACT_IP}:${PYCHAT_CONTACT_PORT}}
 
@@ -51,4 +52,7 @@ export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/pubkey.pem)
 
 if ! test -f ${PYCHAT_CONFIG}; then
 	envsubst < ./config-example.json > ${PYCHAT_CONFIG}
+fi
+if ! test -f ${PYCHAT_DATA_DIR}/bootstrap.json; then
+	cp ./bootstrap.json ${PYCHAT_DATA_DIR}/bootstrap.json
 fi
