@@ -2,16 +2,18 @@
 import os
 import json
 import time
+import datetime as dt
 
 from sty import fg
 from lib.json_file import JsonFile
 from lib.server import Server
+from lib.scheduler import Scheduler
 
 class PyChat(JsonFile):
 	_config_file: str
 	_config: dict
-	_running: bool
 	_server: Server
+	_scheduler: Scheduler
 
 	def __init__(self, config_file: str = None):
 		print('-> PyChat.__init__()')
@@ -20,8 +22,10 @@ class PyChat(JsonFile):
 
 		# Init
 		self._load_config()
-		self._running = True
 		self._server = Server(self._config)
+
+		self._scheduler = Scheduler()
+		self._scheduler.add_task(self._server.run, dt.timedelta(milliseconds=100))
 
 	def __del__(self):
 		print('-> PyChat.__del__()')
@@ -32,13 +36,9 @@ class PyChat(JsonFile):
 		self._config = self._read_json_file(self._config_file)
 
 	def run(self):
-		while self._running:
-			#print('-> PyChat.run()')
-			self._server.run()
-
-			#print('-> sleep')
-			time.sleep(1)
+		print('-> PyChat.run()')
+		self._scheduler.run()
 
 	def shutdown(self):
 		print('-> PyChat.shutdown()')
-		self._running = False
+		self._scheduler.shutdown()

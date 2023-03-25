@@ -1,6 +1,59 @@
 
-class Scheduler():
-	_tasks = []
+import time
+import datetime as dt
+from lib.task import Task
 
-	def __init__(self, execf):
-		print('-> Scheduler.__init__({})', execf)
+class Scheduler():
+	_running: bool
+	_tasks: list
+	MAX_TIME = 0.2
+	SLEEP_TIME = 0.3
+	IDLE_MULTIPLIER = 1.5
+	MAX_SLEEP_TIME = 10
+
+	def __init__(self):
+		print('-> Scheduler.__init__()')
+		self._running = False
+		self._tasks = []
+
+	def add_task(self, execfunc, interval: dt.timedelta):
+		print('-> Scheduler.add_task({}, {})'.format(execfunc, interval))
+		task = Task(execfunc, interval)
+		self._tasks.append(task)
+
+	def run(self):
+		print('-> Scheduler.run()')
+		self._running = True
+		_sleep_time = self.SLEEP_TIME
+
+		while self._running:
+			_start = dt.datetime.now()
+
+			tasks_running = 0
+			for task in self._tasks:
+				was_running = task.run()
+				if was_running:
+					tasks_running += 1
+
+				_diff = dt.datetime.now() - _start
+				if _diff > dt.timedelta(seconds=self.MAX_TIME):
+					print('-> Scheduler.run() exceeded max time')
+					break
+
+			diff = dt.datetime.now() - _start
+			print('-> diff', diff)
+
+			if tasks_running == 0:
+				_sleep_time = _sleep_time * self.IDLE_MULTIPLIER
+				if _sleep_time > self.MAX_SLEEP_TIME:
+					_sleep_time = self.MAX_SLEEP_TIME
+				print('-> _sleep_time', _sleep_time)
+			else:
+				_sleep_time = self.SLEEP_TIME
+
+			print('-> Scheduler sleeping: {}'.format(_sleep_time))
+			time.sleep(_sleep_time)
+
+	def shutdown(self):
+		print('-> Scheduler.shutdown()')
+		self._running = False

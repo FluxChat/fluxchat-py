@@ -155,10 +155,12 @@ class Server():
 		]
 		self._client_write(sock, 1, 1, data)
 
-	def run(self):
-		# print('-> Server.run()')
+	def run(self) -> bool:
+		print('-> Server.run()')
 
-		events = self._selectors.select(timeout=0.1)
+		data_processed = False
+
+		events = self._selectors.select(timeout=0)
 		for key, mask in events:
 			#print('-> key', key, 'mask', mask)
 
@@ -170,3 +172,7 @@ class Server():
 
 				elif key.data['type'] == 'client':
 					self._client_read(key.fileobj, key.data['client'])
+
+			data_processed = True
+
+		return data_processed # will be returned to the Scheduler

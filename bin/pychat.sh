@@ -5,4 +5,4 @@ cd "${SCRIPT_BASEDIR}/.."
 
 source "./.venv/bin/activate"
 
-./src/pychat_app.py -c var/config.json
+./src/pychat_app.py -c var/node1.json
