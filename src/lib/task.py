@@ -8,13 +8,14 @@ class Task():
 	is_one_shot: bool
 
 	def __init__(self, execfunc, interval: dt.timedelta = None, one_shot: bool = False):
-		print('-> Task.__init__({}, {})'.format(execfunc, interval))
+		# print('-> Task.__init__({}, {})'.format(execfunc, interval))
 		self._execfunc = execfunc
 		self._interval = interval
 		self._last_run = None
 		self.is_one_shot = one_shot
 
 		if self._interval != None and one_shot:
+			# print('-> is one shot', self._interval)
 			self._last_run = dt.datetime.now()
 
 	def run(self) -> bool:

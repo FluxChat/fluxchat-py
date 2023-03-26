@@ -11,7 +11,7 @@ class JsonFile():
 		with open(path, 'r') as read_file:
 			return json.load(read_file)
 
-	def _write_json_file(self, path: str, data: dict):
+	def _write_json_file(self, path: str, data):
 		print('-> JsonFile._write_json_file({})'.format(path))
 		with open(path, 'w') as write_file:
 			json.dump(data, write_file, indent=4)

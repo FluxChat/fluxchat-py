@@ -26,7 +26,9 @@ class PyChat(JsonFile):
 
 		self._scheduler = Scheduler()
 		self._scheduler.add_task(self._server.run, dt.timedelta(milliseconds=100))
-		self._scheduler.add_task(self._server.handle_new_clients, dt.timedelta(milliseconds=100))
+		self._scheduler.add_task(self._server.contact_address_book, dt.timedelta(seconds=5), one_shot=True)
+		self._scheduler.add_task(self._server.handle_clients, dt.timedelta(milliseconds=100))
+		# self._scheduler.add_task(self._server.ping_clients, dt.timedelta(seconds=15))
 
 	def __del__(self):
 		print('-> PyChat.__del__()')

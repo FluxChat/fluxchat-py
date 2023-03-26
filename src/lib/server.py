@@ -14,9 +14,9 @@ class Server():
 	_socket: socket.socket
 	_address_book: AddressBook
 
+	_clients: list
 	_new_clients: list
-	_in_clients: list
-	_out_clients: list
+	_known_clients: list
 
 	def __init__(self, config: dict):
 		print('-> Server.__init__()')
@@ -30,7 +30,9 @@ class Server():
 		if os.path.isfile(bootstrap_path):
 			self._address_book.add_bootstrap(bootstrap_path)
 
+		self._clients = []
 		self._new_clients = []
+		self._known_clients = []
 
 		self._selectors = selectors.DefaultSelector()
 		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,102 +50,161 @@ class Server():
 		print('-> Server.__del__()')
 		self._selectors.close()
 
-	def _accept(self, sock: socket.socket):
+	def _client_is_connected(self, client: Client) -> bool:
+		print('-> Server._client_is_connected({})'.format(client))
+
+		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
+		clients = list(filter(ffunc, self._clients))
+		# print('-> clients: {}'.format(clients))
+		return len(clients) > 0
+
+	def _accept(self, server_sock: socket.socket):
 		print('-> Server._accept()')
 
-		conn, addr = sock.accept()
-		conn.setblocking(False)
+		client_sock, addr = server_sock.accept()
+		client_sock.setblocking(False)
 
-		print('-> conn: {}'.format(conn))
+		print('-> client_sock: {}'.format(client_sock))
 		print('-> addr: {}'.format(addr))
 		print('-> accepted: {} {}'.format(addr[0], addr[1]))
 
 		client = Client()
+		client.sock = client_sock
 		client.conn_mode = 1
-		client.refresh_seen_at()
+		client.dir_mode = 'i'
 
-		self._selectors.register(conn, selectors.EVENT_READ, data={
+		self._selectors.register(client_sock, selectors.EVENT_READ, data={
 			'type': 'client',
 			'client': client,
 		})
 
-		self._new_clients.append(client)
+		self._clients.append(client)
+
+	def _client_connect(self, client: Client):
+		print('-> Server._client_connect({})'.format(client))
+
+		client.conn_mode = 1
+		client.dir_mode = 'o'
+
+		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		try:
+			client.sock.connect((client.address, client.port))
+		except ConnectionRefusedError:
+			print('-> ConnectionRefusedError')
+			return
+
+		client.sock.setblocking(False)
+
+		self._selectors.register(client.sock, selectors.EVENT_READ, data={
+			'type': 'client',
+			'client': client,
+		})
+
+		self._clients.append(client)
 
 	def _client_read(self, sock: socket.socket, client: Client):
 		print('-> Server._client_read({})'.format(client))
 
-		raw = sock.recv(1024)
+		raw = sock.recv(2048)
 		if raw:
-			print('-> raw', raw)
-			data = raw.decode('utf-8').strip()
+			raw_len = len(raw)
+			print('-> recv raw {} {}'.format(raw_len, raw))
 
-			if client.data_mode == 't':
-				if data[0:2] == 'ID':
-					cid_addr, cid_port, cid_id = items = data.split(':')[1:]
-					print('-> items', items)
+			print('-> processing binary data')
 
-					_client = self._address_book.get_client(items[2])
-					if _client == None:
-						print('-> client not found')
-						_client = self._address_book.add_client(items)
-						sock.send("OK A\r\n".encode('utf-8'))
-					else:
-						print('-> client found')
-						sock.send("OK B\r\n".encode('utf-8'))
-
-					_client.conn_mode = 2
-
-					print(f'{_client}')
-
-					self._selectors.unregister(sock)
-					self._selectors.register(sock, selectors.EVENT_READ, data={
-						'type': 'client',
-						'client': _client,
-					})
-
-				elif data[0:6] == 'BINARY':
-					print('-> BINARY MODE')
-					sock.send("OK\r\n".encode('utf-8'))
-					client.data_mode = 'b'
-
-				elif data[0:4] == 'EXIT':
-					print('-> EXIT')
-					sock.send("OK\r\n".encode('utf-8'))
-					sock.close()
-					self._selectors.unregister(sock)
-
-			elif client.data_mode == 'b':
-				print('-> processing binary data')
-				group = raw[0]
-				command = raw[1]
-				length = struct.unpack('<I', raw[2:6])[0]
-				payload = raw[6:]
+			raw_pos = 0
+			commands = []
+			while raw_pos < raw_len:
+				group = raw[raw_pos]
+				command = raw[raw_pos + 1]
+				length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
+				payload = raw[raw_pos + 6:]
 				payload_l = []
+
+				print('-> group', group)
+				print('-> command', command)
+				print('-> length', length, type(length))
 
 				pos = 0
 				while pos < length:
 					item_l = payload[pos]
+					print('-> item_l', item_l, type(item_l))
 					pos += 1
 					item = payload[pos:pos + item_l]
+					print('-> item', item)
 					payload_l.append(item)
+					pos += item_l
 
-				print('-> group', group)
-				print('-> command', command)
-				print('-> length', length)
-				print('-> payload', payload)
+				commands.append([group, command, payload_l])
+				raw_pos += 7 + length
+				print('-> raw_pos', raw_pos)
+
+			for command_raw in commands:
+				group_i, command_i, payload_l = command_raw
+
+				print('-> group', group_i, 'command', command_i)
 				print('-> payload_l', payload_l)
 
-				if group == 1:
-					if command == 1:
+				if group_i == 0:
+					if command_i == 0:
+						print('-> OK command')
+				elif group_i == 1:
+					if command_i == 1:
 						print('-> ID command')
-						pass
+
+						c_contact, c_id = payload_l
+						c_id = c_id.decode('utf-8')
+						c_contact_addr, c_contact_port = c_contact.decode('utf-8').split(':')
+						c_contact_port = int(c_contact_port)
+
+						_client = self._address_book.get_client(c_id)
+						if _client == None:
+							print('-> client not found A')
+							_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+							if _client == None:
+								print('-> client not found B')
+								_client = self._address_book.add_client([c_contact_addr, c_contact_port, c_id])
+							else:
+								print('-> client found B: {}'.format(_client))
+						else:
+							print('-> client found A: {}'.format(_client))
+
+						_client.address = c_contact_addr
+						_client.port = c_contact_port
+						_client.id = c_id
+						_client.sock = sock
+						_client.conn_mode = client.conn_mode
+						_client.dir_mode = client.dir_mode
+						_client.auth = client.auth | 2
+						_client.refresh_seen_at()
+
+						self._address_book.changed()
+
+						self._clients.remove(client)
+						self._clients.append(_client)
+
+						self._selectors.unregister(sock)
+						self._selectors.register(sock, selectors.EVENT_READ, data={
+							'type': 'client',
+							'client': _client,
+						})
+
+						self._client_send_ok(sock)
+
+						print(f'{_client}')
+					elif command_i == 2:
+						print('-> PING command')
+						self._client_send_pong(sock)
+					elif command_i == 3:
+						print('-> PONG command')
 
 		else:
 			print('-> no data')
 			self._selectors.unregister(sock)
 			sock.close()
+			client.conn_mode = 0
 
-	def _client_write(self, sock: socket.socket, group: int, command: int, data: list):
+	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
 		print('-> Server._client_write()')
 		payload_l = []
 		for item in data:
@@ -151,32 +212,50 @@ class Server():
 			payload_l.append(item)
 		payload = ''.join(payload_l)
 
-		raw = (chr(group) + chr(command)).encode('utf-8') + len(payload).to_bytes(4, byteorder='little') + payload.encode('utf-8')
+		print('-> payload {} "{}"'.format(len(payload), payload))
 
-		print('-> send raw', raw)
-		sock.send(raw)
+		cmd_grp = (chr(group) + chr(command)).encode('utf-8')
+		len_payload = len(payload).to_bytes(4, byteorder='little')
+
+		print('-> cmd_grp', cmd_grp)
+		print('-> len_payload', len_payload)
+
+		raw = cmd_grp + len_payload + (payload + chr(0)).encode('utf-8')
+
+		print('-> send raw {} {}'.format(len(raw), raw))
+		res = sock.sendall(raw)
+		print('-> sent', res)
+
+	def _client_send_ok(self, sock: socket.socket):
+		print('-> Server._client_send_ok()')
+		self._client_write(sock, 0, 0)
 
 	def _client_send_id(self, sock: socket.socket):
 		print('-> Server._client_send_id()')
 		data = [
-			self._config['address'],
-			str(self._config['port']),
+			self._config['contact'],
 			self._config['id'],
 		]
 		self._client_write(sock, 1, 1, data)
 
+	def _client_send_ping(self, sock: socket.socket):
+		print('-> Server._client_send_ping()')
+		self._client_write(sock, 1, 2)
+
+	def _client_send_pong(self, sock: socket.socket):
+		print('-> Server._client_send_pong()')
+		self._client_write(sock, 1, 3)
+
 	def run(self) -> bool:
-		print('-> Server.run()')
+		# print('-> Server.run()')
 
 		data_processed = False
 
 		events = self._selectors.select(timeout=0)
 		for key, mask in events:
-			#print('-> key', key, 'mask', mask)
+			print('-> key', key, 'mask', mask)
 
 			if key.data != None:
-				print('-> data', key.data)
-
 				if key.data['type'] == 'server':
 					self._accept(key.fileobj)
 
@@ -187,24 +266,43 @@ class Server():
 
 		return data_processed # will be returned to the Scheduler
 
-	def contact_address_book(self):
+	def contact_address_book(self) -> bool:
 		print('-> Server.contact_address_book()')
 
 		for client_uuid, client in self._address_book.get_clients().items():
-			pass
-		# TODO
+			print('-> contact client', client)
+			if not self._client_is_connected(client):
+				print('-> client is not connected')
+				self._client_connect(client)
 
-	def handle_new_clients(self):
-		print('-> Server.handle_new_clients() -> {}'.format(len(self._new_clients)))
+		return True
 
-		for client in self._new_clients:
-			self._client_send_id(client.conn)
+	def handle_clients(self) -> bool:
+		# print('-> Server.handle_clients()')
 
-		self._new_clients = []
+		for client in self._clients:
+			# print('handle', client)
 
-	def handle_out_clients(self):
-		print('-> Server.handle_out_clients()')
+			if client.conn_mode == 0:
+				print('-> remove client')
+				self._clients.remove(client)
 
-		for client in self._out_clients:
-			pass
-		# TODO
+			if client.conn_mode == 1 and client.auth & 1 == 0:
+				print('-> send ID')
+				self._client_send_id(client.sock)
+				client.auth |= 1
+
+			if client.auth == 3:
+				client.conn_mode = 2
+
+		return True
+
+	def ping_clients(self) -> bool:
+		print('-> Server.ping_clients() -> {}'.format(len(self._clients)))
+
+		for client in self._clients:
+			if client.conn_mode == 2:
+				print('-> send PING')
+				self._client_send_ping(client.sock)
+
+		return True

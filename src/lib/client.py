@@ -1,5 +1,5 @@
 
-#import socket
+import socket
 import uuid
 import datetime as dt
 
@@ -9,22 +9,24 @@ class Client():
 	port: int
 	id: str
 	seen_at: dt.datetime
-	is_bootstrap: bool
-
-	# Data Mode
-	# t = TEXT
-	# b = BINARY
-	data_mode: str
+	sock: socket.socket
 
 	# Connection Mode
 	# 0 = DISCONNECTED
 	# 1 = CONNECTED
-	# 2 = AUTHENTICATED (has sent ID command)
+	# 2 = AUTHENTICATED (has sent ID command and received ID command)
 	conn_mode: int
 
 	# Directory Mode
 	# None, in, out
 	dir_mode: str
+
+	# Authenticated (Binary)
+	# 0, 0 = Not Authenticated
+	# 0, 1 = self send ID command
+	# 1, 0 = self received ID command
+	# 1, 1 = Authenticated both
+	auth: int
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -33,20 +35,18 @@ class Client():
 		self.port = None
 		self.id = None
 		self.seen_at = None
-		self.data_mode = 'b' # Default binary mode
 		self.conn_mode = 0
 		self.dir_mode = None
+		self.auth = 0
 
 	def __del__(self):
 		print('-> Client.__del__({})'.format(self.uuid))
 
 	def __str__(self):
-		return 'Client({},{},{},{})'.format(self.uuid, self.address, self.port, self.id)
+		return 'Client({},addr={},p={},ID={},c={},d={},a={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth)
 
 	def as_dict(self) -> dict:
-		d = {
-			#'uuid': self.uuid,
-		}
+		d = dict()
 		if self.address != None:
 			d['address'] = self.address
 		if self.port != None:
@@ -54,14 +54,13 @@ class Client():
 		if self.id != None:
 			d['id'] = self.id
 		if self.seen_at != None:
-			d['seen_at'] = self.seen_at
+			d['seen_at'] = self.seen_at.strftime('%Y-%m-%d %H:%M:%S')
 
 		return d
 
 	def from_dict(self, data: dict):
-		# print('-> Client.from_dict()')
-		# if 'uuid' in data:
-		# 	self.uuid = data['uuid']
+		print('-> Client.from_dict({})'.format(self.uuid))
+
 		if 'address' in data:
 			self.address = data['address']
 		if 'port' in data:
@@ -69,7 +68,7 @@ class Client():
 		if 'id' in data:
 			self.id = data['id']
 		if 'seen_at' in data:
-			self.seen_at = data['seen_at']
+			self.seen_at = dt.datetime.strptime(data['seen_at'], '%Y-%m-%d %H:%M:%S')
 
 	def from_list(self, data: list):
 		print('-> Client.from_list({})'.format(data))
@@ -80,4 +79,4 @@ class Client():
 			self.id = data[2]
 
 	def refresh_seen_at(self):
-		self.seen_at = dt.datetime.now()
+		self.seen_at = dt.datetime.utcnow()

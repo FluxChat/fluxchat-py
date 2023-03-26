@@ -12,17 +12,17 @@ class Scheduler():
 	MAX_SLEEP_TIME = 10
 
 	def __init__(self):
-		print('-> Scheduler.__init__()')
+		# print('-> Scheduler.__init__()')
 		self._running = False
 		self._tasks = []
 
 	def add_task(self, execfunc, interval: dt.timedelta = None, one_shot: bool = False):
-		print('-> Scheduler.add_task({}, {})'.format(execfunc, interval))
+		# print('-> Scheduler.add_task({}, {})'.format(execfunc, interval))
 		task = Task(execfunc, interval, one_shot)
 		self._tasks.append(task)
 
 	def run(self):
-		print('-> Scheduler.run()')
+		# print('-> Scheduler.run()')
 		self._running = True
 		_sleep_time = self.SLEEP_TIME
 
@@ -35,15 +35,13 @@ class Scheduler():
 				if was_running:
 					tasks_running += 1
 					if task.is_one_shot:
+						# print('-> removing one shot task')
 						self._tasks.remove(task)
 
 				_diff = dt.datetime.now() - _start
 				if _diff > dt.timedelta(seconds=self.MAX_TIME):
-					print('-> Scheduler.run() exceeded max time')
+					# print('-> Scheduler.run() exceeded max time')
 					break
-
-			diff = dt.datetime.now() - _start
-			# print('-> diff', diff)
 
 			if tasks_running == 0:
 				_sleep_time = _sleep_time * self.IDLE_MULTIPLIER
@@ -57,5 +55,5 @@ class Scheduler():
 			time.sleep(_sleep_time)
 
 	def shutdown(self):
-		print('-> Scheduler.shutdown()')
+		# print('-> Scheduler.shutdown()')
 		self._running = False
