@@ -306,3 +306,11 @@ class Server():
 				self._client_send_ping(client.sock)
 
 		return True
+
+	def debug_clients(self) -> bool:
+		print('-> Server.debug_clients() -> {}'.format(len(self._clients)))
+
+		for client in self._clients:
+			print('->', client)
+
+		return True
