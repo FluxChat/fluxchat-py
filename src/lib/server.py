@@ -105,7 +105,12 @@ class Server():
 	def _client_read(self, sock: socket.socket, client: Client):
 		print('-> Server._client_read({})'.format(client))
 
-		raw = sock.recv(2048)
+		try:
+			raw = sock.recv(2048)
+		except TimeoutError as e:
+			print('-> TimeoutError', e)
+			return
+
 		if raw:
 			raw_len = len(raw)
 			print('-> recv raw {} {}'.format(raw_len, raw))
@@ -304,6 +309,13 @@ class Server():
 			if client.conn_mode == 2:
 				print('-> send PING')
 				self._client_send_ping(client.sock)
+
+		return True
+
+	def save(self) -> bool:
+		print('-> Server.save()')
+
+		self._address_book.save()
 
 		return True
 

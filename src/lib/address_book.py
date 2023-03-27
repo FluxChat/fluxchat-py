@@ -27,13 +27,19 @@ class AddressBook(JsonFile):
 
 	def __del__(self):
 		print('-> AddressBook.__del__()')
+		self.save()
 
-		if self._changes:
-			_data = dict()
-			for client_uuid, client in self._clients_by_uuid.items():
-				_data[client_uuid] = client.as_dict()
+	def save(self) -> bool:
+		if not self._changes:
+			return False
 
-			self._write_json_file(self._path, _data)
+		_data = dict()
+		for client_uuid, client in self._clients_by_uuid.items():
+			_data[client_uuid] = client.as_dict()
+
+		self._write_json_file(self._path, _data)
+
+		return True
 
 	def get_clients(self) -> dict:
 		# print('-> AddressBook.get_clients()')
