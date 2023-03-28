@@ -3,12 +3,19 @@ import socket
 import uuid
 import datetime as dt
 
+import lib.overlay as overlay
+
 class Client():
 	uuid: str # Internal ID
 	address: str
 	port: int
 	id: str
 	seen_at: dt.datetime
+	meetings: int
+	is_bootstrap: bool
+
+	# Unmapped
+	node: overlay.Node
 	sock: socket.socket
 
 	# Connection Mode
@@ -28,6 +35,8 @@ class Client():
 	# 1, 1 = Authenticated both
 	auth: int
 
+	# is_new: bool
+
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
 		print('-> Client.__init__({})'.format(self.uuid))
@@ -35,15 +44,24 @@ class Client():
 		self.port = None
 		self.id = None
 		self.seen_at = None
+		self.meetings = 0
+		self.is_bootstrap = False
+
+		# Unmapped
+		self.sock = None
 		self.conn_mode = 0
 		self.dir_mode = None
 		self.auth = 0
+		# self.is_new = False
 
 	def __del__(self):
 		print('-> Client.__del__({})'.format(self.uuid))
 
 	def __str__(self):
 		return 'Client({},addr={},p={},ID={},c={},d={},a={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth)
+
+	def __repr__(self):
+		return 'Client({})'.format(self.uuid)
 
 	def as_dict(self) -> dict:
 		d = dict()
@@ -55,6 +73,10 @@ class Client():
 			d['id'] = self.id
 		if self.seen_at != None:
 			d['seen_at'] = self.seen_at.strftime('%Y-%m-%d %H:%M:%S')
+		if self.meetings != None:
+			d['meetings'] = self.meetings
+		if self.is_bootstrap:
+			d['is_bootstrap'] = self.is_bootstrap
 
 		return d
 
@@ -66,17 +88,30 @@ class Client():
 		if 'port' in data:
 			self.port = int(data['port'])
 		if 'id' in data:
-			self.id = data['id']
+			self.set_id(data['id'])
 		if 'seen_at' in data:
 			self.seen_at = dt.datetime.strptime(data['seen_at'], '%Y-%m-%d %H:%M:%S')
+		if 'meetings' in data:
+			self.meetings = int(data['meetings'])
+		if 'is_bootstrap' in data:
+			self.is_bootstrap = data['is_bootstrap']
 
 	def from_list(self, data: list):
 		print('-> Client.from_list({})'.format(data))
 		l = len(data)
-		self.address = data[0]
-		self.port = int(data[1])
+
+		self.id = data[0]
+
 		if l >= 3:
-			self.id = data[2]
+			self.address = data[1]
+			self.port = int(data[2])
 
 	def refresh_seen_at(self):
 		self.seen_at = dt.datetime.utcnow()
+
+	def inc_meetings(self):
+		self.meetings += 1
+
+	def set_id(self, id: str):
+		self.id = id
+		self.node = overlay.Node.parse(id)

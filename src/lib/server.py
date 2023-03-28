@@ -7,6 +7,7 @@ import struct
 from sty import fg
 from lib.client import Client
 from lib.address_book import AddressBook
+import lib.overlay as overlay
 
 class Server():
 	_config: dict
@@ -15,8 +16,7 @@ class Server():
 	_address_book: AddressBook
 
 	_clients: list
-	_new_clients: list
-	_known_clients: list
+	_local_node: overlay.Node
 
 	def __init__(self, config: dict):
 		print('-> Server.__init__()')
@@ -24,15 +24,14 @@ class Server():
 		self._config = config
 
 		address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
-		self._address_book = AddressBook(address_book_path)
+		self._address_book = AddressBook(address_book_path, self._config['address_book'])
 
 		bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
 		if os.path.isfile(bootstrap_path):
 			self._address_book.add_bootstrap(bootstrap_path)
 
 		self._clients = []
-		self._new_clients = []
-		self._known_clients = []
+		self._local_node = overlay.Node(self._config['id'])
 
 		self._selectors = selectors.DefaultSelector()
 		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -55,7 +54,8 @@ class Server():
 
 		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
 		clients = list(filter(ffunc, self._clients))
-		# print('-> clients: {}'.format(clients))
+		print('-> clients: {}'.format(clients))
+
 		return len(clients) > 0
 
 	def _accept(self, server_sock: socket.socket):
@@ -83,16 +83,30 @@ class Server():
 	def _client_connect(self, client: Client):
 		print('-> Server._client_connect({})'.format(client))
 
+		if client.address == None or client.port == None:
+			print('-> client address or port is None')
+			return
+
 		client.conn_mode = 1
 		client.dir_mode = 'o'
 
 		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		client.sock.settimeout(2)
 		try:
+			print('-> client.sock.connect')
 			client.sock.connect((client.address, client.port))
-		except ConnectionRefusedError:
-			print('-> ConnectionRefusedError')
+			print('-> client.sock.connect done')
+		except ConnectionRefusedError as e:
+			print('-> ConnectionRefusedError', e)
+			return
+		except TimeoutError as e:
+			print('-> TimeoutError', e)
+			return
+		except socket.timeout as e:
+			print('-> socket.timeout', e)
 			return
 
+		client.sock.settimeout(None)
 		client.sock.setblocking(False)
 
 		self._selectors.register(client.sock, selectors.EVENT_READ, data={
@@ -123,32 +137,37 @@ class Server():
 				group = raw[raw_pos]
 				command = raw[raw_pos + 1]
 				length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
-				payload = raw[raw_pos + 6:]
-				payload_l = []
+				payload_raw = raw[raw_pos + 6:]
+				payload_items = []
 
 				print('-> group', group)
 				print('-> command', command)
 				print('-> length', length, type(length))
 
+				if length >= 2048:
+					print('-> length too big', length)
+					return
+
 				pos = 0
 				while pos < length:
-					item_l = payload[pos]
+					item_l = payload_raw[pos]
 					print('-> item_l', item_l, type(item_l))
 					pos += 1
-					item = payload[pos:pos + item_l]
+					item = payload_raw[pos:pos + item_l]
 					print('-> item', item)
-					payload_l.append(item)
+					payload_items.append(item)
 					pos += item_l
 
-				commands.append([group, command, payload_l])
+				commands.append([group, command, payload_items])
 				raw_pos += 7 + length
 				print('-> raw_pos', raw_pos)
 
 			for command_raw in commands:
-				group_i, command_i, payload_l = command_raw
+				group_i, command_i, payload = command_raw
+				payload_len = len(payload)
 
 				print('-> group', group_i, 'command', command_i)
-				print('-> payload_l', payload_l)
+				print('-> payload', payload)
 
 				if group_i == 0:
 					if command_i == 0:
@@ -157,31 +176,54 @@ class Server():
 					if command_i == 1:
 						print('-> ID command')
 
-						c_contact, c_id = payload_l
+						c_id = payload[0]
 						c_id = c_id.decode('utf-8')
-						c_contact_addr, c_contact_port = c_contact.decode('utf-8').split(':')
-						c_contact_port = int(c_contact_port)
+						print('-> c_id', c_id)
 
-						_client = self._address_book.get_client(c_id)
-						if _client == None:
-							print('-> client not found A')
-							_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+						c_has_contact_info = False
+						if payload_len >= 2:
+							c_contact = payload[1]
+							c_contact_addr, c_contact_port = c_contact.decode('utf-8').split(':')
+							c_contact_port = int(c_contact_port)
+							c_has_contact_info = True
+
+						if c_has_contact_info:
+							_client = self._address_book.get_client(c_id)
 							if _client == None:
-								print('-> client not found B')
-								_client = self._address_book.add_client([c_contact_addr, c_contact_port, c_id])
-							else:
-								print('-> client found B: {}'.format(_client))
-						else:
-							print('-> client found A: {}'.format(_client))
+								print('-> client not found A')
 
-						_client.address = c_contact_addr
-						_client.port = c_contact_port
-						_client.id = c_id
+								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+								if _client == None:
+									print('-> client not found B')
+
+									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
+								else:
+									print('-> client found B: {}'.format(_client))
+							else:
+								print('-> client found A: {}'.format(_client))
+
+							_client.address = c_contact_addr
+							_client.port = c_contact_port
+						else:
+							_client = self._address_book.get_client(c_id)
+							if _client == None:
+								print('-> client not found C')
+
+								_client = self._address_book.add_client(c_id)
+							else:
+								print('-> client found C: {}'.format(_client))
+
+						if _client.id == None:
+							_client.id = c_id
+
+						_client.refresh_seen_at()
+						_client.inc_meetings()
+
+						# Unmapped
 						_client.sock = sock
 						_client.conn_mode = client.conn_mode
 						_client.dir_mode = client.dir_mode
 						_client.auth = client.auth | 2
-						_client.refresh_seen_at()
 
 						self._address_book.changed()
 
@@ -202,6 +244,8 @@ class Server():
 						self._client_send_pong(sock)
 					elif command_i == 3:
 						print('-> PONG command')
+				else:
+					print('-> unknown group', group_i, 'command', command_i)
 
 		else:
 			print('-> no data')
@@ -238,9 +282,12 @@ class Server():
 	def _client_send_id(self, sock: socket.socket):
 		print('-> Server._client_send_id()')
 		data = [
-			self._config['contact'],
 			self._config['id'],
 		]
+		if 'contact' in self._config and self._config['contact'] != '':
+			data.append(self._config['contact'])
+
+		print('-> data', data)
 		self._client_write(sock, 1, 1, data)
 
 	def _client_send_ping(self, sock: socket.socket):
@@ -274,12 +321,30 @@ class Server():
 	def contact_address_book(self) -> bool:
 		print('-> Server.contact_address_book()')
 
-		for client_uuid, client in self._address_book.get_clients().items():
-			print('-> contact client', client)
-			if not self._client_is_connected(client):
-				print('-> client is not connected')
-				self._client_connect(client)
+		_clients = list(self._address_book.get_clients().values())
+		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
+		print('-> clients', len(_clients))
+
+		zero_meetings_clients = []
+		for client in _clients:
+			print('-> contact', client)
+
+			if client.meeting > 0:
+				print('-> client is meeting')
+				if not self._client_is_connected(client):
+					print('-> client is not connected')
+					self._client_connect(client)
+			else:
+				print('-> client is not meeting')
+				zero_meetings_clients.append(client)
+
+		# sort zero meeting clients by distance
+		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node), reverse=False)
+		return True
+
+	def clean_up_address_book(self) -> bool:
+		self._address_book.clean_up()
 		return True
 
 	def handle_clients(self) -> bool:

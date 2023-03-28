@@ -8,7 +8,7 @@ which openssl &> /dev/null || { echo 'ERROR: openssl not found in PATH'; exit 1;
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
 #which curl &> /dev/null || { echo 'ERROR: curl not found in PATH'; exit 1; }
 
-export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/node1.json}
+export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/config1.json}
 export PYCHAT_ADDRESS=${PYCHAT_ADDRESS:-0.0.0.0}
 export PYCHAT_PORT=${PYCHAT_PORT:-25001}
 export PYCHAT_DATA_DIR=${PYCHAT_DATA_DIR:-var/data1}
