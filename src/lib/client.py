@@ -35,8 +35,6 @@ class Client():
 	# 1, 1 = Authenticated both
 	auth: int
 
-	# is_new: bool
-
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
 		print('-> Client.__init__({})'.format(self.uuid))
@@ -53,7 +51,6 @@ class Client():
 		self.conn_mode = 0
 		self.dir_mode = None
 		self.auth = 0
-		# self.is_new = False
 
 	def __del__(self):
 		print('-> Client.__del__({})'.format(self.uuid))

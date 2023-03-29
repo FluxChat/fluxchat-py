@@ -219,7 +219,6 @@ class Server():
 						_client.refresh_seen_at()
 						_client.inc_meetings()
 
-						# Unmapped
 						_client.sock = sock
 						_client.conn_mode = client.conn_mode
 						_client.dir_mode = client.dir_mode

@@ -30,7 +30,6 @@ class AddressBook(JsonFile):
 		_data = self._read_json_file(self._path, {})
 		for client_uuid, row in _data.items():
 			client = Client()
-			# client.is_new = False
 			client.uuid = client_uuid
 			client.from_dict(row)
 
@@ -49,7 +48,6 @@ class AddressBook(JsonFile):
 		_data = dict()
 		for client_uuid, client in self._clients_by_uuid.items():
 			_data[client_uuid] = client.as_dict()
-			# client.is_new = False
 
 		self._write_json_file(self._path, _data)
 
@@ -87,7 +85,6 @@ class AddressBook(JsonFile):
 		print('-> AddressBook.add_client({}, {}, {})'.format(id, addr, port))
 
 		client = Client()
-		# client.is_new = True
 		client.set_id(id)
 		if addr != None:
 			client.address = addr
@@ -117,7 +114,6 @@ class AddressBook(JsonFile):
 			items = row.split(':')
 
 			client = Client()
-			#client.is_new = True
 			client.address = items[0]
 			client.port = int(items[1])
 			client.is_bootstrap = True
