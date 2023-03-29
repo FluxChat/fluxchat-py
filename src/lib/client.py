@@ -13,6 +13,7 @@ class Client():
 	seen_at: dt.datetime
 	meetings: int
 	is_bootstrap: bool
+	debug_add: str
 
 	# Unmapped
 	node: overlay.Node
@@ -44,6 +45,7 @@ class Client():
 		self.seen_at = None
 		self.meetings = 0
 		self.is_bootstrap = False
+		self.debug_add = 'Init'
 
 		# Unmapped
 		self.node = None
@@ -75,6 +77,8 @@ class Client():
 			d['meetings'] = self.meetings
 		if self.is_bootstrap:
 			d['is_bootstrap'] = self.is_bootstrap
+		if self.debug_add != None:
+			d['debug_add'] = self.debug_add
 
 		return d
 
@@ -93,6 +97,8 @@ class Client():
 			self.meetings = int(data['meetings'])
 		if 'is_bootstrap' in data:
 			self.is_bootstrap = data['is_bootstrap']
+		if 'debug_add' in data:
+			self.debug_add = data['debug_add']
 
 	def from_list(self, data: list):
 		print('-> Client.from_list({})'.format(data))

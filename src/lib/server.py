@@ -72,6 +72,7 @@ class Server():
 		client.sock = client_sock
 		client.conn_mode = 1
 		client.dir_mode = 'i'
+		client.debug_add = 'accept'
 
 		self._selectors.register(client_sock, selectors.EVENT_READ, data={
 			'type': 'client',
@@ -176,45 +177,72 @@ class Server():
 					if command_i == 1:
 						print('-> ID command')
 
+						c_is_new = False
+
 						c_id = payload[0]
 						c_id = c_id.decode('utf-8')
 						print('-> c_id', c_id)
 
 						c_has_contact_info = False
 						if payload_len >= 2:
+							# Client sent contact info
 							c_contact = payload[1]
 							c_contact_addr, c_contact_port = c_contact.decode('utf-8').split(':')
 							c_contact_port = int(c_contact_port)
 							c_has_contact_info = True
 
-						if c_has_contact_info:
-							_client = self._address_book.get_client(c_id)
-							if _client == None:
-								print('-> client not found A')
+						if client.dir_mode == 'i':
+							# Client is incoming
+							print('-> client is incoming')
 
-								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+							if c_has_contact_info:
+								# Client sent contact info
+								_client = self._address_book.get_client(c_id)
 								if _client == None:
-									print('-> client not found B')
+									print('-> client not found A')
 
-									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
+									_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+									if _client == None:
+										print('-> client not found B')
+
+										c_is_new = True
+										_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
+										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port'
+									else:
+										print('-> client found B: {}'.format(_client))
 								else:
-									print('-> client found B: {}'.format(_client))
-							else:
-								print('-> client found A: {}'.format(_client))
+									print('-> client found A: {}'.format(_client))
 
-							_client.address = c_contact_addr
-							_client.port = c_contact_port
-						else:
-							_client = self._address_book.get_client(c_id)
-							if _client == None:
-								print('-> client not found C')
-
-								_client = self._address_book.add_client(c_id)
+								_client.address = c_contact_addr
+								_client.port = c_contact_port
 							else:
-								print('-> client found C: {}'.format(_client))
+								# Client sent no contact info
+								_client = self._address_book.get_client(c_id)
+								if _client == None:
+									print('-> client not found C')
+
+									c_is_new = True
+									_client = self._address_book.add_client(c_id)
+									_client.debug_add = 'id command, incoming, no contact infos, not found by id'
+								else:
+									print('-> client found C: {}'.format(_client))
+
+						elif client.dir_mode == 'o':
+							# Client is outgoing
+							print('-> client is outgoing')
+							_client = client
+
+							if c_has_contact_info:
+								print('-> client has contact infos')
+								_client.address = c_contact_addr
+								_client.port = c_contact_port
+							else:
+								print('-> client has NO contact infos')
 
 						if _client.id == None:
 							_client.id = c_id
+
+						print(f'Client A: {_client}')
 
 						_client.refresh_seen_at()
 						_client.inc_meetings()
@@ -224,20 +252,22 @@ class Server():
 						_client.dir_mode = client.dir_mode
 						_client.auth = client.auth | 2
 
+						# Update Address Book because also an existing client can be updated
 						self._address_book.changed()
 
-						self._clients.remove(client)
-						self._clients.append(_client)
+						if c_is_new:
+							self._clients.remove(client)
+							self._clients.append(_client)
 
-						self._selectors.unregister(sock)
-						self._selectors.register(sock, selectors.EVENT_READ, data={
-							'type': 'client',
-							'client': _client,
-						})
+							self._selectors.unregister(sock)
+							self._selectors.register(sock, selectors.EVENT_READ, data={
+								'type': 'client',
+								'client': _client,
+							})
 
 						self._client_send_ok(sock)
 
-						print(f'{_client}')
+						print(f'Client Z: {_client}')
 					elif command_i == 2:
 						print('-> PING command')
 						self._client_send_pong(sock)

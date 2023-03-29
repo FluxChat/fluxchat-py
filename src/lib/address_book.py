@@ -117,6 +117,7 @@ class AddressBook(JsonFile):
 			client.address = items[0]
 			client.port = int(items[1])
 			client.is_bootstrap = True
+			client.debug_add = 'bootstrap'
 
 			self._clients_by_uuid[client.uuid] = client
 			if client.id != None:
