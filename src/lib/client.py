@@ -48,6 +48,7 @@ class Client():
 		self.is_bootstrap = False
 
 		# Unmapped
+		self.node = None
 		self.sock = None
 		self.conn_mode = 0
 		self.dir_mode = None
@@ -115,3 +116,13 @@ class Client():
 	def set_id(self, id: str):
 		self.id = id
 		self.node = overlay.Node.parse(id)
+
+	def distance(self, node: overlay.Node) -> int:
+		print('-> Client.distance()')
+		print('-> self: {}'.format(self))
+		print('-> node: {}'.format(node))
+
+		if self.node == None:
+			return 160
+
+		return self.node.distance(node)

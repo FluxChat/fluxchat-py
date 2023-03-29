@@ -330,7 +330,7 @@ class Server():
 		for client in _clients:
 			print('-> contact', client)
 
-			if client.meeting > 0:
+			if client.meetings > 0:
 				print('-> client is meeting')
 				if not self._client_is_connected(client):
 					print('-> client is not connected')
@@ -341,6 +341,14 @@ class Server():
 
 		# sort zero meeting clients by distance
 		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node), reverse=False)
+		print(zero_meetings_clients)
+		for client in zero_meetings_clients:
+			print('-> contact', client)
+
+			if not self._client_is_connected(client):
+				print('-> client is not connected')
+				self._client_connect(client)
+
 		return True
 
 	def clean_up_address_book(self) -> bool:
