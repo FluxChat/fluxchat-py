@@ -34,7 +34,10 @@ mkdir -p ${PYCHAT_DATA_DIR}
 rsa_priv_key_file=${PYCHAT_DATA_DIR}/privkey.pem
 rsa_pub_key_file=${PYCHAT_DATA_DIR}/pubkey.pem
 if ! test -f ${rsa_priv_key_file} ; then
+	echo '-> generating rsa key'
 	openssl genrsa -out ${rsa_priv_key_file} 4096
+
+	echo '-> generating rsa pubkey'
 	openssl rsa -in ${rsa_priv_key_file} -outform PEM -pubout -out ${rsa_pub_key_file}
 fi
 
