@@ -177,7 +177,7 @@ class Server():
 					if command_i == 1:
 						print('-> ID command')
 
-						c_is_new = False
+						c_switch = False
 
 						c_id = payload[0]
 						c_id = c_id.decode('utf-8')
@@ -205,7 +205,7 @@ class Server():
 									if _client == None:
 										print('-> client not found B')
 
-										c_is_new = True
+										c_switch = True
 										_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
 										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port'
 									else:
@@ -221,7 +221,7 @@ class Server():
 								if _client == None:
 									print('-> client not found C')
 
-									c_is_new = True
+									c_switch = True
 									_client = self._address_book.add_client(c_id)
 									_client.debug_add = 'id command, incoming, no contact infos, not found by id'
 								else:
@@ -230,7 +230,12 @@ class Server():
 						elif client.dir_mode == 'o':
 							# Client is outgoing
 							print('-> client is outgoing')
-							_client = client
+
+							_existing_client = self._address_book.get_client(c_id)
+							if _existing_client == None:
+								print('-> client not found D')
+							else:
+								print('-> client found D: {}'.format(_client))
 
 							if c_has_contact_info:
 								print('-> client has contact infos')
@@ -248,24 +253,24 @@ class Server():
 						_client.inc_meetings()
 
 						_client.sock = sock
-						_client.conn_mode = client.conn_mode
-						_client.dir_mode = client.dir_mode
+						#_client.conn_mode = client.conn_mode
+						#_client.dir_mode = client.dir_mode
 						_client.auth = client.auth | 2
 
 						# Update Address Book because also an existing client can be updated
 						self._address_book.changed()
 
-						if c_is_new:
+						if c_switch:
 							self._clients.remove(client)
 							self._clients.append(_client)
 
 							self._selectors.unregister(sock)
-							self._selectors.register(sock, selectors.EVENT_READ, data={
+							self._selectors.register(_client.sock, selectors.EVENT_READ, data={
 								'type': 'client',
 								'client': _client,
 							})
 
-						self._client_send_ok(sock)
+						self._client_send_ok(_client.sock)
 
 						print(f'Client Z: {_client}')
 					elif command_i == 2:

@@ -129,3 +129,6 @@ class Client():
 			return 160
 
 		return self.node.distance(node)
+
+	def eq(self, other) -> bool:
+		return self.id == other.id
