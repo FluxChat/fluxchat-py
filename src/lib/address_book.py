@@ -3,6 +3,7 @@ import datetime as dt
 
 from lib.json_file import JsonFile
 from lib.client import Client
+import lib.overlay as overlay
 
 class AddressBook(JsonFile):
 	_path: str
@@ -14,7 +15,7 @@ class AddressBook(JsonFile):
 
 	def __init__(self, path: str, config: dict = None):
 		print('-> AddressBook.__init__({})'.format(path))
-		print(f'{config}')
+		# print(f'{config}')
 
 		self._path = path
 		self._config = config
@@ -56,6 +57,24 @@ class AddressBook(JsonFile):
 	def get_clients(self) -> dict:
 		# print('-> AddressBook.get_clients()')
 		return self._clients_by_uuid
+
+	def get_clients_len(self) -> int:
+		# print('-> AddressBook.get_clients_len()')
+		return len(self._clients_by_uuid)
+
+	def get_bootstrap_clients(self) -> list:
+		# print('-> AddressBook.get_bootstrap_clients()')
+
+		ffunc = lambda _client: _client[1].is_bootstrap
+		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
+		return bootstrap_clients
+
+	def get_bootstrap_clients_len(self) -> int:
+		# print('-> AddressBook.get_bootstrap_clients_len()')
+
+		ffunc = lambda _client: _client[1].is_bootstrap
+		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
+		return len(bootstrap_clients)
 
 	def get_client(self, id: str):
 		# print('-> AddressBook.get_client({})'.format(id))
@@ -107,7 +126,7 @@ class AddressBook(JsonFile):
 		self.changed()
 
 	def add_bootstrap(self, file: str):
-		# print('-> AddressBook.add_bootstrap({})'.format(file))
+		print('-> AddressBook.add_bootstrap({})'.format(file))
 
 		_data = self._read_json_file(file, [])
 		for row in _data:
@@ -161,3 +180,8 @@ class AddressBook(JsonFile):
 			if remove:
 				self.remove_client(client)
 			n += 1
+
+	def get_nearest_to(self, node: overlay.Node) -> list:
+		_clients = list(self._clients_by_uuid.values())
+		_clients.sort(key=lambda _client: _client.node.distance(node))
+		return _clients

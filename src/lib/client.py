@@ -30,11 +30,13 @@ class Client():
 	dir_mode: str
 
 	# Authenticated (Binary)
-	# 0, 0 = Not Authenticated
-	# 0, 1 = self send ID command
-	# 1, 0 = self received ID command
-	# 1, 1 = Authenticated both
+	# 0, 0 = 0 (Not Authenticated)
+	# 0, 1 = 1 (send ID command)
+	# 1, 0 = 2 (received ID command)
+	# 1, 1 = 4 (Authenticated both)
 	auth: int
+
+	actions: list
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -53,6 +55,7 @@ class Client():
 		self.conn_mode = 0
 		self.dir_mode = None
 		self.auth = 0
+		self.actions = []
 
 	def __del__(self):
 		print('-> Client.__del__({})'.format(self.uuid))
@@ -121,9 +124,9 @@ class Client():
 		self.node = overlay.Node.parse(id)
 
 	def distance(self, node: overlay.Node) -> int:
-		print('-> Client.distance()')
-		print('-> self: {}'.format(self))
-		print('-> node: {}'.format(node))
+		# print('-> Client.distance()')
+		# print('-> self: {}'.format(self))
+		# print('-> node: {}'.format(node))
 
 		if self.node == None:
 			return 160
@@ -131,4 +134,38 @@ class Client():
 		return self.node.distance(node)
 
 	def eq(self, other) -> bool:
+		if not isinstance(other, Client):
+			return False
+		if self.id == None or other.id == None:
+			return False
+		if self.id == '' or other.id == '':
+			return False
+		if other == None:
+			return False
+
 		return self.id == other.id
+
+	def add_action(self, action: str):
+		self.actions.append(action)
+
+	def get_actions(self, and_reset: bool = False) -> list:
+		if and_reset:
+			return self.reset_actions()
+		return list(self.actions)
+
+	def remove_action(self, action: str):
+		self.actions.remove(action)
+
+	def reset_actions(self) -> list:
+		_actions = list(self.actions)
+		self.actions = []
+		return _actions
+
+	def has_action(self, action: str, remove: bool = False) -> bool:
+		has_a = action in self.actions
+		if has_a and remove:
+			self.remove_action(action)
+		return has_a
+
+	def has_contact(self) -> bool:
+		return self.address != None and self.port != None

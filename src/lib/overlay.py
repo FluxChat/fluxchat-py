@@ -36,26 +36,34 @@ class Node():
 class Distance():
 	_distance: int
 
-	def __init__(self, node1: Node, node2: Node):
-		id1 = node1.decode()
-		id2 = node2.decode()
+	def __init__(self, node1: Node = None, node2: Node = None):
+		self._distance = 160
 
-		self._distance = sum([bin(a ^ b)[2:].zfill(8).find('1') for a, b in zip(id1, id2)])
+		if node1 != None and node2 != None:
+			id1 = node1.decode()
+			id2 = node2.decode()
+
+			for a, b in zip(id1, id2):
+				x = a ^ b
+				if x == 0:
+					self._distance -= 8
+				else:
+					self._distance -= bin(x)[2:].zfill(8).find('1')
 
 	def __str__(self):
 		return 'Distance({})'.format(self._distance)
 
 	def __lt__(self, other):
-		print('-> Distance.__eq__')
-		print('-> self: {}'.format(self))
-		print('-> other: {}'.format(other))
+		# print('-> Distance.__eq__')
+		# print('-> self: {}'.format(self))
+		# print('-> other: {}'.format(other))
 		return self._distance < other._distance
 
 	def __le__(self, other):
 		raise NotImplementedError('Distance.__le__')
 
 	def __eq__(self, other):
-		print('-> Distance.__eq__')
+		# print('-> Distance.__eq__')
 		if not isinstance(other, Distance):
 			return False
 		return self._distance == other._distance

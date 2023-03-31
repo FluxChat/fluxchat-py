@@ -21,6 +21,12 @@ class Server():
 	def __init__(self, config: dict):
 		print('-> Server.__init__()')
 
+		host_name = socket.gethostname()
+		host_ip = socket.gethostbyname(host_name)
+
+		print('-> host_name: {}'.format(host_name))
+		print('-> host_ip: {}'.format(host_ip))
+
 		self._config = config
 
 		address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
@@ -85,7 +91,7 @@ class Server():
 		print('-> Server._client_connect({})'.format(client))
 
 		if client.address == None or client.port == None:
-			print('-> client address or port is None')
+			# print('-> client address or port is None')
 			return
 
 		client.conn_mode = 1
@@ -94,9 +100,9 @@ class Server():
 		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		client.sock.settimeout(2)
 		try:
-			print('-> client.sock.connect')
+			# print('-> client.sock.connect to')
 			client.sock.connect((client.address, client.port))
-			print('-> client.sock.connect done')
+			# print('-> client.sock.connect done')
 		except ConnectionRefusedError as e:
 			print('-> ConnectionRefusedError', e)
 			return
@@ -125,25 +131,38 @@ class Server():
 		except TimeoutError as e:
 			print('-> TimeoutError', e)
 			return
+		except ConnectionResetError as e:
+			print('-> ConnectionResetError', e)
+			raw = False
 
 		if raw:
 			raw_len = len(raw)
 			print('-> recv raw {} {}'.format(raw_len, raw))
 
-			print('-> processing binary data')
-
 			raw_pos = 0
 			commands = []
 			while raw_pos < raw_len:
-				group = raw[raw_pos]
-				command = raw[raw_pos + 1]
-				length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
+				try:
+					group = raw[raw_pos]
+					command = raw[raw_pos + 1]
+				except IndexError as e:
+					print('-> IndexError', e)
+					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					client.conn_mode = 0
+					return
+				try:
+					length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
+				except struct.error as e:
+					print('-> struct.error', e)
+					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					client.conn_mode = 0
+					return
 				payload_raw = raw[raw_pos + 6:]
 				payload_items = []
 
-				print('-> group', group)
-				print('-> command', command)
-				print('-> length', length, type(length))
+				# print('-> group', group)
+				# print('-> command', command)
+				# print('-> length', length, type(length))
 
 				if length >= 2048:
 					print('-> length too big', length)
@@ -152,16 +171,16 @@ class Server():
 				pos = 0
 				while pos < length:
 					item_l = payload_raw[pos]
-					print('-> item_l', item_l, type(item_l))
+					# print('-> item_l', item_l, type(item_l))
 					pos += 1
 					item = payload_raw[pos:pos + item_l]
-					print('-> item', item)
-					payload_items.append(item)
+					# print('-> item', item)
+					payload_items.append(item.decode('utf-8'))
 					pos += item_l
 
 				commands.append([group, command, payload_items])
 				raw_pos += 7 + length
-				print('-> raw_pos', raw_pos)
+				# print('-> raw_pos', raw_pos)
 
 			for command_raw in commands:
 				group_i, command_i, payload = command_raw
@@ -170,24 +189,26 @@ class Server():
 				print('-> group', group_i, 'command', command_i)
 				print('-> payload', payload)
 
-				if group_i == 0:
+				if group_i == 0: # Basic
 					if command_i == 0:
 						print('-> OK command')
-				elif group_i == 1:
+				elif group_i == 1: # Connection, Authentication, etc
 					if command_i == 1:
 						print('-> ID command')
+						if client.auth & 2 != 0:
+							print('-> already authenticated')
+							continue
 
 						c_switch = False
 
 						c_id = payload[0]
-						c_id = c_id.decode('utf-8')
 						print('-> c_id', c_id)
 
 						c_has_contact_info = False
 						if payload_len >= 2:
 							# Client sent contact info
 							c_contact = payload[1]
-							c_contact_addr, c_contact_port = c_contact.decode('utf-8').split(':')
+							c_contact_addr, c_contact_port = c_contact.split(':')
 							c_contact_port = int(c_contact_port)
 							c_has_contact_info = True
 
@@ -221,21 +242,30 @@ class Server():
 								if _client == None:
 									print('-> client not found C')
 
-									c_switch = True
 									_client = self._address_book.add_client(c_id)
 									_client.debug_add = 'id command, incoming, no contact infos, not found by id'
 								else:
 									print('-> client found C: {}'.format(_client))
 
+								c_switch = True
+
 						elif client.dir_mode == 'o':
 							# Client is outgoing
 							print('-> client is outgoing')
+
+							_client = client
 
 							_existing_client = self._address_book.get_client(c_id)
 							if _existing_client == None:
 								print('-> client not found D')
 							else:
-								print('-> client found D: {}'.format(_client))
+								print('-> client found D: {}'.format(_existing_client))
+
+								if _existing_client.eq(client):
+									print('-> client is equal')
+								else:
+									print('-> client is NOT equal')
+									# raise Exception('Not Implemented, what to do if client is not equal?')
 
 							if c_has_contact_info:
 								print('-> client has contact infos')
@@ -247,20 +277,21 @@ class Server():
 						if _client.id == None:
 							_client.id = c_id
 
-						print(f'Client A: {_client}')
+						print(f'Client A: {client}')
+						print(f'Client B: {_client}')
 
 						_client.refresh_seen_at()
 						_client.inc_meetings()
 
 						_client.sock = sock
-						#_client.conn_mode = client.conn_mode
-						#_client.dir_mode = client.dir_mode
+						_client.conn_mode = client.conn_mode
 						_client.auth = client.auth | 2
 
 						# Update Address Book because also an existing client can be updated
 						self._address_book.changed()
 
-						if c_switch:
+						if c_switch and not _client.eq(client):
+							print('-> switch client')
 							self._clients.remove(client)
 							self._clients.append(_client)
 
@@ -272,19 +303,71 @@ class Server():
 
 						self._client_send_ok(_client.sock)
 
-						print(f'Client Z: {_client}')
+						print(f'{fg.blue}Client Z: {_client}{fg.rs}')
 					elif command_i == 2:
 						print('-> PING command')
 						self._client_send_pong(sock)
 					elif command_i == 3:
 						print('-> PONG command')
+				elif group_i == 2: # Overlay, Address Book, Routing, etc
+					if client.auth != 3:
+						print('-> not authenticated', client.auth)
+						print(f'{fg.red}-> conn mode 0{fg.rs}')
+						client.conn_mode = 0
+						continue
+
+					if command_i == 1:
+						print('-> GET_NEAREST_TO command')
+						node = overlay.Node(payload[0])
+						client_ids = []
+						clients = self._address_book.get_nearest_to(node)
+						for _client in clients:
+							print('-> client', _client, _client.distance(node))
+							if _client.id != self._local_node.id and _client.id != node.id:
+								if _client.has_contact():
+									contact_infos = [_client.id, _client.address, str(_client.port)]
+									print('-> contact infos', contact_infos)
+									client_ids.append(':'.join(contact_infos))
+
+						self._client_send_get_nearest_response(sock, client_ids)
+
+					elif command_i == 2:
+						print('-> GET_NEAREST_TO RESPONSE command')
+
+						if not client.has_action('nearest_response', True):
+							print('-> not requested')
+							continue
+
+						distance = overlay.Distance()
+						for c_contact in payload:
+							print('-> client contact', c_contact)
+							c_id, c_addr, c_port = c_contact.split(':')
+							if c_id == self._local_node.id:
+								continue
+
+							_client = self._address_book.get_client(c_id)
+							if _client == None:
+								print('-> client not found')
+								_client = self._address_book.add_client(c_id, c_addr, c_port)
+								_client.debug_add = 'nearest response, not found by id'
+
+								_c_distance = _client.distance(self._local_node)
+								if _c_distance < distance:
+									distance = _client.distance(self._local_node)
+									print('-> new distance', distance)
+							else:
+								print('-> client found', _client)
 				else:
 					print('-> unknown group', group_i, 'command', command_i)
+					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					client.conn_mode = 0
 
 		else:
 			print('-> no data')
-			self._selectors.unregister(sock)
-			sock.close()
+			# self._selectors.unregister(sock)
+			# sock.close()
+
+			print(f'{fg.red}-> conn mode 0{fg.rs}')
 			client.conn_mode = 0
 
 	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
@@ -295,19 +378,19 @@ class Server():
 			payload_l.append(item)
 		payload = ''.join(payload_l)
 
-		print('-> payload {} "{}"'.format(len(payload), payload))
+		# print('-> payload {} "{}"'.format(len(payload), payload))
 
 		cmd_grp = (chr(group) + chr(command)).encode('utf-8')
 		len_payload = len(payload).to_bytes(4, byteorder='little')
 
-		print('-> cmd_grp', cmd_grp)
-		print('-> len_payload', len_payload)
+		# print('-> cmd_grp', cmd_grp)
+		# print('-> len_payload', len_payload)
 
 		raw = cmd_grp + len_payload + (payload + chr(0)).encode('utf-8')
 
-		print('-> send raw {} {}'.format(len(raw), raw))
+		# print('-> send raw {} {}'.format(len(raw), raw))
 		res = sock.sendall(raw)
-		print('-> sent', res)
+		# print('-> sent', res)
 
 	def _client_send_ok(self, sock: socket.socket):
 		print('-> Server._client_send_ok()')
@@ -332,6 +415,14 @@ class Server():
 		print('-> Server._client_send_pong()')
 		self._client_write(sock, 1, 3)
 
+	def _client_send_get_nearest_to(self, sock: socket.socket, id: str):
+		print('-> Server._client_send_get_nearest_to()')
+		self._client_write(sock, 2, 1, [id])
+
+	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list):
+		print('-> Server._client_send_get_nearest_response()')
+		self._client_write(sock, 2, 2, client_ids)
+
 	def run(self) -> bool:
 		# print('-> Server.run()')
 
@@ -339,7 +430,7 @@ class Server():
 
 		events = self._selectors.select(timeout=0)
 		for key, mask in events:
-			print('-> key', key, 'mask', mask)
+			# print('-> key', key, 'mask', mask)
 
 			if key.data != None:
 				if key.data['type'] == 'server':
@@ -360,6 +451,7 @@ class Server():
 
 		print('-> clients', len(_clients))
 
+		connect_to_clients = []
 		zero_meetings_clients = []
 		for client in _clients:
 			print('-> contact', client)
@@ -368,20 +460,29 @@ class Server():
 				print('-> client is meeting')
 				if not self._client_is_connected(client):
 					print('-> client is not connected')
-					self._client_connect(client)
+					# self._client_connect(client)
+					connect_to_clients.append(client)
 			else:
 				print('-> client is not meeting')
 				zero_meetings_clients.append(client)
 
-		# sort zero meeting clients by distance
-		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node), reverse=False)
-		print(zero_meetings_clients)
+		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node))
+		#print(zero_meetings_clients)
 		for client in zero_meetings_clients:
 			print('-> contact', client)
 
 			if not self._client_is_connected(client):
 				print('-> client is not connected')
-				self._client_connect(client)
+				# self._client_connect(client)
+				connect_to_clients.append(client)
+
+		is_bootstrapping = self.is_bootstrap_phase()
+		print('-> is_bootstrapping', is_bootstrapping)
+
+		for client in connect_to_clients:
+			if is_bootstrapping:
+				client.add_action('bootstrap')
+			self._client_connect(client)
 
 		return True
 
@@ -396,7 +497,13 @@ class Server():
 			# print('handle', client)
 
 			if client.conn_mode == 0:
-				print('-> remove client')
+				print('-> remove client', client)
+				self._selectors.unregister(client.sock)
+				# try:
+					# self._selectors.unregister(client.sock)
+				# except ValueError as e:
+				# 	print('-> ValueError', e)
+				client.sock.close()
 				self._clients.remove(client)
 
 			if client.conn_mode == 1 and client.auth & 1 == 0:
@@ -430,6 +537,25 @@ class Server():
 		print('-> Server.debug_clients() -> {}'.format(len(self._clients)))
 
 		for client in self._clients:
-			print('->', client)
+			print('-> debug', client)
 
 		return True
+
+	def client_actions(self) -> bool:
+		# print('-> Server.client_actions() -> {}'.format(len(self._clients)))
+		had_actions = False
+
+		for client in self._clients:
+			# print('-> action client', client)
+			for action in client.get_actions(True):
+				print('-> action', action)
+				if action == 'bootstrap':
+					self._client_send_get_nearest_to(client.sock, self._local_node.id)
+					client.add_action('nearest_response')
+
+		return had_actions
+
+	def is_bootstrap_phase(self) -> bool:
+		clients_len = self._address_book.get_clients_len()
+		bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
+		return clients_len <= bootstrap_clients_len
