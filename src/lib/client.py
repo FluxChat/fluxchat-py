@@ -26,7 +26,8 @@ class Client():
 	conn_mode: int
 
 	# Directory Mode
-	# None, in, out
+	# i = incoming
+	# o = outgoing
 	dir_mode: str
 
 	# Authenticated (Binary)

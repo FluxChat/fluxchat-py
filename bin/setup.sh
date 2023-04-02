@@ -47,10 +47,10 @@ fi
 source ./.venv/bin/activate
 pip3 install -r requirements.txt
 
-echo '-> generating id'
-export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/pubkey.pem)
-
 if ! test -f ${PYCHAT_CONFIG}; then
+	echo '-> generating id'
+	export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/pubkey.pem)
+
 	echo '-> generating config'
 	envsubst < ./config-example.json > ${PYCHAT_CONFIG}
 fi

@@ -8,7 +8,5 @@
 		"max_clients": 20,
 		"client_retention_time": 24
 	},
-	"discovery": {
-		"enabled": false
-	}
+	"discovery": false
 }

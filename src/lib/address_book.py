@@ -1,6 +1,7 @@
 
 import datetime as dt
 
+from sty import fg
 from lib.json_file import JsonFile
 from lib.client import Client
 import lib.overlay as overlay
@@ -36,6 +37,8 @@ class AddressBook(JsonFile):
 
 			self._clients_by_uuid[client_uuid] = client
 			if client.id != None:
+				if client.id in self._clients_by_id:
+					print('{}-> AddressBook.__init__(): Warning: Client ID already exists: {}{}'.format(fg.red, client.id, fg.rs))
 				self._clients_by_id[client.id] = client
 
 	def __del__(self):
@@ -149,8 +152,12 @@ class AddressBook(JsonFile):
 		# print('-> AddressBook.changed()')
 		self._changes = True
 
-	def clean_up(self):
+	def clean_up(self, local_id: str):
 		print('-> AddressBook.clean_up()')
+
+		# remove local_id
+		if local_id in self._clients_by_id:
+			del self._clients_by_id[local_id]
 
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)

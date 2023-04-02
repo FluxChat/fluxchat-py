@@ -3,7 +3,6 @@ import os
 import socket
 import selectors
 import struct
-import netifaces
 
 from sty import fg
 from lib.client import Client
@@ -14,12 +13,10 @@ class Server():
 	_config: dict
 	_selectors: selectors.DefaultSelector
 	_main_server_socket: socket.socket
-	_discovery_server_socket: socket.socket
-	_discovery_client_socket: socket.socket
+	_discovery_socket: socket.socket
 	_address_book: AddressBook
+	_hostname: str
 	_lan_ip: str
-	_lan_netmask: str
-	_lan_bc: str
 
 	_clients: list
 	_local_node: overlay.Node
@@ -27,11 +24,11 @@ class Server():
 	def __init__(self, config: dict):
 		print('-> Server.__init__()')
 
-		host_name = socket.gethostname()
-		host_ip = socket.gethostbyname(host_name)
+		self._host_name = socket.gethostname()
+		self._lan_ip = socket.gethostbyname(self._host_name)
 
-		print('-> host_name: {}'.format(host_name))
-		print('-> host_ip: {}'.format(host_ip))
+		print('-> host_name: {}'.format(self._host_name))
+		print('-> lan_ip: {}'.format(self._lan_ip))
 
 		self._config = config
 
@@ -57,33 +54,23 @@ class Server():
 		self._main_server_socket.setblocking(False)
 		self._selectors.register(self._main_server_socket, selectors.EVENT_READ, data={'type': 'main_server'})
 
-		if self._config['discovery']['enabled']:
+		# print(self._main_server_socket)
+		# print(self._main_server_socket.getsockname())
+
+		if 'discovery' in self._config and self._config['discovery']:
 			print('-> discovery')
-			# interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
-			# address_info = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]
-			# self._lan_ip = address_info['addr']
-			# self._lan_netmask = address_info['netmask']
-			# print('-> ip: {}/{}'.format(self._lan_ip, self._lan_netmask))
-
-			# ip_address_i = struct.unpack('!I', socket.inet_aton(self._lan_ip))[0]
-			# netmask_i = struct.unpack('!I', socket.inet_aton(self._lan_netmask))[0]
-			# print('-> ip: {}/{}'.format(ip_address_i, netmask_i))
-
-			# self._lan_bc = socket.inet_ntoa(struct.pack('!I', (ip_address_i & netmask_i) | (~netmask_i & 0xFFFFFFFF)))
-			# print('-> bc: {}'.format(self._lan_bc))
-
-			self._discovery_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-			self._discovery_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-			self._discovery_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			self._discovery_server_socket.bind(('', 26000))
-			self._discovery_server_socket.setblocking(False)
+			self._discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self._discovery_socket.bind(('', 26000))
+			self._discovery_socket.setblocking(False)
 
 			if self.has_contact():
 				print('-> send broadcast')
-				res = self._discovery_server_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
+				res = self._discovery_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
 				print('-> res', res)
 
-			self._selectors.register(self._discovery_server_socket, selectors.EVENT_READ, data={'type': 'discovery_server'})
+			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery_server'})
 
 	def __del__(self):
 		print('-> Server.__del__()')
@@ -155,21 +142,24 @@ class Server():
 		print('-> items: {}'.format(items))
 		print('-> addr: {}'.format(addr))
 
-		# contact = self._config['contact']
-		# server_sock.sendto(contact.encode('utf-8'), addr)
+		if addr[0] == self._lan_ip:
+			return
 
-	# def _read_discovery_client(self, client_sock: socket.socket):
-	# 	print('-> Server._read_discovery_client()'.format())
+		client = Client()
+		client.address = addr[0]
+		client.port = int(items[1])
+		client.debug_add = 'discovery'
 
-	# 	data = client_sock.recv(1024)
-
-	# 	print('-> data: {}'.format(data))
+		self._client_connect(client)
 
 	def _client_connect(self, client: Client):
 		print('-> Server._client_connect({})'.format(client))
 
+		if client.address == self._lan_ip:
+			return
+		if client.node.eq(self._local_node):
+			return
 		if client.address == None or client.port == None:
-			# print('-> client address or port is None')
 			return
 
 		client.conn_mode = 1
@@ -320,7 +310,8 @@ class Server():
 
 										c_switch = True
 										_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
-										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port'
+										_client = client.dir_mode
+										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
 									else:
 										print('-> client found B: {}'.format(_client))
 								else:
@@ -335,7 +326,8 @@ class Server():
 									print('-> client not found C')
 
 									_client = self._address_book.add_client(c_id)
-									_client.debug_add = 'id command, incoming, no contact infos, not found by id'
+									_client = client.dir_mode
+									_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
 								else:
 									print('-> client found C: {}'.format(_client))
 
@@ -349,7 +341,14 @@ class Server():
 
 							_existing_client = self._address_book.get_client(c_id)
 							if _existing_client == None:
+								# Client is outgoing but not found by id
+								# This can happen because of the UDP discovery service.
 								print('-> client not found D')
+								_client = self._address_book.add_client(c_id, client.address, client.port)
+								_client = client.dir_mode
+								_client.debug_add = 'id command, outgoing, not found by id, original: ' + client.debug_add
+
+								c_switch = True
 							else:
 								print('-> client found D: {}'.format(_existing_client))
 
@@ -430,6 +429,7 @@ class Server():
 							print('-> not requested')
 							continue
 
+						nearest_client = None
 						distance = overlay.Distance()
 						for c_contact in payload:
 							print('-> client contact', c_contact)
@@ -438,6 +438,7 @@ class Server():
 								continue
 
 							_client = self._address_book.get_client(c_id)
+							_
 							if _client == None:
 								print('-> client not found')
 								_client = self._address_book.add_client(c_id, c_addr, c_port)
@@ -445,10 +446,18 @@ class Server():
 
 								_c_distance = _client.distance(self._local_node)
 								if _c_distance < distance:
-									distance = _client.distance(self._local_node)
+									# distance = _client.distance(self._local_node)
+									distance = _c_distance
 									print('-> new distance', distance)
+
+									nearest_client = _client
 							else:
 								print('-> client found', _client)
+
+						if nearest_client != None:
+							print('-> nearest client', nearest_client)
+							# TODO: connect to nearest client
+							# limit the clients to connect to.
 				else:
 					print('-> unknown group', group_i, 'command', command_i)
 					print(f'{fg.red}-> conn mode 0{fg.rs}')
@@ -560,20 +569,17 @@ class Server():
 				print('-> client is meeting')
 				if not self._client_is_connected(client):
 					print('-> client is not connected')
-					# self._client_connect(client)
 					connect_to_clients.append(client)
 			else:
 				print('-> client is not meeting')
 				zero_meetings_clients.append(client)
 
 		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node))
-		#print(zero_meetings_clients)
 		for client in zero_meetings_clients:
 			print('-> contact', client)
 
 			if not self._client_is_connected(client):
 				print('-> client is not connected')
-				# self._client_connect(client)
 				connect_to_clients.append(client)
 
 		is_bootstrapping = self.is_bootstrap_phase()
@@ -659,31 +665,3 @@ class Server():
 		clients_len = self._address_book.get_clients_len()
 		bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
 		return clients_len <= bootstrap_clients_len
-
-	# def send_discovery_broadcast(self) -> bool:
-	# 	print('-> Server.send_discovery_broadcast()')
-	# 	# self._broadcast_sock.sendto(data, ('<broadcast>', self._broadcast_port))
-
-	# 	contact = self._config['contact']
-
-	# 	self._discovery_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-	# 	self._discovery_client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	# 	self._discovery_client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-	# 	self._discovery_client_socket.setblocking(False)
-	# 	res = self._discovery_client_socket.sendto(contact.encode('utf-8'), ('<broadcast>', 26000))
-	# 	print('-> res', res)
-
-	# 	self._selectors.register(self._discovery_client_socket, selectors.EVENT_READ, data={'type': 'discovery_client'})
-
-	# 	return True
-
-	# def close_discovery(self) -> bool:
-	# 	print('-> Server.close_discovery()')
-
-	# 	# self._selectors.unregister(self._discovery_server_socket)
-	# 	self._selectors.unregister(self._discovery_client_socket)
-
-	# 	# self._discovery_server_socket.close()
-	# 	self._discovery_client_socket.close()
-
-	# 	return True
