@@ -327,7 +327,7 @@ class Server():
 
 										c_switch = True
 										_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
-										_client = client.dir_mode
+										_client.dir_mode = client.dir_mode
 										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
 									else:
 										print('-> client found B: {}'.format(_client))
@@ -343,7 +343,7 @@ class Server():
 									print('-> client not found C')
 
 									_client = self._address_book.add_client(c_id)
-									_client = client.dir_mode
+									_client.dir_mode = client.dir_mode
 									_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
 								else:
 									print('-> client found C: {}'.format(_client))
@@ -362,7 +362,7 @@ class Server():
 								# This can happen because of the UDP discovery service.
 								print('-> client not found D')
 								_client = self._address_book.add_client(c_id, client.address, client.port)
-								_client = client.dir_mode
+								_client.dir_mode = client.dir_mode
 								_client.debug_add = 'id command, outgoing, not found by id, original: ' + client.debug_add
 
 								c_switch = True
