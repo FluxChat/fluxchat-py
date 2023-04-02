@@ -2,6 +2,8 @@
 
 ## Installation
 
+For the setup we assume that PyChat is running on a personal Computer in a Local Area Network, which is connected to the public Internet via a default gateway. By default PyChat will listen on all network interfaces (0.0.0.0).
+
 ```bash
 ./bin/setup.sh
 ```

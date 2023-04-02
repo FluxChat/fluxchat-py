@@ -3,6 +3,7 @@ import os
 import socket
 import selectors
 import struct
+import netifaces
 
 from sty import fg
 from lib.client import Client
@@ -12,8 +13,13 @@ import lib.overlay as overlay
 class Server():
 	_config: dict
 	_selectors: selectors.DefaultSelector
-	_socket: socket.socket
+	_main_server_socket: socket.socket
+	_discovery_server_socket: socket.socket
+	_discovery_client_socket: socket.socket
 	_address_book: AddressBook
+	_lan_ip: str
+	_lan_netmask: str
+	_lan_bc: str
 
 	_clients: list
 	_local_node: overlay.Node
@@ -40,20 +46,71 @@ class Server():
 		self._local_node = overlay.Node(self._config['id'])
 
 		self._selectors = selectors.DefaultSelector()
-		self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		print('-> bind: {} {}'.format(self._config['address'], self._config['port']))
-		self._socket.bind((self._config['address'], self._config['port']))
+		self._main_server_socket.bind((self._config['address'], self._config['port']))
 
 		print('-> listen')
-		self._socket.listen()
-		self._socket.setblocking(False)
-		self._selectors.register(self._socket, selectors.EVENT_READ, data={'type': 'server'})
+		self._main_server_socket.listen()
+		self._main_server_socket.setblocking(False)
+		self._selectors.register(self._main_server_socket, selectors.EVENT_READ, data={'type': 'main_server'})
+
+		if self._config['discovery']['enabled']:
+			print('-> discovery')
+			# interface = netifaces.gateways()['default'][netifaces.AF_INET][1]
+			# address_info = netifaces.ifaddresses(interface)[netifaces.AF_INET][0]
+			# self._lan_ip = address_info['addr']
+			# self._lan_netmask = address_info['netmask']
+			# print('-> ip: {}/{}'.format(self._lan_ip, self._lan_netmask))
+
+			# ip_address_i = struct.unpack('!I', socket.inet_aton(self._lan_ip))[0]
+			# netmask_i = struct.unpack('!I', socket.inet_aton(self._lan_netmask))[0]
+			# print('-> ip: {}/{}'.format(ip_address_i, netmask_i))
+
+			# self._lan_bc = socket.inet_ntoa(struct.pack('!I', (ip_address_i & netmask_i) | (~netmask_i & 0xFFFFFFFF)))
+			# print('-> bc: {}'.format(self._lan_bc))
+
+			self._discovery_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+			self._discovery_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+			self._discovery_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self._discovery_server_socket.bind(('', 26000))
+			self._discovery_server_socket.setblocking(False)
+
+			if self.has_contact():
+				print('-> send broadcast')
+				res = self._discovery_server_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
+				print('-> res', res)
+
+			self._selectors.register(self._discovery_server_socket, selectors.EVENT_READ, data={'type': 'discovery_server'})
 
 	def __del__(self):
 		print('-> Server.__del__()')
 		self._selectors.close()
+
+	def has_contact(self) -> bool:
+		if 'contact' in self._config:
+			if self._config['contact'] == 'disabled' or self._config['contact'] == 'private':
+				return False
+			elif bool(self._config['contact']) == False:
+				return False
+
+			return True
+
+		return False
+
+	def get_contact(self) -> str:
+		if self.has_contact():
+			items = self._config['contact'].split(':')
+			item_len = len(items)
+
+			if item_len == 1:
+				return '{}:{}'.format(items[0], self._config['port'])
+
+			return self._config['contact']
+
+		return 'N/A'
 
 	def _client_is_connected(self, client: Client) -> bool:
 		print('-> Server._client_is_connected({})'.format(client))
@@ -64,8 +121,8 @@ class Server():
 
 		return len(clients) > 0
 
-	def _accept(self, server_sock: socket.socket):
-		print('-> Server._accept()')
+	def _accept_main_server(self, server_sock: socket.socket):
+		print('-> Server._accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
@@ -81,11 +138,32 @@ class Server():
 		client.debug_add = 'accept'
 
 		self._selectors.register(client_sock, selectors.EVENT_READ, data={
-			'type': 'client',
+			'type': 'main_client',
 			'client': client,
 		})
 
 		self._clients.append(client)
+
+	def _read_discovery_server(self, server_sock: socket.socket):
+		print('-> Server._read_discovery_server()')
+
+		data, addr = server_sock.recvfrom(1024)
+		data = data.decode('utf-8')
+		items = data.split(':')
+
+		print('-> data: {}'.format(data))
+		print('-> items: {}'.format(items))
+		print('-> addr: {}'.format(addr))
+
+		# contact = self._config['contact']
+		# server_sock.sendto(contact.encode('utf-8'), addr)
+
+	# def _read_discovery_client(self, client_sock: socket.socket):
+	# 	print('-> Server._read_discovery_client()'.format())
+
+	# 	data = client_sock.recv(1024)
+
+	# 	print('-> data: {}'.format(data))
 
 	def _client_connect(self, client: Client):
 		print('-> Server._client_connect({})'.format(client))
@@ -117,7 +195,7 @@ class Server():
 		client.sock.setblocking(False)
 
 		self._selectors.register(client.sock, selectors.EVENT_READ, data={
-			'type': 'client',
+			'type': 'main_client',
 			'client': client,
 		})
 
@@ -208,9 +286,23 @@ class Server():
 						if payload_len >= 2:
 							# Client sent contact info
 							c_contact = payload[1]
-							c_contact_addr, c_contact_port = c_contact.split(':')
-							c_contact_port = int(c_contact_port)
-							c_has_contact_info = True
+
+							c_contact_items = c_contact.split(':')
+							c_contact_items_len = len(c_contact_items)
+
+							if c_contact_items_len == 1:
+								c_has_contact_info = False
+							elif c_contact_items_len == 2:
+								c_contact_addr = c_contact_items[0]
+								c_contact_port = int(c_contact_items[1])
+
+							if c_contact_addr == 'public':
+								print('-> public', sock.getsockname())
+								c_has_contact_info = True
+							elif c_contact_addr == 'private':
+								c_has_contact_info = False
+							else:
+								c_has_contact_info = True
 
 						if client.dir_mode == 'i':
 							# Client is incoming
@@ -297,7 +389,7 @@ class Server():
 
 							self._selectors.unregister(sock)
 							self._selectors.register(_client.sock, selectors.EVENT_READ, data={
-								'type': 'client',
+								'type': 'main_client',
 								'client': _client,
 							})
 
@@ -401,8 +493,8 @@ class Server():
 		data = [
 			self._config['id'],
 		]
-		if 'contact' in self._config and self._config['contact'] != '':
-			data.append(self._config['contact'])
+		if self.has_contact():
+			data.append(self.get_contact())
 
 		print('-> data', data)
 		self._client_write(sock, 1, 1, data)
@@ -433,11 +525,19 @@ class Server():
 			# print('-> key', key, 'mask', mask)
 
 			if key.data != None:
-				if key.data['type'] == 'server':
-					self._accept(key.fileobj)
+				if key.data['type'] == 'main_server':
+					self._accept_main_server(key.fileobj)
 
-				elif key.data['type'] == 'client':
+				elif key.data['type'] == 'main_client':
 					self._client_read(key.fileobj, key.data['client'])
+
+				elif key.data['type'] == 'discovery_server':
+					print('-> discovery server')
+					self._read_discovery_server(key.fileobj)
+
+				# elif key.data['type'] == 'discovery_client':
+				# 	print('-> discovery client')
+				# 	self._read_discovery_client(key.fileobj)
 
 			data_processed = True
 
@@ -559,3 +659,31 @@ class Server():
 		clients_len = self._address_book.get_clients_len()
 		bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
 		return clients_len <= bootstrap_clients_len
+
+	# def send_discovery_broadcast(self) -> bool:
+	# 	print('-> Server.send_discovery_broadcast()')
+	# 	# self._broadcast_sock.sendto(data, ('<broadcast>', self._broadcast_port))
+
+	# 	contact = self._config['contact']
+
+	# 	self._discovery_client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+	# 	self._discovery_client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	# 	self._discovery_client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+	# 	self._discovery_client_socket.setblocking(False)
+	# 	res = self._discovery_client_socket.sendto(contact.encode('utf-8'), ('<broadcast>', 26000))
+	# 	print('-> res', res)
+
+	# 	self._selectors.register(self._discovery_client_socket, selectors.EVENT_READ, data={'type': 'discovery_client'})
+
+	# 	return True
+
+	# def close_discovery(self) -> bool:
+	# 	print('-> Server.close_discovery()')
+
+	# 	# self._selectors.unregister(self._discovery_server_socket)
+	# 	self._selectors.unregister(self._discovery_client_socket)
+
+	# 	# self._discovery_server_socket.close()
+	# 	self._discovery_client_socket.close()
+
+	# 	return True

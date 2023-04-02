@@ -34,6 +34,10 @@ class PyChat(JsonFile):
 		# self._scheduler.add_task(self._server.debug_clients, dt.timedelta(minutes=1))
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
 
+		# if self._config['discovery']['enabled']:
+		# 	self._scheduler.add_task(self._server.send_discovery_broadcast, dt.timedelta(seconds=5), one_shot=True)
+			# self._scheduler.add_task(self._server.close_discovery, dt.timedelta(seconds=60), one_shot=True)
+
 	def __del__(self):
 		print('-> PyChat.__del__()')
 
