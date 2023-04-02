@@ -135,19 +135,36 @@ class Server():
 		print('-> Server._read_discovery_server()')
 
 		data, addr = server_sock.recvfrom(1024)
-		data = data.decode('utf-8')
-		items = data.split(':')
+		c_contact = data.decode('utf-8')
+		c_contact_items = c_contact.split(':')
+		c_contact_items_len = len(c_contact_items)
 
 		print('-> data: {}'.format(data))
-		print('-> items: {}'.format(items))
 		print('-> addr: {}'.format(addr))
+		print('-> c_contact_items: {}'.format(c_contact_items))
 
 		if addr[0] == self._lan_ip:
 			return
 
+		if c_contact_items_len == 1:
+			c_contact_addr = c_contact_items[0]
+			c_contact_port = None
+		elif c_contact_items_len == 2:
+			c_contact_addr = c_contact_items[0]
+			c_contact_port = int(c_contact_items[1])
+
+		if c_contact_addr == 'public':
+			print('-> public', server_sock.getsockname())
+			c_contact_addr = addr[0]
+		elif c_contact_addr == 'private':
+			return
+
+		if c_contact_port == None:
+			return
+
 		client = Client()
-		client.address = addr[0]
-		client.port = int(items[1])
+		client.address = c_contact_addr
+		client.port = c_contact_port
 		client.debug_add = 'discovery'
 
 		self._client_connect(client)
@@ -157,7 +174,7 @@ class Server():
 
 		if client.address == self._lan_ip:
 			return
-		if client.node.eq(self._local_node):
+		if client.node == self._local_node:
 			return
 		if client.address == None or client.port == None:
 			return
@@ -352,7 +369,7 @@ class Server():
 							else:
 								print('-> client found D: {}'.format(_existing_client))
 
-								if _existing_client.eq(client):
+								if _existing_client == client:
 									print('-> client is equal')
 								else:
 									print('-> client is NOT equal')
@@ -381,7 +398,7 @@ class Server():
 						# Update Address Book because also an existing client can be updated
 						self._address_book.changed()
 
-						if c_switch and not _client.eq(client):
+						if c_switch and not _client == client:
 							print('-> switch client')
 							self._clients.remove(client)
 							self._clients.append(_client)

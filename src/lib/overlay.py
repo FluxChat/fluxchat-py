@@ -13,6 +13,11 @@ class Node():
 	def __repr__(self):
 		return 'Node({})'.format(self.id)
 
+	def __eq__(self, other):
+		if not isinstance(other, Node):
+			return False
+		return self.id == other.id
+
 	def decode(self) -> bytes:
 		return base58.b58decode(self.id[3:])
 
