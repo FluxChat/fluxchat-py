@@ -174,10 +174,23 @@ class AddressBook(JsonFile):
 			print('-> removing bootstrap client: {}'.format(client.uuid))
 			self.remove_client(client)
 
-		# TODO remove clients with invalid client_retention_time
-
+		# remove clients with invalid client_retention_time
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)
+		if _clients_len <= self._config['max_clients']:
+			return
+
+		now = dt.datetime.now()
+		print('-> clients: {}'.format(_clients_len))
+		for client in filter(lambda _client: now - _client.seen_at > self._clients_ttl, _clients):
+			print('-> removing client: {}'.format(client.uuid))
+			self.remove_client(client)
+
+		# remove clients, sorted by meetings
+		_clients = list(self._clients_by_uuid.values())
+		_clients_len = len(_clients)
+		if _clients_len <= self._config['max_clients']:
+			return
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
 		print('-> clients: {}'.format(_clients_len))
