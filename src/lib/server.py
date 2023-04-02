@@ -70,7 +70,7 @@ class Server():
 				res = self._discovery_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
 				print('-> res', res)
 
-			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery_server'})
+			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
 
 	def __del__(self):
 		print('-> Server.__del__()')
@@ -131,8 +131,8 @@ class Server():
 
 		self._clients.append(client)
 
-	def _read_discovery_server(self, server_sock: socket.socket):
-		print('-> Server._read_discovery_server()')
+	def _read_discovery(self, server_sock: socket.socket):
+		print('-> Server._read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
 		c_contact = data.decode('utf-8')
@@ -305,6 +305,8 @@ class Server():
 
 							if c_contact_addr == 'public':
 								print('-> public', sock.getsockname())
+								addr = sock.getsockname()
+								c_contact_addr = addr[0]
 								c_has_contact_info = True
 							elif c_contact_addr == 'private':
 								c_has_contact_info = False
@@ -455,7 +457,7 @@ class Server():
 								continue
 
 							_client = self._address_book.get_client(c_id)
-							_
+
 							if _client == None:
 								print('-> client not found')
 								_client = self._address_book.add_client(c_id, c_addr, c_port)
@@ -557,13 +559,9 @@ class Server():
 				elif key.data['type'] == 'main_client':
 					self._client_read(key.fileobj, key.data['client'])
 
-				elif key.data['type'] == 'discovery_server':
-					print('-> discovery server')
-					self._read_discovery_server(key.fileobj)
-
-				# elif key.data['type'] == 'discovery_client':
-				# 	print('-> discovery client')
-				# 	self._read_discovery_client(key.fileobj)
+				elif key.data['type'] == 'discovery':
+					print('-> discovery')
+					self._read_discovery(key.fileobj)
 
 			data_processed = True
 
