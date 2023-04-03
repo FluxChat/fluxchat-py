@@ -1,5 +1,13 @@
 # PyChat
 
+A decentralized, peer-to-peer, encrypted chat written in Python.
+
+## Project Outlines
+
+The project outlines as described in my blog post about [Open Source Software Collaboration](https://blog.fox21.at/2019/02/21/open-source-software-collaboration.html).
+
+- TBD
+
 ## Installation
 
 For the setup we assume that PyChat is running on a personal Computer in a Local Area Network, which is connected to the public Internet via a default gateway. By default PyChat will listen on all network interfaces (0.0.0.0).
