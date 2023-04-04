@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+export PYTHONUNBUFFERED=1
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
