@@ -41,11 +41,11 @@ class Client():
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
-		print('-> Client.__init__({})'.format(self.uuid))
+		# print('-> Client.__init__({})'.format(self.uuid))
 		self.address = None
 		self.port = None
 		self.id = None
-		self.seen_at = None
+		self.seen_at = dt.datetime.strptime('2001-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
 		self.meetings = 0
 		self.is_bootstrap = False
 		self.debug_add = 'Init'
@@ -58,8 +58,8 @@ class Client():
 		self.auth = 0
 		self.actions = []
 
-	def __del__(self):
-		print('-> Client.__del__({})'.format(self.uuid))
+	# def __del__(self):
+	# 	print('-> Client.__del__({})'.format(self.uuid))
 
 	def __str__(self):
 		return 'Client({},addr={},p={},ID={},c={},d={},a={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth)
@@ -87,7 +87,7 @@ class Client():
 		return d
 
 	def from_dict(self, data: dict):
-		print('-> Client.from_dict({})'.format(self.uuid))
+		# print('-> Client.from_dict({})'.format(self.uuid))
 
 		if 'address' in data:
 			self.address = data['address']
@@ -105,7 +105,7 @@ class Client():
 			self.debug_add = data['debug_add']
 
 	def from_list(self, data: list):
-		print('-> Client.from_list({})'.format(data))
+		# print('-> Client.from_list({})'.format(data))
 		l = len(data)
 
 		self.id = data[0]

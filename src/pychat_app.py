@@ -14,6 +14,7 @@ def main():
 	print('-> pid:', os.getpid())
 
 	app = PyChat(args.config[0])
+	app.start()
 	try:
 		app.run()
 	except KeyboardInterrupt:

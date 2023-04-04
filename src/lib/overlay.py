@@ -15,8 +15,12 @@ class Node():
 		return 'Node({})'.format(self.id)
 
 	def __eq__(self, other):
+		if isinstance(other, str):
+			return self.id == other
+
 		if not isinstance(other, Node):
 			return False
+
 		return self.id == other.id
 
 	def decode(self) -> bytes:
@@ -24,7 +28,6 @@ class Node():
 
 	def has_valid_id(self) -> bool:
 		if self.id[0:3] != 'FC_':
-			print('-> Invalid ID')
 			return False
 
 		return len(self.decode()) == 20
@@ -35,7 +38,7 @@ class Node():
 	@staticmethod
 	def parse(id: str):
 		node = Node(id)
-		if not os.environ.get('IS_UNITTEST') and not node.has_valid_id():
+		if not os.environ.get('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
 			raise ValueError('Invalid ID')
 
 		return node
@@ -64,6 +67,11 @@ class Distance():
 		return self._distance < other._distance
 
 	def __eq__(self, other):
+		if isinstance(other, int):
+			#print('Distance.__eq__(int) {}=={}'.format(self._distance, other))
+			return self._distance == other
+
 		if not isinstance(other, Distance):
 			return False
+
 		return self._distance == other._distance

@@ -21,12 +21,13 @@ class Scheduler():
 		task = Task(execfunc, interval, one_shot)
 		self._tasks.append(task)
 
-	def run(self):
+	def run(self, max_cycles: int = None):
 		# print('-> Scheduler.run()')
 		self._running = True
 		_sleep_time = self.SLEEP_TIME
 
-		while self._running:
+		_cycle = 0
+		while (self._running and max_cycles == None) or (max_cycles != None and _cycle < max_cycles):
 			_start = dt.datetime.now()
 
 			tasks_running = 0
@@ -51,8 +52,10 @@ class Scheduler():
 			else:
 				_sleep_time = self.SLEEP_TIME
 
-			# print('-> Scheduler sleeping: {}'.format(_sleep_time))
+			#print('-> Scheduler sleeping: {}'.format(_sleep_time))
 			time.sleep(_sleep_time)
+
+			_cycle += 1
 
 	def shutdown(self):
 		# print('-> Scheduler.shutdown()')

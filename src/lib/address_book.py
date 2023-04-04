@@ -15,7 +15,7 @@ class AddressBook(JsonFile):
 	_clients_ttl: dt.timedelta
 
 	def __init__(self, path: str, config: dict = None):
-		print('-> AddressBook.__init__({})'.format(path))
+		# print('-> AddressBook.__init__({})'.format(path))
 
 		self._path = path
 		self._config = config
@@ -34,7 +34,7 @@ class AddressBook(JsonFile):
 			client.uuid = client_uuid
 			client.from_dict(row)
 
-			print('-> load client: {}'.format(client))
+			# print('-> load client: {}'.format(client))
 
 			self._clients_by_uuid[client_uuid] = client
 			if client.id != None:
@@ -88,7 +88,7 @@ class AddressBook(JsonFile):
 		return None
 
 	def get_client_by_addr_port(self, addr: str, port: int):
-		print('-> AddressBook.get_client_by_addr_port({}, {})'.format(addr, port))
+		# print('-> AddressBook.get_client_by_addr_port({}, {})'.format(addr, port))
 
 		ffunc = lambda _client: _client[1].address == addr and _client[1].port == port
 
@@ -101,7 +101,7 @@ class AddressBook(JsonFile):
 		return None
 
 	def add_client(self, id: str = None, addr: str = None, port: int = None) -> Client:
-		print('-> AddressBook.add_client({}, {}, {})'.format(id, addr, port))
+		# print('-> AddressBook.add_client({}, {}, {})'.format(id, addr, port))
 
 		client = Client()
 		client.set_id(id)
@@ -118,7 +118,7 @@ class AddressBook(JsonFile):
 		return client
 
 	def remove_client(self, client: Client):
-		print('-> AddressBook.remove_client({})'.format(client))
+		# print('-> AddressBook.remove_client({})'.format(client))
 
 		del self._clients_by_uuid[client.uuid]
 		if client.id != None:
@@ -126,7 +126,7 @@ class AddressBook(JsonFile):
 		self.changed()
 
 	def add_bootstrap(self, file: str):
-		print('-> AddressBook.add_bootstrap({})'.format(file))
+		# print('-> AddressBook.add_bootstrap({})'.format(file))
 
 		_data = self._read_json_file(file, [])
 		for row in _data:
@@ -159,7 +159,7 @@ class AddressBook(JsonFile):
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)
 
-		print('-> clients: {}'.format(_clients_len))
+		# print('-> clients: {}'.format(_clients_len))
 
 		if _clients_len <= self._config['max_clients']:
 			return
@@ -167,19 +167,19 @@ class AddressBook(JsonFile):
 		# remove bootstrap clients with no meetings
 		_clients = list(filter(lambda _client: _client.is_bootstrap and _client.meetings == 0, _clients))
 		for client in _clients:
-			print('-> removing bootstrap client: {}'.format(client.uuid))
+			# print('-> removing bootstrap client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._config['max_clients']:
 				return
 
 		# remove clients with invalid client_retention_time
-		print('-> clients: {}'.format(_clients_len))
+		# print('-> clients: {}'.format(_clients_len))
 		_clients = list(self._clients_by_uuid.values())
 		_clients = list(filter(lambda _client: dt.datetime.now() - _client.seen_at > self._clients_ttl, _clients))
 		_clients.sort(key=lambda _client: _client.seen_at)
 		for client in _clients:
-			print('-> removing client: {}'.format(client.uuid))
+			print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._config['max_clients']:
@@ -188,17 +188,15 @@ class AddressBook(JsonFile):
 		# remove clients, sorted by meetings
 		print('-> clients: {}'.format(_clients_len))
 		_clients = list(self._clients_by_uuid.values())
-		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
+		_clients.sort(key=lambda _client: _client.meetings)
+		print('-> clients: {}'.format(_clients))
 
-		n = 0
 		for client in _clients:
-			print('-> client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
-			if n >= self._config['max_clients']:
-				self.remove_client(client)
-				_clients_len -= 1
-				if _clients_len <= self._config['max_clients']:
-					return
-			n += 1
+			print('-> removing client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
+			self.remove_client(client)
+			_clients_len -= 1
+			if _clients_len <= self._config['max_clients']:
+				return
 
 	def get_nearest_to(self, node: overlay.Node) -> list:
 		_clients = list(self._clients_by_uuid.values())

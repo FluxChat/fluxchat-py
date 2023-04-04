@@ -96,3 +96,17 @@ class AddressBookTestCase(unittest.TestCase):
 
 		clients = list(map(lambda kv: kv[1].id, address_book.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2'])
+
+	# remove clients, sorted by meetings
+	def test_clean_up6(self):
+		config = {
+			'max_clients': 2,
+			'client_retention_time': 24,
+		}
+		address_book = AddressBook('resources/tests/ab6.json', config)
+		address_book.clean_up('test6')
+		# address_book.save()
+		self.assertEqual(address_book.get_clients_len(), 2)
+
+		clients = list(map(lambda kv: kv[1].id, address_book.get_clients().items()))
+		self.assertEqual(clients, ['FC_test1', 'FC_test2'])

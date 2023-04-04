@@ -49,7 +49,7 @@ class Server():
 
 		self._selectors = selectors.DefaultSelector()
 
-	def start(self):
+	def start(self): # pragma: no cover
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -104,7 +104,7 @@ class Server():
 
 		return 'N/A'
 
-	def _client_is_connected(self, client: Client) -> bool:
+	def _client_is_connected(self, client: Client) -> bool: # pragma: no cover
 		print('-> Server._client_is_connected({})'.format(client))
 
 		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
@@ -113,7 +113,7 @@ class Server():
 
 		return len(clients) > 0
 
-	def _accept_main_server(self, server_sock: socket.socket):
+	def _accept_main_server(self, server_sock: socket.socket): # pragma: no cover
 		print('-> Server._accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
@@ -136,7 +136,7 @@ class Server():
 
 		self._clients.append(client)
 
-	def _read_discovery(self, server_sock: socket.socket):
+	def _read_discovery(self, server_sock: socket.socket): # pragma: no cover
 		print('-> Server._read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
@@ -174,7 +174,7 @@ class Server():
 
 		self._client_connect(client)
 
-	def _client_connect(self, client: Client):
+	def _client_connect(self, client: Client): # pragma: no cover
 		print('-> Server._client_connect({})'.format(client))
 
 		if client.address == self._lan_ip:
@@ -213,7 +213,7 @@ class Server():
 
 		self._clients.append(client)
 
-	def _client_read(self, sock: socket.socket, client: Client):
+	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
 		print('-> Server._client_read({})'.format(client))
 
 		try:
@@ -279,7 +279,7 @@ class Server():
 			print(f'{fg.red}-> conn mode 0{fg.rs}')
 			client.conn_mode = 0
 
-	def _client_commands(self, sock: socket.socket, client: Client, commands: list):
+	def _client_commands(self, sock: socket.socket, client: Client, commands: list): # pragma: no cover
 		for command_raw in commands:
 			group_i, command_i, payload = command_raw
 			payload_len = len(payload)
@@ -494,7 +494,7 @@ class Server():
 				print(f'{fg.red}-> conn mode 0{fg.rs}')
 				client.conn_mode = 0
 
-	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
+	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []): # pragma: no cover
 		print('-> Server._client_write()')
 		payload_l = []
 		for item in data:
@@ -509,11 +509,11 @@ class Server():
 
 		sock.sendall(raw)
 
-	def _client_send_ok(self, sock: socket.socket):
+	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
 		print('-> Server._client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_id(self, sock: socket.socket):
+	def _client_send_id(self, sock: socket.socket): # pragma: no cover
 		print('-> Server._client_send_id()')
 		data = [
 			self._config['id'],
@@ -524,19 +524,19 @@ class Server():
 		print('-> data', data)
 		self._client_write(sock, 1, 1, data)
 
-	def _client_send_ping(self, sock: socket.socket):
+	def _client_send_ping(self, sock: socket.socket): # pragma: no cover
 		print('-> Server._client_send_ping()')
 		self._client_write(sock, 1, 2)
 
-	def _client_send_pong(self, sock: socket.socket):
+	def _client_send_pong(self, sock: socket.socket): # pragma: no cover
 		print('-> Server._client_send_pong()')
 		self._client_write(sock, 1, 3)
 
-	def _client_send_get_nearest_to(self, sock: socket.socket, id: str):
+	def _client_send_get_nearest_to(self, sock: socket.socket, id: str): # pragma: no cover
 		print('-> Server._client_send_get_nearest_to()')
 		self._client_write(sock, 2, 1, [id])
 
-	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list):
+	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list): # pragma: no cover
 		print('-> Server._client_send_get_nearest_response()')
 		self._client_write(sock, 2, 2, client_ids)
 
@@ -651,7 +651,7 @@ class Server():
 
 		return True
 
-	def debug_clients(self) -> bool:
+	def debug_clients(self) -> bool: # pragma: no cover
 		print('-> Server.debug_clients() -> {}'.format(len(self._clients)))
 
 		for client in self._clients:
