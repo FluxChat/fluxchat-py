@@ -138,9 +138,8 @@ class Client():
 		if not isinstance(other, Client):
 			return False
 
-		if self.uuid != None and other.uuid != None:
-			if self.uuid == other.uuid:
-				return True
+		if self.uuid != None and other.uuid != None and self.uuid == other.uuid:
+			return True
 
 		if self.id == None or other.id == None:
 			return False

@@ -267,228 +267,227 @@ class Server():
 				raw_pos += 7 + length
 				# print('-> raw_pos', raw_pos)
 
-			for command_raw in commands:
-				group_i, command_i, payload = command_raw
-				payload_len = len(payload)
-
-				print('-> group', group_i, 'command', command_i)
-				print('-> payload', payload)
-
-				if group_i == 0: # Basic
-					if command_i == 0:
-						print('-> OK command')
-				elif group_i == 1: # Connection, Authentication, etc
-					if command_i == 1:
-						print('-> ID command')
-						if client.auth & 2 != 0:
-							print('-> already authenticated')
-							continue
-
-						c_switch = False
-
-						c_id = payload[0]
-						print('-> c_id', c_id)
-
-						c_has_contact_info = False
-						if payload_len >= 2:
-							# Client sent contact info
-							c_contact = payload[1]
-
-							c_contact_items = c_contact.split(':')
-							c_contact_items_len = len(c_contact_items)
-
-							if c_contact_items_len == 1:
-								c_has_contact_info = False
-							elif c_contact_items_len == 2:
-								c_contact_addr = c_contact_items[0]
-								c_contact_port = int(c_contact_items[1])
-
-							if c_contact_addr == 'public':
-								print('-> public', sock.getsockname())
-								addr = sock.getsockname()
-								c_contact_addr = addr[0]
-								c_has_contact_info = True
-							elif c_contact_addr == 'private':
-								c_has_contact_info = False
-							else:
-								c_has_contact_info = True
-
-						if client.dir_mode == 'i':
-							# Client is incoming
-							print('-> client is incoming')
-
-							if c_has_contact_info:
-								# Client sent contact info
-								_client = self._address_book.get_client(c_id)
-								if _client == None:
-									print('-> client not found A')
-
-									_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
-									if _client == None:
-										print('-> client not found B')
-
-										c_switch = True
-										_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
-										_client.dir_mode = client.dir_mode
-										_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
-									else:
-										print('-> client found B: {}'.format(_client))
-								else:
-									print('-> client found A: {}'.format(_client))
-
-								_client.address = c_contact_addr
-								_client.port = c_contact_port
-							else:
-								# Client sent no contact info
-								_client = self._address_book.get_client(c_id)
-								if _client == None:
-									print('-> client not found C')
-
-									_client = self._address_book.add_client(c_id)
-									_client.dir_mode = client.dir_mode
-									_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
-								else:
-									print('-> client found C: {}'.format(_client))
-
-								c_switch = True
-
-						elif client.dir_mode == 'o':
-							# Client is outgoing
-							print('-> client is outgoing')
-
-							_client = client
-
-							_existing_client = self._address_book.get_client(c_id)
-							if _existing_client == None:
-								# Client is outgoing but not found by id
-								# This can happen because of the UDP discovery service.
-								print('-> client not found D')
-								_client = self._address_book.add_client(c_id, client.address, client.port)
-								_client.dir_mode = client.dir_mode
-								_client.debug_add = 'id command, outgoing, not found by id, original: ' + client.debug_add
-
-								c_switch = True
-							else:
-								print('-> client found D: {}'.format(_existing_client))
-
-								if _existing_client == client:
-									print('-> client is equal')
-								else:
-									print('-> client is NOT equal')
-									# raise Exception('Not Implemented, what to do if client is not equal?')
-
-							if c_has_contact_info:
-								print('-> client has contact infos')
-								_client.address = c_contact_addr
-								_client.port = c_contact_port
-							else:
-								print('-> client has NO contact infos')
-
-						if _client.id == None:
-							_client.id = c_id
-
-						print(f'Client A: {client}')
-						print(f'Client B: {_client}')
-
-						_client.refresh_seen_at()
-						_client.inc_meetings()
-
-						_client.sock = sock
-						_client.conn_mode = client.conn_mode
-						_client.auth = client.auth | 2
-
-						# Update Address Book because also an existing client can be updated
-						self._address_book.changed()
-
-						if c_switch and not _client == client:
-							print('-> switch client')
-							self._clients.remove(client)
-							self._clients.append(_client)
-
-							self._selectors.unregister(sock)
-							self._selectors.register(_client.sock, selectors.EVENT_READ, data={
-								'type': 'main_client',
-								'client': _client,
-							})
-
-						self._client_send_ok(_client.sock)
-
-						print(f'{fg.blue}Client Z: {_client}{fg.rs}')
-					elif command_i == 2:
-						print('-> PING command')
-						self._client_send_pong(sock)
-					elif command_i == 3:
-						print('-> PONG command')
-				elif group_i == 2: # Overlay, Address Book, Routing, etc
-					if client.auth != 3:
-						print('-> not authenticated', client.auth)
-						print(f'{fg.red}-> conn mode 0{fg.rs}')
-						client.conn_mode = 0
-						continue
-
-					if command_i == 1:
-						print('-> GET_NEAREST_TO command')
-						node = overlay.Node(payload[0])
-						client_ids = []
-						clients = self._address_book.get_nearest_to(node)
-						for _client in clients:
-							print('-> client', _client, _client.distance(node))
-							if _client.id != self._local_node.id and _client.id != node.id:
-								if _client.has_contact():
-									contact_infos = [_client.id, _client.address, str(_client.port)]
-									print('-> contact infos', contact_infos)
-									client_ids.append(':'.join(contact_infos))
-
-						self._client_send_get_nearest_response(sock, client_ids)
-
-					elif command_i == 2:
-						print('-> GET_NEAREST_TO RESPONSE command')
-
-						if not client.has_action('nearest_response', True):
-							print('-> not requested')
-							continue
-
-						nearest_client = None
-						distance = overlay.Distance()
-						for c_contact in payload:
-							print('-> client contact', c_contact)
-							c_id, c_addr, c_port = c_contact.split(':')
-							if c_id == self._local_node.id:
-								continue
-
-							_client = self._address_book.get_client(c_id)
-
-							if _client == None:
-								print('-> client not found')
-								_client = self._address_book.add_client(c_id, c_addr, c_port)
-								_client.debug_add = 'nearest response, not found by id'
-
-								_c_distance = _client.distance(self._local_node)
-								if _c_distance < distance:
-									# distance = _client.distance(self._local_node)
-									distance = _c_distance
-									print('-> new distance', distance)
-
-									nearest_client = _client
-							else:
-								print('-> client found', _client)
-
-						if nearest_client != None:
-							print('-> nearest client', nearest_client)
-							# TODO: connect to nearest client
-							# limit the clients to connect to.
-				else:
-					print('-> unknown group', group_i, 'command', command_i)
-					print(f'{fg.red}-> conn mode 0{fg.rs}')
-					client.conn_mode = 0
-
+			self._client_commands(sock, client, commands)
 		else:
 			print('-> no data')
-			# self._selectors.unregister(sock)
-			# sock.close()
 
 			print(f'{fg.red}-> conn mode 0{fg.rs}')
 			client.conn_mode = 0
+
+	def _client_commands(self, sock: socket.socket, client: Client, commands: list):
+		for command_raw in commands:
+			group_i, command_i, payload = command_raw
+			payload_len = len(payload)
+
+			print('-> group', group_i, 'command', command_i)
+			print('-> payload', payload)
+
+			if group_i == 0: # Basic
+				if command_i == 0:
+					print('-> OK command')
+			elif group_i == 1: # Connection, Authentication, etc
+				if command_i == 1:
+					print('-> ID command')
+					if client.auth & 2 != 0:
+						print('-> already authenticated')
+						continue
+
+					c_switch = False
+
+					c_id = payload[0]
+					print('-> c_id', c_id)
+
+					c_has_contact_info = False
+					if payload_len >= 2:
+						# Client sent contact info
+						c_contact = payload[1]
+
+						c_contact_items = c_contact.split(':')
+						c_contact_items_len = len(c_contact_items)
+
+						if c_contact_items_len == 1:
+							c_has_contact_info = False
+						elif c_contact_items_len == 2:
+							c_contact_addr = c_contact_items[0]
+							c_contact_port = int(c_contact_items[1])
+
+						if c_contact_addr == 'public':
+							print('-> public', sock.getsockname())
+							addr = sock.getsockname()
+							c_contact_addr = addr[0]
+							c_has_contact_info = True
+						elif c_contact_addr == 'private':
+							c_has_contact_info = False
+						else:
+							c_has_contact_info = True
+
+					if client.dir_mode == 'i':
+						# Client is incoming
+						print('-> client is incoming')
+
+						if c_has_contact_info:
+							# Client sent contact info
+							_client = self._address_book.get_client(c_id)
+							if _client == None:
+								print('-> client not found A')
+
+								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+								if _client == None:
+									print('-> client not found B')
+
+									c_switch = True
+									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
+									_client.dir_mode = client.dir_mode
+									_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
+								else:
+									print('-> client found B: {}'.format(_client))
+							else:
+								print('-> client found A: {}'.format(_client))
+
+							_client.address = c_contact_addr
+							_client.port = c_contact_port
+						else:
+							# Client sent no contact info
+							_client = self._address_book.get_client(c_id)
+							if _client == None:
+								print('-> client not found C')
+
+								_client = self._address_book.add_client(c_id)
+								_client.dir_mode = client.dir_mode
+								_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
+							else:
+								print('-> client found C: {}'.format(_client))
+
+							c_switch = True
+
+					elif client.dir_mode == 'o':
+						# Client is outgoing
+						print('-> client is outgoing')
+
+						_client = client
+
+						_existing_client = self._address_book.get_client(c_id)
+						if _existing_client == None:
+							# Client is outgoing but not found by id
+							# This can happen because of the UDP discovery service.
+							print('-> client not found D')
+							_client = self._address_book.add_client(c_id, client.address, client.port)
+							_client.dir_mode = client.dir_mode
+							_client.debug_add = 'id command, outgoing, not found by id, original: ' + client.debug_add
+
+							c_switch = True
+						else:
+							print('-> client found D: {}'.format(_existing_client))
+
+							if _existing_client == client:
+								print('-> client is equal')
+							else:
+								print('-> client is NOT equal')
+
+						if c_has_contact_info:
+							print('-> client has contact infos')
+							_client.address = c_contact_addr
+							_client.port = c_contact_port
+						else:
+							print('-> client has NO contact infos')
+
+					if _client.id == None:
+						_client.id = c_id
+
+					print(f'Client A: {client}')
+					print(f'Client B: {_client}')
+
+					_client.refresh_seen_at()
+					_client.inc_meetings()
+
+					_client.sock = sock
+					_client.conn_mode = client.conn_mode
+					_client.auth = client.auth | 2
+
+					# Update Address Book because also an existing client can be updated
+					self._address_book.changed()
+
+					if c_switch and _client != client:
+						print('-> switch client')
+						self._clients.remove(client)
+						self._clients.append(_client)
+
+						self._selectors.unregister(sock)
+						self._selectors.register(_client.sock, selectors.EVENT_READ, data={
+							'type': 'main_client',
+							'client': _client,
+						})
+
+					self._client_send_ok(_client.sock)
+
+					print(f'{fg.blue}Client Z: {_client}{fg.rs}')
+				elif command_i == 2:
+					print('-> PING command')
+					self._client_send_pong(sock)
+				elif command_i == 3:
+					print('-> PONG command')
+			elif group_i == 2: # Overlay, Address Book, Routing, etc
+				if client.auth != 3:
+					print('-> not authenticated', client.auth)
+					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					client.conn_mode = 0
+					continue
+
+				if command_i == 1:
+					print('-> GET_NEAREST_TO command')
+					node = overlay.Node(payload[0])
+					client_ids = []
+					clients = self._address_book.get_nearest_to(node)
+					for _client in clients:
+						print('-> client', _client, _client.distance(node))
+						if _client.id != self._local_node.id and _client.id != node.id:
+							if _client.has_contact():
+								contact_infos = [_client.id, _client.address, str(_client.port)]
+								print('-> contact infos', contact_infos)
+								client_ids.append(':'.join(contact_infos))
+
+					self._client_send_get_nearest_response(sock, client_ids)
+
+				elif command_i == 2:
+					print('-> GET_NEAREST_TO RESPONSE command')
+
+					if not client.has_action('nearest_response', True):
+						print('-> not requested')
+						continue
+
+					nearest_client = None
+					distance = overlay.Distance()
+					for c_contact in payload:
+						print('-> client contact', c_contact)
+						c_id, c_addr, c_port = c_contact.split(':')
+						if c_id == self._local_node.id:
+							continue
+
+						_client = self._address_book.get_client(c_id)
+
+						if _client == None:
+							print('-> client not found')
+							_client = self._address_book.add_client(c_id, c_addr, c_port)
+							_client.debug_add = 'nearest response, not found by id'
+
+							_c_distance = _client.distance(self._local_node)
+							if _c_distance < distance:
+								# distance = _client.distance(self._local_node)
+								distance = _c_distance
+								print('-> new distance', distance)
+
+								nearest_client = _client
+						else:
+							print('-> client found', _client)
+
+					if nearest_client != None:
+						print('-> nearest client', nearest_client)
+						# TODO: connect to nearest client
+						# limit the clients to connect to.
+			else:
+				print('-> unknown group', group_i, 'command', command_i)
+				print(f'{fg.red}-> conn mode 0{fg.rs}')
+				client.conn_mode = 0
 
 	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
 		print('-> Server._client_write()')
@@ -498,19 +497,12 @@ class Server():
 			payload_l.append(item)
 		payload = ''.join(payload_l)
 
-		# print('-> payload {} "{}"'.format(len(payload), payload))
-
 		cmd_grp = (chr(group) + chr(command)).encode('utf-8')
 		len_payload = len(payload).to_bytes(4, byteorder='little')
 
-		# print('-> cmd_grp', cmd_grp)
-		# print('-> len_payload', len_payload)
-
 		raw = cmd_grp + len_payload + (payload + chr(0)).encode('utf-8')
 
-		# print('-> send raw {} {}'.format(len(raw), raw))
-		res = sock.sendall(raw)
-		# print('-> sent', res)
+		sock.sendall(raw)
 
 	def _client_send_ok(self, sock: socket.socket):
 		print('-> Server._client_send_ok()')

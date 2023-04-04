@@ -16,7 +16,7 @@ def main():
 	app = PyChat(args.config[0])
 	try:
 		app.run()
-	except KeyboardInterrupt as e:
+	except KeyboardInterrupt:
 		print()
 		app.shutdown()
 

@@ -29,7 +29,7 @@ def main():
 		address_book = AddressBook(args.file[0])
 
 		for i in range(0, args.number[0]):
-			c_id = generate_test_id(i)
+			c_id = generate_test_id()
 			print('-> c_id: {}'.format(c_id))
 			client = address_book.add_client(c_id, '127.0.0.1', 26000 + i)
 			if seen_at != None:

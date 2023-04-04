@@ -3,7 +3,6 @@ import secrets
 import hashlib
 import base58
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 # Generate ID from Public Key
 def generate_id_from_public_key_file(file_path: str) -> str:
@@ -26,7 +25,7 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 	return f'FC_{base58_hash}'
 
-def generate_test_id(i: int) -> str:
+def generate_test_id() -> str:
 	public_bytes = secrets.token_bytes(20)
 
 	hash_obj = hashlib.new('ripemd160')

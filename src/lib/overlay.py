@@ -31,12 +31,13 @@ class Node():
 	def distance(self, other) -> int:
 		return Distance(self, other)
 
-	def parse(_id: str):
-		_node = Node(_id)
-		if not _node.has_valid_id():
+	@staticmethod
+	def parse(id: str):
+		node = Node(id)
+		if not node.has_valid_id():
 			raise ValueError('Invalid ID')
 
-		return _node
+		return node
 
 class Distance():
 	_distance: int
@@ -59,25 +60,9 @@ class Distance():
 		return 'Distance({})'.format(self._distance)
 
 	def __lt__(self, other):
-		# print('-> Distance.__eq__')
-		# print('-> self: {}'.format(self))
-		# print('-> other: {}'.format(other))
 		return self._distance < other._distance
 
-	def __le__(self, other):
-		raise NotImplementedError('Distance.__le__')
-
 	def __eq__(self, other):
-		# print('-> Distance.__eq__')
 		if not isinstance(other, Distance):
 			return False
 		return self._distance == other._distance
-
-	def __ne__(self, other):
-		raise NotImplementedError('Distance.__ne__')
-
-	def __gt__(self, other):
-		raise NotImplementedError('Distance.__gt__')
-
-	def __ge__(self, other):
-		raise NotImplementedError('Distance.__ge__')
