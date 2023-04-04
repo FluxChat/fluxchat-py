@@ -79,6 +79,7 @@ class Server():
 	def __del__(self):
 		print('-> Server.__del__()')
 		self._selectors.close()
+		self._address_book.save()
 
 	def has_contact(self) -> bool:
 		if 'contact' in self._config:
@@ -604,7 +605,7 @@ class Server():
 		return True
 
 	def clean_up_address_book(self) -> bool:
-		self._address_book.clean_up()
+		self._address_book.clean_up(self._local_node.id)
 		return True
 
 	def handle_clients(self) -> bool:

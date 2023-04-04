@@ -1,0 +1,23 @@
+{
+	"89f45d23-b570-4096-8299-fcf1af35ad7c": {
+		"address": "localhost",
+		"port": 25001,
+		"id": "FC_test1",
+		"seen_at": "2001-01-01 00:00:00",
+		"meetings": 100
+	},
+	"79f45d23-b570-4096-8299-fcf1af35ad7c": {
+		"address": "localhost",
+		"port": 25002,
+		"id": "FC_test2",
+		"seen_at": "2001-01-01 00:00:00",
+		"meetings": 100
+	},
+	"69f45d23-b570-4096-8299-fcf1af35ad7c": {
+		"address": "localhost",
+		"port": 25003,
+		"id": "FC_test3",
+		"seen_at": "2001-01-01 00:00:00",
+		"meetings": 100
+	}
+}

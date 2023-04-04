@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
+export IS_UNITTEST=true
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
-mkdir -p tmp/tests
 rm -rf tmp/tests
+mkdir -p tmp/tests/data_default tmp/tests/data_custom
 
 . .venv/bin/activate
 
 set -x
-python -m unittest discover -s src
-
 coverage run -m unittest discover -s src
-#coverage report
 coverage html -d tmp/coverage

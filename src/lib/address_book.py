@@ -16,7 +16,6 @@ class AddressBook(JsonFile):
 
 	def __init__(self, path: str, config: dict = None):
 		print('-> AddressBook.__init__({})'.format(path))
-		# print(f'{config}')
 
 		self._path = path
 		self._config = config
@@ -35,15 +34,13 @@ class AddressBook(JsonFile):
 			client.uuid = client_uuid
 			client.from_dict(row)
 
+			print('-> load client: {}'.format(client))
+
 			self._clients_by_uuid[client_uuid] = client
 			if client.id != None:
 				if client.id in self._clients_by_id:
 					print('{}-> AddressBook.__init__(): Warning: Client ID already exists: {}{}'.format(fg.red, client.id, fg.rs))
 				self._clients_by_id[client.id] = client
-
-	def __del__(self):
-		print('-> AddressBook.__del__()')
-		self.save()
 
 	def save(self) -> bool:
 		if not self._changes:
@@ -152,54 +149,55 @@ class AddressBook(JsonFile):
 		# print('-> AddressBook.changed()')
 		self._changes = True
 
-	def clean_up(self, local_id: str):
-		print('-> AddressBook.clean_up()')
+	def clean_up(self, local_id: str = None):
+		print('-> AddressBook.clean_up({})'.format(local_id))
 
 		# remove local_id
-		if local_id in self._clients_by_id:
+		if local_id != None and local_id in self._clients_by_id:
 			del self._clients_by_id[local_id]
 
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)
-		_bootstrap_len = len(list(filter(lambda _client: _client.is_bootstrap, _clients)))
 
 		print('-> clients: {}'.format(_clients_len))
-		print('-> bootstrap: {}'.format(_bootstrap_len))
 
 		if _clients_len <= self._config['max_clients']:
 			return
 
 		# remove bootstrap clients with no meetings
-		for client in filter(lambda _client: _client.is_bootstrap and _client.meetings == 0, _clients):
+		_clients = list(filter(lambda _client: _client.is_bootstrap and _client.meetings == 0, _clients))
+		for client in _clients:
 			print('-> removing bootstrap client: {}'.format(client.uuid))
 			self.remove_client(client)
+			_clients_len -= 1
+			if _clients_len <= self._config['max_clients']:
+				return
 
 		# remove clients with invalid client_retention_time
-		_clients = list(self._clients_by_uuid.values())
-		_clients_len = len(_clients)
-		if _clients_len <= self._config['max_clients']:
-			return
-
-		now = dt.datetime.now()
 		print('-> clients: {}'.format(_clients_len))
-		for client in filter(lambda _client: now - _client.seen_at > self._clients_ttl, _clients):
+		_clients = list(self._clients_by_uuid.values())
+		_clients = list(filter(lambda _client: dt.datetime.now() - _client.seen_at > self._clients_ttl, _clients))
+		_clients.sort(key=lambda _client: _client.seen_at)
+		for client in _clients:
 			print('-> removing client: {}'.format(client.uuid))
 			self.remove_client(client)
+			_clients_len -= 1
+			if _clients_len <= self._config['max_clients']:
+				return
 
 		# remove clients, sorted by meetings
+		print('-> clients: {}'.format(_clients_len))
 		_clients = list(self._clients_by_uuid.values())
-		_clients_len = len(_clients)
-		if _clients_len <= self._config['max_clients']:
-			return
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
-		print('-> clients: {}'.format(_clients_len))
 		n = 0
 		for client in _clients:
-			remove = n >= self._config['max_clients']
-			print('-> client: {} {} {} {}'.format(remove, client.uuid, client.meetings, client.seen_at))
-			if remove:
+			print('-> client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
+			if n >= self._config['max_clients']:
 				self.remove_client(client)
+				_clients_len -= 1
+				if _clients_len <= self._config['max_clients']:
+					return
 			n += 1
 
 	def get_nearest_to(self, node: overlay.Node) -> list:
