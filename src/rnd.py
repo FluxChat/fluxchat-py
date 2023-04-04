@@ -8,7 +8,7 @@ from lib.address_book import AddressBook
 from lib.helper import generate_test_id
 
 def main():
-	parser = argparse.ArgumentParser(prog='id', description='Generate ID')
+	parser = argparse.ArgumentParser(prog='id', description='Generate Random Data')
 	parser.add_argument('command')
 	parser.add_argument('-f', '--file', type=str, nargs=1, help='File Path')
 	parser.add_argument('-n', '--number', type=int, nargs=1, help='Number of Test Data', default=[100])

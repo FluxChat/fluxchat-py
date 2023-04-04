@@ -23,6 +23,7 @@ class PyChat(JsonFile):
 		# Init
 		self._load_config()
 		self._server = Server(self._config)
+		self._server.start()
 
 		self._scheduler = Scheduler()
 		self._scheduler.add_task(self._server.run, dt.timedelta(milliseconds=100))

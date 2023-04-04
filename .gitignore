@@ -3,3 +3,5 @@
 /tmp/
 /var/
 __pycache__
+*.py[cod]
+/.coverage

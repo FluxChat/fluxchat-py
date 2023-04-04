@@ -31,6 +31,11 @@ class Server():
 		print('-> lan_ip: {}'.format(self._lan_ip))
 
 		self._config = config
+		if 'address_book' not in self._config:
+			self._config['address_book'] = {
+				'max_clients': 20,
+				'client_retention_time': 24,
+			}
 
 		address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
 		self._address_book = AddressBook(address_book_path, self._config['address_book'])
@@ -43,6 +48,8 @@ class Server():
 		self._local_node = overlay.Node(self._config['id'])
 
 		self._selectors = selectors.DefaultSelector()
+
+	def start(self):
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -53,9 +60,6 @@ class Server():
 		self._main_server_socket.listen()
 		self._main_server_socket.setblocking(False)
 		self._selectors.register(self._main_server_socket, selectors.EVENT_READ, data={'type': 'main_server'})
-
-		# print(self._main_server_socket)
-		# print(self._main_server_socket.getsockname())
 
 		if 'discovery' in self._config and self._config['discovery']:
 			print('-> discovery')
