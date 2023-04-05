@@ -457,7 +457,7 @@ class Server():
 					distance = overlay.Distance()
 					for c_contact in payload:
 						print('-> client contact', c_contact)
-						c_id, c_addr, c_port = c_contact.split(':')
+						c_id, c_addr, c_port = c_contact.split(':') # TODO use resolve_contact here
 						if c_id == self._local_node.id:
 							continue
 
