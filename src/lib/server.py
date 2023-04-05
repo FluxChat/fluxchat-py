@@ -119,9 +119,9 @@ class Server():
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
 
-		print('-> client_sock: {}'.format(client_sock))
-		print('-> addr: {}'.format(addr))
-		print('-> accepted: {} {}'.format(addr[0], addr[1]))
+		# print('-> client_sock: {}'.format(client_sock))
+		# print('-> addr: {}'.format(addr))
+		# print('-> accepted: {} {}'.format(addr[0], addr[1]))
 
 		client = Client()
 		client.sock = client_sock
@@ -136,6 +136,8 @@ class Server():
 
 		self._clients.append(client)
 
+		print('-> accept_main_server client: {}'.format(client))
+
 	def _read_discovery(self, server_sock: socket.socket): # pragma: no cover
 		print('-> Server._read_discovery()')
 
@@ -144,9 +146,9 @@ class Server():
 		c_contact_items = c_contact.split(':')
 		c_contact_items_len = len(c_contact_items)
 
-		print('-> data: {}'.format(data))
-		print('-> addr: {}'.format(addr))
-		print('-> c_contact_items: {}'.format(c_contact_items))
+		# print('-> data: {}'.format(data))
+		# print('-> addr: {}'.format(addr))
+		# print('-> c_contact_items: {}'.format(c_contact_items))
 
 		if addr[0] == self._lan_ip:
 			return
@@ -159,7 +161,6 @@ class Server():
 			c_contact_port = int(c_contact_items[1])
 
 		if c_contact_addr == 'public':
-			print('-> public', server_sock.getsockname())
 			c_contact_addr = addr[0]
 		elif c_contact_addr == 'private':
 			return
@@ -170,7 +171,9 @@ class Server():
 		client = Client()
 		client.address = c_contact_addr
 		client.port = c_contact_port
-		client.debug_add = 'discovery'
+		client.debug_add = 'discovery, len: {}, addr: {}'.format(c_contact_items_len, c_contact_items[0])
+
+		print('-> read_discovery client: {}'.format(client))
 
 		self._client_connect(client)
 
@@ -227,7 +230,7 @@ class Server():
 
 		if raw:
 			raw_len = len(raw)
-			print('-> recv raw {} {}'.format(raw_len, raw))
+			# print('-> recv raw {} {}'.format(raw_len, raw))
 
 			raw_pos = 0
 			commands = []
@@ -320,8 +323,9 @@ class Server():
 							c_contact_port = int(c_contact_items[1])
 
 						if c_contact_addr == 'public':
-							print('-> public', sock.getsockname())
-							addr = sock.getsockname()
+							print('-> public', sock.getpeername())
+							print('-> sock', sock)
+							addr = sock.getpeername()
 							c_contact_addr = addr[0]
 							c_has_contact_info = True
 						elif c_contact_addr == 'private':
@@ -524,7 +528,7 @@ class Server():
 		if self.has_contact():
 			data.append(self.get_contact())
 
-		print('-> data', data)
+		# print('-> data', data)
 		self._client_write(sock, 1, 1, data)
 
 	def _client_send_ping(self, sock: socket.socket): # pragma: no cover
