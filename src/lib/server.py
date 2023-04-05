@@ -294,14 +294,17 @@ class Server():
 				if command_i == 1:
 					print('-> ID command')
 					if client.auth & 2 != 0:
-						print('-> already authenticated')
+						print('-> skip, already authenticated')
 						continue
-
-					c_switch = False
 
 					c_id = payload[0]
 					print('-> c_id', c_id)
 
+					if self._local_node == c_id:
+						print('-> skip, ID is local node')
+						continue
+
+					c_switch = False
 					c_has_contact_info = False
 					if payload_len >= 2:
 						# Client sent contact info
