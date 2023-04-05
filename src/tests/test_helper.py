@@ -1,8 +1,11 @@
 
 import unittest
-from lib.helper import resolve_contact
+from lib.helper import generate_id_from_public_key_file, resolve_contact
 
 class HelperTestCase(unittest.TestCase):
+	def test_generate_id_from_public_key_file(self):
+		self.assertEqual(generate_id_from_public_key_file('resources/tests/pubkey.pem'), 'FC_3iB6UnLXWdPfi2eLVEfY1d5eEaMR')
+
 	def test_resolve_contact(self):
 		data = [
 			('', '192.168.10.10', [None, None, False]),

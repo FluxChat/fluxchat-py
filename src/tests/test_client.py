@@ -4,6 +4,19 @@ from lib.client import Client
 from lib.overlay import Node
 
 class ClientTestCase(unittest.TestCase):
+	def test_str(self):
+		client = Client()
+		client.uuid = 'test'
+		client.address = 'localhost'
+		client.port = 25001
+		client.id = 'FC_test1'
+		client.conn_mode = 99
+		client.dir_mode = 't'
+		client.auth = 3
+		client.actions = ['a', 'b', 'c', 'd']
+
+		self.assertEqual(str(client), 'Client(test,a:p=localhost:25001,ID=FC_test1,c=99,d=t,a=3,ac=4)')
+
 	def test_from_list(self):
 		client = Client()
 		client.from_list(['FC_test1', 'localhost', 25001])
@@ -55,3 +68,35 @@ class ClientTestCase(unittest.TestCase):
 		client1 = Client()
 		client1.set_id('FC_test1')
 		self.assertFalse(client1 == 1)
+
+	def test_actions(self):
+		client = Client()
+		client.add_action('test')
+		self.assertEqual(client.get_actions(), ['test'])
+		self.assertEqual(client.get_actions(), ['test'])
+		self.assertEqual(client.get_actions(True), ['test'])
+		self.assertEqual(client.get_actions(), [])
+
+		client.add_action('test1')
+		client.add_action('test2')
+		client.add_action('test3')
+		self.assertEqual(client.get_actions(), ['test1', 'test2', 'test3'])
+
+		client.remove_action('test2')
+		self.assertEqual(client.get_actions(), ['test1', 'test3'])
+
+		self.assertTrue(client.has_action('test3'))
+		self.assertEqual(client.get_actions(), ['test1', 'test3'])
+
+		self.assertTrue(client.has_action('test3', True))
+		self.assertEqual(client.get_actions(), ['test1'])
+
+	def test_has_contact(self):
+		client = Client()
+		self.assertFalse(client.has_contact())
+
+		client.address = 'localhost'
+		self.assertFalse(client.has_contact())
+
+		client.port = 25001
+		self.assertTrue(client.has_contact())

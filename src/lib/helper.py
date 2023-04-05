@@ -27,7 +27,7 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 	return f'FC_{base58_hash}'
 
-def generate_test_id() -> str:
+def generate_test_id() -> str: # pragma: no cover
 	public_bytes = secrets.token_bytes(20)
 
 	hash_obj = hashlib.new('ripemd160')
@@ -37,7 +37,7 @@ def generate_test_id() -> str:
 	return f'FC_{base58_hash}'
 
 def resolve_contact(contact: str, raddr: str) -> list: # TODO raddr = None default
-	print('-> resolve_contact({})'.format(contact))
+	# print('-> resolve_contact({})'.format(contact))
 	items = contact.split(':')
 	items_len = len(items)
 
@@ -67,7 +67,7 @@ def resolve_contact(contact: str, raddr: str) -> list: # TODO raddr = None defau
 			try:
 				results = socket.getaddrinfo(c_addr, None)
 				for result in results:
-					print('result: {} {}'.format(c_addr, result))
+					# print('result: {} {}'.format(c_addr, result))
 
 					ip_address = result[4][0]
 					if ip_address[0:4] == '127.':

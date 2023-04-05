@@ -23,7 +23,7 @@ class Server():
 	_local_node: overlay.Node
 
 	def __init__(self, config: dict):
-		print('-> Server.__init__()')
+		# print('-> Server.__init__()')
 
 		self._host_name = socket.gethostname()
 		self._lan_ip = socket.gethostbyname(self._host_name)
@@ -78,7 +78,7 @@ class Server():
 			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
 
 	def __del__(self):
-		print('-> Server.__del__()')
+		# print('-> Server.__del__()')
 		self._selectors.close()
 		self._address_book.save()
 
@@ -110,7 +110,7 @@ class Server():
 
 		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
 		clients = list(filter(ffunc, self._clients))
-		print('-> clients: {}'.format(clients))
+		# print('-> clients: {}'.format(clients))
 
 		return len(clients) > 0
 
@@ -558,12 +558,12 @@ class Server():
 		return data_processed # will be returned to the Scheduler
 
 	def contact_address_book(self) -> bool:
-		print('-> Server.contact_address_book()')
+		# print('-> Server.contact_address_book()')
 
 		_clients = list(self._address_book.get_clients().values())
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
-		print('-> clients', len(_clients))
+		# print('-> clients', len(_clients))
 
 		connect_to_clients = []
 		zero_meetings_clients = []
@@ -588,8 +588,8 @@ class Server():
 				connect_to_clients.append(client)
 
 		is_bootstrapping = self.is_bootstrap_phase()
-		print('-> is_bootstrapping', is_bootstrapping)
-		print('-> connect_to_clients', connect_to_clients)
+		# print('-> is_bootstrapping', is_bootstrapping)
+		# print('-> connect_to_clients', connect_to_clients)
 
 		for client in connect_to_clients:
 			if is_bootstrapping:
@@ -629,7 +629,7 @@ class Server():
 		return True
 
 	def ping_clients(self) -> bool:
-		print('-> Server.ping_clients() -> {}'.format(len(self._clients)))
+		# print('-> Server.ping_clients() -> {}'.format(len(self._clients)))
 
 		for client in self._clients:
 			if client.conn_mode == 2:
@@ -639,7 +639,7 @@ class Server():
 		return True
 
 	def save(self) -> bool:
-		print('-> Server.save()')
+		# print('-> Server.save()')
 
 		self._address_book.save()
 
@@ -654,7 +654,7 @@ class Server():
 		return True
 
 	def client_actions(self) -> bool:
-		print('-> Server.client_actions() -> {}'.format(len(self._clients)))
+		# print('-> Server.client_actions() -> {}'.format(len(self._clients)))
 		had_actions = False
 
 		for client in self._clients:

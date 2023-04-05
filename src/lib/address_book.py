@@ -150,7 +150,7 @@ class AddressBook(JsonFile):
 		self._changes = True
 
 	def clean_up(self, local_id: str = None):
-		print('-> AddressBook.clean_up({})'.format(local_id))
+		# print('-> AddressBook.clean_up({})'.format(local_id))
 
 		# remove local_id
 		if local_id != None and local_id in self._clients_by_id:
@@ -179,20 +179,20 @@ class AddressBook(JsonFile):
 		_clients = list(filter(lambda _client: dt.datetime.now() - _client.seen_at > self._clients_ttl, _clients))
 		_clients.sort(key=lambda _client: _client.seen_at)
 		for client in _clients:
-			print('-> removing ttl client: {}'.format(client.uuid))
+			# print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._config['max_clients']:
 				return
 
 		# remove clients, sorted by meetings
-		print('-> clients: {}'.format(_clients_len))
+		# print('-> clients: {}'.format(_clients_len))
 		_clients = list(self._clients_by_uuid.values())
 		_clients.sort(key=lambda _client: _client.meetings)
-		print('-> clients: {}'.format(_clients))
+		# print('-> clients: {}'.format(_clients))
 
 		for client in _clients:
-			print('-> removing client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
+			# print('-> removing client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._config['max_clients']:

@@ -5,7 +5,7 @@ from lib.scheduler import Scheduler
 
 class SchedulerTestCase(unittest.TestCase):
 	def task1(self) -> bool:
-		print('-> task1()')
+		# print('-> task1()')
 		return True
 
 	def test_scheduler1(self):

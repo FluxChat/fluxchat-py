@@ -16,7 +16,7 @@ class PyChat(JsonFile):
 	_scheduler: Scheduler
 
 	def __init__(self, config_file: str = None):
-		print('-> PyChat.__init__()')
+		# print('-> PyChat.__init__()')
 
 		self._config_file = config_file
 

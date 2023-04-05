@@ -12,7 +12,11 @@ class AddressBookTestCase(unittest.TestCase):
 			os.remove(ADDRESS_BOOK_PATH)
 
 		address_book = AddressBook(ADDRESS_BOOK_PATH)
+
 		client1 = address_book.add_client('FC_test1', 'localhost', 25001)
+		client1.is_bootstrap = True
+		client1.meetings = 1
+
 		address_book.add_client('FC_test2', 'localhost', 25002)
 		address_book.save()
 		self.assertEqual(address_book.get_clients_len(), 2)

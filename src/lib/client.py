@@ -34,7 +34,7 @@ class Client():
 	# 0, 0 = 0 (Not Authenticated)
 	# 0, 1 = 1 (send ID command)
 	# 1, 0 = 2 (received ID command)
-	# 1, 1 = 4 (Authenticated both)
+	# 1, 1 = 3 (Authenticated both)
 	auth: int
 
 	actions: list
@@ -62,9 +62,9 @@ class Client():
 	# 	print('-> Client.__del__({})'.format(self.uuid))
 
 	def __str__(self):
-		return 'Client({},addr={},p={},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
+		return 'Client({},a:p={}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
-	def __repr__(self):
+	def __repr__(self): # pragma: no cover
 		return 'Client({})'.format(self.uuid)
 
 	def as_dict(self) -> dict:
