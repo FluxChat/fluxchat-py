@@ -26,7 +26,9 @@ export PYCHAT_DATA_DIR=var/data2
 ./bin/setup.sh
 ```
 
-## Configuration
+## Configuration File
+
+## Environment Variables
 
 ## Network
 

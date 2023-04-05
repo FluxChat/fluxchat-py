@@ -2,6 +2,8 @@
 import secrets
 import hashlib
 import base58
+import ipaddress
+import socket
 from cryptography.hazmat.primitives import serialization
 
 # Generate ID from Public Key
@@ -33,3 +35,46 @@ def generate_test_id() -> str:
 
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 	return f'FC_{base58_hash}'
+
+def resolve_contact(contact: str, raddr: str) -> list:
+	print('-> resolve_contact({})'.format(contact))
+	items = contact.split(':')
+	items_len = len(items)
+
+	if items_len == 1:
+		c_addr = items[0]
+		c_port = None
+	elif items_len == 2:
+		c_addr = items[0]
+		if items[1] == '':
+			c_port = None
+		else:
+			c_port = int(items[1])
+
+	if c_addr == '':
+		c_addr = 'private'
+
+	if c_addr == 'public':
+		c_addr = raddr
+	elif c_addr == 'private':
+		c_addr = None
+		c_port = None
+	else:
+		try:
+			ipaddress.ip_address(c_addr)
+		except ValueError:
+			# Contact is hostname
+			try:
+				results = socket.getaddrinfo(c_addr, None)
+				for result in results:
+					print('result: {} {}'.format(c_addr, result))
+
+					ip_address = result[4][0]
+					if ip_address[0:4] == '127.':
+						# Localhost is invalid.
+						c_addr = None
+						break
+			except socket.gaierror:
+				c_addr = None
+
+	return [c_addr, c_port, c_addr != None and c_port != None]

@@ -62,7 +62,7 @@ class Client():
 	# 	print('-> Client.__del__({})'.format(self.uuid))
 
 	def __str__(self):
-		return 'Client({},addr={},p={},ID={},c={},d={},a={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth)
+		return 'Client({},addr={},p={},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
 	def __repr__(self):
 		return 'Client({})'.format(self.uuid)

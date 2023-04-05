@@ -7,6 +7,7 @@ import struct
 from sty import fg
 from lib.client import Client
 from lib.address_book import AddressBook
+from lib.helper import resolve_contact
 import lib.overlay as overlay
 
 class Server():
@@ -27,8 +28,8 @@ class Server():
 		self._host_name = socket.gethostname()
 		self._lan_ip = socket.gethostbyname(self._host_name)
 
-		print('-> host_name: {}'.format(self._host_name))
-		print('-> lan_ip: {}'.format(self._lan_ip))
+		# print('-> host_name: {}'.format(self._host_name))
+		# print('-> lan_ip: {}'.format(self._lan_ip))
 
 		self._config = config
 		if 'address_book' not in self._config:
@@ -143,8 +144,6 @@ class Server():
 
 		data, addr = server_sock.recvfrom(1024)
 		c_contact = data.decode('utf-8')
-		c_contact_items = c_contact.split(':')
-		c_contact_items_len = len(c_contact_items)
 
 		# print('-> data: {}'.format(data))
 		# print('-> addr: {}'.format(addr))
@@ -153,24 +152,17 @@ class Server():
 		if addr[0] == self._lan_ip:
 			return
 
-		if c_contact_items_len == 1:
-			c_contact_addr = c_contact_items[0]
-			c_contact_port = None
-		elif c_contact_items_len == 2:
-			c_contact_addr = c_contact_items[0]
-			c_contact_port = int(c_contact_items[1])
+		c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(c_contact, addr[0])
 
-		if c_contact_addr == 'public':
-			c_contact_addr = addr[0]
-		elif c_contact_addr == 'private':
-			return
-
-		if c_contact_port == None:
+		if not c_has_contact_info:
 			return
 
 		client = Client()
 		client.address = c_contact_addr
 		client.port = c_contact_port
+
+		c_contact_items = c_contact.split(':')
+		c_contact_items_len = len(c_contact_items)
 		client.debug_add = 'discovery, len: {}, addr: {}'.format(c_contact_items_len, c_contact_items[0])
 
 		print('-> read_discovery client: {}'.format(client))
@@ -180,11 +172,14 @@ class Server():
 	def _client_connect(self, client: Client): # pragma: no cover
 		print('-> Server._client_connect({})'.format(client))
 
-		if client.address == self._lan_ip:
+		if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
+			print('-> skip, client.address == self._lan_ip')
 			return
 		if client.node == self._local_node:
+			print('-> skip, client.node == self._local_node')
 			return
 		if client.address == None or client.port == None:
+			print('-> skip, client.address == None or client.port == None')
 			return
 
 		client.conn_mode = 1
@@ -193,9 +188,9 @@ class Server():
 		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		client.sock.settimeout(2)
 		try:
-			# print('-> client.sock.connect to')
+			print('-> client.sock.connect to')
 			client.sock.connect((client.address, client.port))
-			# print('-> client.sock.connect done')
+			print('-> client.sock.connect done')
 		except ConnectionRefusedError as e:
 			print('-> ConnectionRefusedError', e)
 			return
@@ -215,6 +210,8 @@ class Server():
 		})
 
 		self._clients.append(client)
+
+		print('-> Server._client_connect done'.format())
 
 	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
 		print('-> Server._client_read({})'.format(client))
@@ -305,33 +302,17 @@ class Server():
 
 					if self._local_node == c_id:
 						print('-> skip, ID is local node')
+						print(f'{fg.red}-> conn mode 0{fg.rs}')
+						client.conn_mode = 0
 						continue
 
 					c_switch = False
 					c_has_contact_info = False
 					if payload_len >= 2:
+						addr = sock.getpeername()
+
 						# Client sent contact info
-						c_contact = payload[1]
-
-						c_contact_items = c_contact.split(':')
-						c_contact_items_len = len(c_contact_items)
-
-						if c_contact_items_len == 1:
-							c_has_contact_info = False
-						elif c_contact_items_len == 2:
-							c_contact_addr = c_contact_items[0]
-							c_contact_port = int(c_contact_items[1])
-
-						if c_contact_addr == 'public':
-							print('-> public', sock.getpeername())
-							print('-> sock', sock)
-							addr = sock.getpeername()
-							c_contact_addr = addr[0]
-							c_has_contact_info = True
-						elif c_contact_addr == 'private':
-							c_has_contact_info = False
-						else:
-							c_has_contact_info = True
+						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[1], addr[0])
 
 					if client.dir_mode == 'i':
 						# Client is incoming
@@ -347,14 +328,17 @@ class Server():
 								if _client == None:
 									print('-> client not found B')
 
-									c_switch = True
 									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
 									_client.dir_mode = client.dir_mode
 									_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
+
+									c_switch = True
 								else:
 									print('-> client found B: {}'.format(_client))
+									c_switch = True
 							else:
 								print('-> client found A: {}'.format(_client))
+								c_switch = True
 
 							_client.address = c_contact_addr
 							_client.port = c_contact_port
@@ -383,6 +367,7 @@ class Server():
 							# Client is outgoing but not found by id
 							# This can happen because of the UDP discovery service.
 							print('-> client not found D')
+
 							_client = self._address_book.add_client(c_id, client.address, client.port)
 							_client.dir_mode = client.dir_mode
 							_client.debug_add = 'id command, outgoing, not found by id, original: ' + client.debug_add
@@ -415,6 +400,7 @@ class Server():
 					_client.sock = sock
 					_client.conn_mode = client.conn_mode
 					_client.auth = client.auth | 2
+					_client.actions = client.actions
 
 					# Update Address Book because also an existing client can be updated
 					self._address_book.changed()
@@ -603,6 +589,7 @@ class Server():
 
 		is_bootstrapping = self.is_bootstrap_phase()
 		print('-> is_bootstrapping', is_bootstrapping)
+		print('-> connect_to_clients', connect_to_clients)
 
 		for client in connect_to_clients:
 			if is_bootstrapping:
@@ -667,11 +654,11 @@ class Server():
 		return True
 
 	def client_actions(self) -> bool:
-		# print('-> Server.client_actions() -> {}'.format(len(self._clients)))
+		print('-> Server.client_actions() -> {}'.format(len(self._clients)))
 		had_actions = False
 
 		for client in self._clients:
-			# print('-> action client', client)
+			print('-> action client', client)
 			for action in client.get_actions(True):
 				print('-> action', action)
 				if action == 'bootstrap':

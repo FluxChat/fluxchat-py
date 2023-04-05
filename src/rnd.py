@@ -31,7 +31,7 @@ def main():
 		for i in range(0, args.number[0]):
 			c_id = generate_test_id()
 			print('-> c_id: {}'.format(c_id))
-			client = address_book.add_client(c_id, '127.0.0.1', 26000 + i)
+			client = address_book.add_client(c_id, 'public', 26000 + i)
 			if seen_at != None:
 				client.seen_at = seen_at
 			if meetings != None:
