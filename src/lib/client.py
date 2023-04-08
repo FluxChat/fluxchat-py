@@ -58,9 +58,6 @@ class Client():
 		self.auth = 0
 		self.actions = []
 
-	# def __del__(self):
-	# 	print('-> Client.__del__({})'.format(self.uuid))
-
 	def __str__(self):
 		return 'Client({},a:p={}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
@@ -149,7 +146,7 @@ class Client():
 
 		return self.id == other.id
 
-	def add_action(self, action_id: str, data: list = []):
+	def add_action(self, action_id: str, data: list = None):
 		self.actions.append([action_id, data])
 
 	def get_actions(self, and_reset: bool = False) -> list:
