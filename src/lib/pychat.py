@@ -17,7 +17,6 @@ class PyChat(JsonFile):
 
 	def __init__(self, config_file: str = None):
 		# print('-> PyChat.__init__()')
-
 		self._config_file = config_file
 
 	def start(self): # pragma: no cover
@@ -35,9 +34,6 @@ class PyChat(JsonFile):
 		self._scheduler.add_task(self._server.save, dt.timedelta(minutes=5))
 		self._scheduler.add_task(self._server.debug_clients, dt.timedelta(minutes=1))
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
-
-	# def __del__(self):
-	# 	print('-> PyChat.__del__()')
 
 	def _load_config(self):
 		# print('-> PyChat._load_config()')

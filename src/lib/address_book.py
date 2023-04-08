@@ -1,5 +1,6 @@
 
 import datetime as dt
+import os
 
 from sty import fg
 from lib.json_file import JsonFile
@@ -9,24 +10,27 @@ import lib.overlay as overlay
 class AddressBook(JsonFile):
 	_path: str
 	_config: dict
+	_config: dict
+	_ab_config: dict
 	_clients_by_uuid: dict
 	_clients_by_id: dict
 	_changes: bool
 	_clients_ttl: dt.timedelta
 
 	def __init__(self, path: str, config: dict = None):
-		# print('-> AddressBook.__init__({})'.format(path))
+		print('-> AddressBook.__init__({})'.format(path))
 
 		self._path = path
 		self._config = config
+		self._ab_config = self._config['address_book']
 		self._clients_by_uuid = dict()
 		self._clients_by_id = dict()
 		self._changes = False
 
-		if self._config == None:
+		if self._ab_config == None:
 			self._clients_ttl = dt.timedelta(hours=1)
 		else:
-			self._clients_ttl = dt.timedelta(hours=self._config['client_retention_time'])
+			self._clients_ttl = dt.timedelta(hours=self._ab_config['client_retention_time'])
 
 		_data = self._read_json_file(self._path, {})
 		for client_uuid, row in _data.items():
@@ -34,13 +38,18 @@ class AddressBook(JsonFile):
 			client.uuid = client_uuid
 			client.from_dict(row)
 
-			# print('-> load client: {}'.format(client))
+			print('-> load client: {}'.format(client))
 
 			self._clients_by_uuid[client_uuid] = client
 			if client.id != None:
 				if client.id in self._clients_by_id:
 					print('{}-> AddressBook.__init__(): Warning: Client ID already exists: {}{}'.format(fg.red, client.id, fg.rs))
 				self._clients_by_id[client.id] = client
+
+				key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
+				print('-> key_file_path: {}'.format(key_file_path))
+				if os.path.isfile(key_file_path):
+					client.load_public_key(key_file_path)
 
 	def save(self) -> bool:
 		if not self._changes:
@@ -49,6 +58,10 @@ class AddressBook(JsonFile):
 		_data = dict()
 		for client_uuid, client in self._clients_by_uuid.items():
 			_data[client_uuid] = client.as_dict()
+
+			key_file_path = os.path.join(self._config['data_dir'], client.id + '.pem')
+			if not os.path.isfile(key_file_path):
+				client.write_public_key(key_file_path)
 
 		self._write_json_file(self._path, _data)
 
@@ -161,7 +174,7 @@ class AddressBook(JsonFile):
 
 		# print('-> clients: {}'.format(_clients_len))
 
-		if _clients_len <= self._config['max_clients']:
+		if _clients_len <= self._ab_config['max_clients']:
 			return
 
 		# remove bootstrap clients with no meetings
@@ -170,7 +183,7 @@ class AddressBook(JsonFile):
 			# print('-> removing bootstrap client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
-			if _clients_len <= self._config['max_clients']:
+			if _clients_len <= self._ab_config['max_clients']:
 				return
 
 		# remove clients with invalid client_retention_time
@@ -182,7 +195,7 @@ class AddressBook(JsonFile):
 			# print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
-			if _clients_len <= self._config['max_clients']:
+			if _clients_len <= self._ab_config['max_clients']:
 				return
 
 		# remove clients, sorted by meetings
@@ -195,7 +208,7 @@ class AddressBook(JsonFile):
 			# print('-> removing client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
 			self.remove_client(client)
 			_clients_len -= 1
-			if _clients_len <= self._config['max_clients']:
+			if _clients_len <= self._ab_config['max_clients']:
 				return
 
 	def get_nearest_to(self, node: overlay.Node) -> list:

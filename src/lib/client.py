@@ -2,8 +2,11 @@
 import socket
 import uuid
 import datetime as dt
+import hashlib
+import base58
 
 import lib.overlay as overlay
+from cryptography.hazmat.primitives import serialization
 
 class Client():
 	uuid: str # Internal ID
@@ -57,6 +60,7 @@ class Client():
 		self.dir_mode = None
 		self.auth = 0
 		self.actions = []
+		self.public_key = None
 
 	def __str__(self):
 		return 'Client({},a:p={}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
@@ -177,3 +181,42 @@ class Client():
 
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None
+
+	def load_public_key(self, path: str):
+		print('-> Client.load_public_key({})'.format(path))
+		with open(path, 'rb') as f:
+			key = f.read()
+
+		self.public_key = serialization.load_pem_public_key(key)
+		print('-> public key: {}'.format(type(self.public_key)))
+
+	def write_public_key(self, path: str):
+		print('-> Client.write_public_key({})'.format(path))
+		if not self.has_public_key():
+			return False
+
+		with open(path, 'wb') as f:
+			f.write(str(self.public_key))
+
+		return True
+
+	def set_public_key(self, raw: str):
+		print('-> Client.set_public_key({})'.format(raw))
+		pass # TODO
+
+	def has_public_key(self) -> bool:
+		return self.public_key != None
+
+	def verify_public_key(self) -> bool:
+		if not self.has_public_key():
+			return False
+
+		public_bytes = self.public_key.public_bytes(
+			encoding=serialization.Encoding.DER,
+			format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+		hash_obj = hashlib.new('ripemd160')
+		hash_obj.update(public_bytes)
+
+		base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
+		return f'FC_{base58_hash}' == self.id

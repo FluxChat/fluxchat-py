@@ -15,6 +15,7 @@ class Server():
 	_selectors: selectors.DefaultSelector
 	_main_server_socket: socket.socket
 	_discovery_socket: socket.socket
+	_ipc_server_socket: socket.socket
 	_address_book: AddressBook
 	_hostname: str
 	_lan_ip: str
@@ -41,8 +42,13 @@ class Server():
 			}
 
 		if 'data_dir' in self._config:
+			if 'keys_dir' not in self._config:
+				self._config['keys_dir'] = os.path.join(self._config['data_dir'], 'keys')
+			if not os.path.isdir(self._config['keys_dir']):
+				os.mkdir(self._config['keys_dir'])
+
 			address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
-			self._address_book = AddressBook(address_book_path, self._config['address_book'])
+			self._address_book = AddressBook(address_book_path, self._config)
 
 			bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
 			if os.path.isfile(bootstrap_path):
@@ -79,6 +85,16 @@ class Server():
 				print('-> res', res)
 
 			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
+
+		if 'ipc' in self._config and self._config['ipc']:
+			print('-> ipc')
+			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
+			self._ipc_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self._ipc_server_socket.bind(ipc_addr)
+			self._ipc_server_socket.listen()
+			self._ipc_server_socket.setblocking(False)
+
+			self._selectors.register(self._ipc_server_socket, selectors.EVENT_READ, data={'type': 'ipc_server'})
 
 	def __del__(self):
 		# print('-> Server.__del__()')
@@ -173,6 +189,16 @@ class Server():
 		print('-> read_discovery client: {}'.format(client))
 
 		self._client_connect(client)
+
+	def _accept_ipc_server(self, server_sock: socket.socket): # pragma: no cover
+		print('-> Server._accept_ipc_server()')
+
+		client_sock, addr = server_sock.accept()
+		client_sock.setblocking(False)
+
+		self._selectors.register(client_sock, selectors.EVENT_READ, data={
+			'type': 'ipc_client',
+		})
 
 	def _client_connect(self, client: Client) -> bool: # pragma: no cover
 		print('{}-> Server._client_connect({}){}'.format(fg.blue, client, fg.rs))
@@ -550,6 +576,90 @@ class Server():
 		print('-> Server._client_send_get_nearest_response()')
 		self._client_write(sock, 2, 2, client_ids)
 
+	def _ipc_client_read(self, sock: socket.socket): # pragma: no cover
+		print('{}-> Server._ipc_client_read(){}'.format(fg.blue, fg.rs))
+
+		try:
+			raw = sock.recv(2048)
+		except TimeoutError as e:
+			print('-> IPC TimeoutError', e)
+			return
+		except ConnectionResetError as e:
+			print('-> IPC ConnectionResetError', e)
+			raw = False
+
+		if raw:
+			raw_len = len(raw)
+
+			raw_pos = 0
+			commands = []
+			while raw_pos < raw_len:
+				try:
+					group = raw[raw_pos]
+					command = raw[raw_pos + 1]
+				except IndexError as e:
+					print('-> IPC IndexError', e)
+					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+					self._selectors.unregister(sock)
+					return
+				try:
+					length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
+				except struct.error as e:
+					print('-> IPC struct.error', e)
+					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+					self._selectors.unregister(sock)
+					return
+				payload_raw = raw[raw_pos + 6:]
+				payload_items = []
+
+				if length >= 2048:
+					print('-> IPC length too big', length)
+					return
+
+				pos = 0
+				while pos < length:
+					item_l = payload_raw[pos]
+					pos += 1
+					item = payload_raw[pos:pos + item_l]
+					payload_items.append(item.decode('utf-8'))
+					pos += item_l
+
+				commands.append([group, command, payload_items])
+				raw_pos += 7 + length
+
+			self._ipc_client_commands(sock, commands)
+		else:
+			print('-> no data')
+
+			print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+			self._selectors.unregister(sock)
+
+	def _ipc_client_commands(self, sock: socket.socket, commands: list): # pragma: no cover
+		print('{}-> Server._ipc_client_commands(){}'.format(fg.blue, fg.rs))
+		print('-> commands', commands)
+
+		for command_raw in commands:
+			group_i, command_i, payload = command_raw
+			payload_len = len(payload)
+
+			print('-> group', group_i, 'command', command_i)
+			print('-> payload', payload)
+
+			if group_i == 0: # Basic
+				if command_i == 0:
+					print('-> OK command')
+			elif group_i == 1:
+				if command_i == 0:
+					print('-> SEND MESSAGE command')
+					target, message = payload
+					print('-> target', target)
+					print('-> message', message)
+
+					uuid = str(uuid.uuid4())
+					print('-> uuid', uuid)
+
+					self._client_send_ok(sock)
+
 	def run(self) -> bool:
 		# print('-> Server.run()')
 
@@ -569,6 +679,12 @@ class Server():
 				elif key.data['type'] == 'discovery':
 					print('-> discovery')
 					self._read_discovery(key.fileobj)
+
+				elif key.data['type'] == 'ipc_server':
+					self._accept_ipc_server(key.fileobj)
+
+				elif key.data['type'] == 'ipc_client':
+					self._ipc_client_read(key.fileobj)
 
 			data_processed = True
 
