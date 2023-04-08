@@ -22,11 +22,13 @@ class Server():
 	_clients: list
 	_local_node: overlay.Node
 
-	def __init__(self, config: dict):
+	def __init__(self, config: dict = {}):
 		# print('-> Server.__init__()')
 
 		self._host_name = socket.gethostname()
 		self._lan_ip = socket.gethostbyname(self._host_name)
+		self._clients = []
+		self._selectors = selectors.DefaultSelector()
 
 		# print('-> host_name: {}'.format(self._host_name))
 		# print('-> lan_ip: {}'.format(self._lan_ip))
@@ -38,17 +40,18 @@ class Server():
 				'client_retention_time': 24,
 			}
 
-		address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
-		self._address_book = AddressBook(address_book_path, self._config['address_book'])
+		if 'data_dir' in self._config:
+			address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
+			self._address_book = AddressBook(address_book_path, self._config['address_book'])
 
-		bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
-		if os.path.isfile(bootstrap_path):
-			self._address_book.add_bootstrap(bootstrap_path)
+			bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
+			if os.path.isfile(bootstrap_path):
+				self._address_book.add_bootstrap(bootstrap_path)
+		else:
+			self._address_book = None
 
-		self._clients = []
-		self._local_node = overlay.Node(self._config['id'])
-
-		self._selectors = selectors.DefaultSelector()
+		if 'id' in self._config:
+			self._local_node = overlay.Node(self._config['id'])
 
 	def start(self): # pragma: no cover
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -80,7 +83,9 @@ class Server():
 	def __del__(self):
 		# print('-> Server.__del__()')
 		self._selectors.close()
-		self._address_book.save()
+
+		if self._address_book:
+			self._address_book.save()
 
 	def has_contact(self) -> bool:
 		if 'contact' in self._config:
@@ -169,18 +174,19 @@ class Server():
 
 		self._client_connect(client)
 
-	def _client_connect(self, client: Client): # pragma: no cover
-		print('-> Server._client_connect({})'.format(client))
+	def _client_connect(self, client: Client) -> bool: # pragma: no cover
+		print('{}-> Server._client_connect({}){}'.format(fg.blue, client, fg.rs))
 
-		if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
-			print('-> skip, client.address == self._lan_ip')
-			return
+		# TODO: activate
+		# if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
+		# 	print('-> skip, client.address == self._lan_ip')
+		# 	return False
 		if client.node == self._local_node:
 			print('-> skip, client.node == self._local_node')
-			return
+			return False
 		if client.address == None or client.port == None:
 			print('-> skip, client.address == None or client.port == None')
-			return
+			return False
 
 		client.conn_mode = 1
 		client.dir_mode = 'o'
@@ -193,13 +199,13 @@ class Server():
 			print('-> client.sock.connect done')
 		except ConnectionRefusedError as e:
 			print('-> ConnectionRefusedError', e)
-			return
+			return False
 		except TimeoutError as e:
 			print('-> TimeoutError', e)
-			return
+			return False
 		except socket.timeout as e:
 			print('-> socket.timeout', e)
-			return
+			return False
 
 		client.sock.settimeout(None)
 		client.sock.setblocking(False)
@@ -212,6 +218,7 @@ class Server():
 		self._clients.append(client)
 
 		print('-> Server._client_connect done'.format())
+		return True
 
 	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
 		print('-> Server._client_read({})'.format(client))
@@ -449,20 +456,28 @@ class Server():
 				elif command_i == 2:
 					print('-> GET_NEAREST_TO RESPONSE command')
 
-					if not client.has_action('nearest_response', True):
+					has_action, action_data = client.has_action('nearest_response', True)
+					if not has_action:
 						print('-> not requested')
 						continue
+
+					print(has_action, action_data)
 
 					nearest_client = None
 					distance = overlay.Distance()
 					for c_contact in payload:
 						print('-> client contact', c_contact)
-						c_id, c_addr, c_port = c_contact.split(':') # TODO use resolve_contact here
+
+						c_id, c_contact = c_contact.split(':', 1)
+						print(c_id, c_contact)
+
+						c_addr, c_port, c_has_contact_info = resolve_contact(c_contact)
+						print(c_addr, c_port, c_has_contact_info)
+
 						if c_id == self._local_node.id:
 							continue
 
 						_client = self._address_book.get_client(c_id)
-
 						if _client == None:
 							print('-> client not found')
 							_client = self._address_book.add_client(c_id, c_addr, c_port)
@@ -480,8 +495,10 @@ class Server():
 
 					if nearest_client != None:
 						print('-> nearest client', nearest_client)
-						# TODO: connect to nearest client
-						# limit the clients to connect to.
+						bootstrap_count = action_data - 1
+						if bootstrap_count > 0 and not self._client_is_connected(nearest_client):
+							self._client_connect(nearest_client)
+							nearest_client.add_action('bootstrap', bootstrap_count)
 			else:
 				print('-> unknown group', group_i, 'command', command_i)
 				print(f'{fg.red}-> conn mode 0{fg.rs}')
@@ -571,29 +588,22 @@ class Server():
 			print('-> contact', client)
 
 			if client.meetings > 0:
-				print('-> client is meeting')
 				if not self._client_is_connected(client):
 					print('-> client is not connected')
 					connect_to_clients.append(client)
 			else:
-				print('-> client is not meeting')
 				zero_meetings_clients.append(client)
 
 		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node))
 		for client in zero_meetings_clients:
-			print('-> contact', client)
-
 			if not self._client_is_connected(client):
-				print('-> client is not connected')
 				connect_to_clients.append(client)
 
 		is_bootstrapping = self.is_bootstrap_phase()
-		# print('-> is_bootstrapping', is_bootstrapping)
-		# print('-> connect_to_clients', connect_to_clients)
 
 		for client in connect_to_clients:
 			if is_bootstrapping:
-				client.add_action('bootstrap')
+				client.add_action('bootstrap', 2) # TODO: set to 7
 			self._client_connect(client)
 
 		return True
@@ -601,6 +611,9 @@ class Server():
 	def clean_up_address_book(self) -> bool:
 		self._address_book.clean_up(self._local_node.id)
 		return True
+
+	def add_client(self, client: Client):
+		self._clients.append(client)
 
 	def handle_clients(self) -> bool:
 		# print('-> Server.handle_clients()')
@@ -663,7 +676,9 @@ class Server():
 				print('-> action', action_id, data)
 				if action_id == 'bootstrap':
 					self._client_send_get_nearest_to(client.sock, self._local_node.id)
-					client.add_action('nearest_response')
+					client.add_action('nearest_response', data)
+				elif action_id == 'test':
+					had_actions = True
 
 		return had_actions
 

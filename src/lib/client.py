@@ -165,12 +165,15 @@ class Client():
 		return _actions
 
 	def has_action(self, action_id: str, remove: bool = False) -> bool:
+		print('-> Client.has_action({})'.format(action_id))
 		found = list(filter(lambda _action: _action[0] == action_id, self.actions))
+		print('-> found: {}'.format(found))
 		if len(found) > 0:
+			item = found[0]
 			if remove:
 				self.remove_action(action_id)
-			return True
-		return False
+			return [True, item[1]]
+		return [False, None]
 
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None

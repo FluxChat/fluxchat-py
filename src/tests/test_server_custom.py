@@ -1,6 +1,7 @@
 
 import unittest
 from lib.server import Server
+from lib.client import Client
 
 SERVER_DATA_DIR = 'tmp/tests/data_custom'
 
@@ -38,3 +39,16 @@ class ServerTestCase(unittest.TestCase):
 			'data_dir': SERVER_DATA_DIR,
 		})
 		self.assertEqual(server.get_contact(), 'public:25002')
+
+	def test_client_actions(self):
+		client1 = Client()
+		client2 = Client()
+
+		client1.add_action('test', 1)
+		client2.add_action('test', 2)
+
+		server = Server()
+		server.add_client(client1)
+		server.add_client(client2)
+
+		self.assertTrue(server.client_actions())

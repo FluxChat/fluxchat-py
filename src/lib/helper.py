@@ -36,8 +36,9 @@ def generate_test_id() -> str: # pragma: no cover
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 	return f'FC_{base58_hash}'
 
-def resolve_contact(contact: str, raddr: str) -> list: # TODO raddr = None default
-	# print('-> resolve_contact({})'.format(contact))
+def resolve_contact(contact: str, raddr: str = None) -> list:
+	print('-> resolve_contact({})'.format(contact))
+
 	items = contact.split(':')
 	items_len = len(items)
 
