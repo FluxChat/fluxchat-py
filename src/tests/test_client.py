@@ -57,6 +57,20 @@ class ClientTestCase(unittest.TestCase):
 		client2 = Client()
 		self.assertFalse(client1 == client2)
 
+	def test_eq2b(self):
+		client1 = Client()
+		client1.uuid = 'x'
+		client2 = Client()
+		client2.uuid = ''
+		self.assertFalse(client1 == client2)
+
+	def test_eq2c(self):
+		client1 = Client()
+		client1.uuid = ''
+		client2 = Client()
+		client2.uuid = 'y'
+		self.assertFalse(client1 == client2)
+
 	def test_eq3(self):
 		client1 = Client()
 		client1.set_id('FC_test1')
@@ -68,6 +82,20 @@ class ClientTestCase(unittest.TestCase):
 		client1 = Client()
 		client1.set_id('FC_test1')
 		self.assertFalse(client1 == 1)
+
+	def test_eq5(self):
+		client1 = Client()
+		client1.uuid = 'y'
+		client2 = Client()
+		client2.uuid = 'y'
+		self.assertTrue(client1 == client2)
+
+	def test_eq6(self):
+		client1 = Client()
+		client1.id = ''
+		client2 = Client()
+		client2.id = ''
+		self.assertFalse(client1 == client2)
 
 	def test_actions(self):
 		client = Client()

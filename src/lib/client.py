@@ -130,7 +130,7 @@ class Client():
 		# print('-> node: {}'.format(node))
 
 		if self.node == None:
-			return 160
+			return overlay.Distance()
 
 		return self.node.distance(node)
 
@@ -138,16 +138,13 @@ class Client():
 		if not isinstance(other, Client):
 			return False
 
+		if self.id == '' or other.id == '':
+			return False
+
 		if self.uuid != None and other.uuid != None and self.uuid == other.uuid:
 			return True
 
 		if self.id == None or other.id == None:
-			return False
-
-		if self.id == '' or other.id == '':
-			return False
-
-		if other == None:
 			return False
 
 		return self.id == other.id
