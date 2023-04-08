@@ -659,9 +659,9 @@ class Server():
 
 		for client in self._clients:
 			print('-> action client', client)
-			for action in client.get_actions(True):
-				print('-> action', action)
-				if action == 'bootstrap':
+			for action_id, data in client.get_actions(True):
+				print('-> action', action_id, data)
+				if action_id == 'bootstrap':
 					self._client_send_get_nearest_to(client.sock, self._local_node.id)
 					client.add_action('nearest_response')
 

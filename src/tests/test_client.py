@@ -100,24 +100,34 @@ class ClientTestCase(unittest.TestCase):
 	def test_actions(self):
 		client = Client()
 		client.add_action('test')
-		self.assertEqual(client.get_actions(), ['test'])
-		self.assertEqual(client.get_actions(), ['test'])
-		self.assertEqual(client.get_actions(True), ['test'])
+		self.assertEqual(client.get_actions(), [['test', []]])
+		self.assertEqual(client.get_actions(), [['test', []]])
+		self.assertEqual(client.get_actions(True), [['test', []]])
 		self.assertEqual(client.get_actions(), [])
 
 		client.add_action('test1')
 		client.add_action('test2')
 		client.add_action('test3')
-		self.assertEqual(client.get_actions(), ['test1', 'test2', 'test3'])
+		self.assertEqual(client.get_actions(), [
+			['test1', []],
+			['test2', []],
+			['test3', []],
+		])
 
 		client.remove_action('test2')
-		self.assertEqual(client.get_actions(), ['test1', 'test3'])
+		self.assertEqual(client.get_actions(), [
+			['test1', []],
+			['test3', []],
+		])
 
 		self.assertTrue(client.has_action('test3'))
-		self.assertEqual(client.get_actions(), ['test1', 'test3'])
+		self.assertEqual(client.get_actions(), [
+			['test1', []],
+			['test3', []],
+		])
 
 		self.assertTrue(client.has_action('test3', True))
-		self.assertEqual(client.get_actions(), ['test1'])
+		self.assertEqual(client.get_actions(), ['test1', []])
 
 	def test_has_contact(self):
 		client = Client()

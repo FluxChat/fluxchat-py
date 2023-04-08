@@ -149,27 +149,31 @@ class Client():
 
 		return self.id == other.id
 
-	def add_action(self, action: str):
-		self.actions.append(action)
+	def add_action(self, action_id: str, data: list = []):
+		self.actions.append([action_id, data])
 
 	def get_actions(self, and_reset: bool = False) -> list:
 		if and_reset:
 			return self.reset_actions()
 		return list(self.actions)
 
-	def remove_action(self, action: str):
-		self.actions.remove(action)
+	def remove_action(self, action_id: str):
+		found = list(filter(lambda _action: _action[0] == action_id, self.actions))
+		if len(found) > 0:
+			self.actions.remove(found[0])
 
 	def reset_actions(self) -> list:
 		_actions = list(self.actions)
 		self.actions = []
 		return _actions
 
-	def has_action(self, action: str, remove: bool = False) -> bool:
-		has_a = action in self.actions
-		if has_a and remove:
-			self.remove_action(action)
-		return has_a
+	def has_action(self, action_id: str, remove: bool = False) -> bool:
+		found = list(filter(lambda _action: _action[0] == action_id, self.actions))
+		if len(found) > 0:
+			if remove:
+				self.remove_action(action_id)
+			return True
+		return False
 
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None
