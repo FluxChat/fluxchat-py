@@ -8,5 +8,16 @@
 		"max_clients": 20,
 		"client_retention_time": 24
 	},
-	"discovery": false
+	"discovery": {
+		"enabled": false,
+		"port": 26000
+	},
+	"ipc": {
+		"enabled": true,
+		"address": "127.0.0.1",
+		"port": 26001
+	},
+	"mail": {
+		"message_retention_time": 24
+	}
 }

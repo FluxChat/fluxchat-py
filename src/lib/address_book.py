@@ -10,7 +10,6 @@ import lib.overlay as overlay
 class AddressBook(JsonFile):
 	_path: str
 	_config: dict
-	_config: dict
 	_ab_config: dict
 	_clients_by_uuid: dict
 	_clients_by_id: dict
@@ -19,6 +18,7 @@ class AddressBook(JsonFile):
 
 	def __init__(self, path: str, config: dict = None):
 		print('-> AddressBook.__init__({})'.format(path))
+		print(config)
 
 		self._path = path
 		self._config = config
@@ -32,6 +32,7 @@ class AddressBook(JsonFile):
 		else:
 			self._clients_ttl = dt.timedelta(hours=self._ab_config['client_retention_time'])
 
+	def load(self):
 		_data = self._read_json_file(self._path, {})
 		for client_uuid, row in _data.items():
 			client = Client()
@@ -49,21 +50,25 @@ class AddressBook(JsonFile):
 				key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
 				print('-> key_file_path: {}'.format(key_file_path))
 				if os.path.isfile(key_file_path):
-					client.load_public_key(key_file_path)
+					client.load_public_key_from_pem_file(key_file_path)
 
 	def save(self) -> bool:
+		print('-> AddressBook.save() -> {}'.format(self._changes))
 		if not self._changes:
 			return False
 
 		_data = dict()
 		for client_uuid, client in self._clients_by_uuid.items():
+			print('-> save client: {}'.format(client))
 			_data[client_uuid] = client.as_dict()
 
-			key_file_path = os.path.join(self._config['data_dir'], client.id + '.pem')
-			if not os.path.isfile(key_file_path):
-				client.write_public_key(key_file_path)
+			if client.id != None:
+				key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
+				if not os.path.isfile(key_file_path):
+					client.write_public_key_to_pem_file(key_file_path)
 
 		self._write_json_file(self._path, _data)
+		self._changes = False
 
 		return True
 
@@ -89,11 +94,27 @@ class AddressBook(JsonFile):
 		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 		return len(bootstrap_clients)
 
-	def get_client(self, id: str):
+	def get_client(self, id: str) -> Client:
 		# print('-> AddressBook.get_client({})'.format(id))
 
 		if id in self._clients_by_uuid:
 			return self._clients_by_uuid[id]
+
+		if id in self._clients_by_id:
+			return self._clients_by_id[id]
+
+		return None
+
+	def get_client_by_uuid(self, uuid: str) -> Client:
+		print('-> AddressBook.get_client_by_uuid({})'.format(uuid))
+
+		if uuid in self._clients_by_uuid:
+			return self._clients_by_uuid[uuid]
+
+		return None
+
+	def get_client_by_id(self, id: str) -> Client:
+		print('-> AddressBook.get_client_by_id({})'.format(id))
 
 		if id in self._clients_by_id:
 			return self._clients_by_id[id]
@@ -114,12 +135,16 @@ class AddressBook(JsonFile):
 		return None
 
 	def add_client(self, id: str = None, addr: str = None, port: int = None) -> Client:
-		# print('-> AddressBook.add_client({}, {}, {})'.format(id, addr, port))
+		print('-> AddressBook.add_client({}, {}, {})'.format(id, addr, port))
 
 		client = Client()
-		client.set_id(id)
+
+		if id != None:
+			client.set_id(id)
+
 		if addr != None:
 			client.address = addr
+
 		if port != None:
 			client.port = port
 
@@ -211,7 +236,7 @@ class AddressBook(JsonFile):
 			if _clients_len <= self._ab_config['max_clients']:
 				return
 
-	def get_nearest_to(self, node: overlay.Node) -> list:
+	def get_nearest_to(self, node: overlay.Node, limit: int = 20) -> list:
 		_clients = list(self._clients_by_uuid.values())
 		_clients.sort(key=lambda _client: _client.node.distance(node))
-		return _clients
+		return _clients[:limit]

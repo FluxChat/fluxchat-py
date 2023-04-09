@@ -27,13 +27,13 @@ echo "-> PYCHAT_DATA_DIR: ${PYCHAT_DATA_DIR}"
 
 mkdir -p ${PYCHAT_DATA_DIR}
 
-rsa_priv_key_file=${PYCHAT_DATA_DIR}/privkey.pem
-rsa_pub_key_file=${PYCHAT_DATA_DIR}/pubkey.pem
+rsa_priv_key_file=${PYCHAT_DATA_DIR}/private_key.pem
+rsa_pub_key_file=${PYCHAT_DATA_DIR}/public_key.pem
 if ! test -f ${rsa_priv_key_file} ; then
 	echo '-> generating rsa key'
 	openssl genrsa -out ${rsa_priv_key_file} 4096
 
-	echo '-> generating rsa pubkey'
+	echo '-> generating rsa public key'
 	openssl rsa -in ${rsa_priv_key_file} -outform PEM -pubout -out ${rsa_pub_key_file}
 fi
 
@@ -49,7 +49,7 @@ pip3 install -r requirements.txt
 
 if ! test -f ${PYCHAT_CONFIG}; then
 	echo '-> generating id'
-	export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/pubkey.pem)
+	export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/public_key.pem)
 
 	echo '-> generating config'
 	envsubst < ./config-example.json > ${PYCHAT_CONFIG}

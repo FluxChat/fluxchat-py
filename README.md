@@ -36,3 +36,12 @@ export PYCHAT_DATA_DIR=var/data2
 
 - https://en.wikipedia.org/wiki/Kademlia
 - https://medium.com/coinmonks/a-brief-overview-of-kademlia-and-its-use-in-various-decentralized-platforms-da08a7f72b8f
+
+## Dev
+
+```bash
+cd src
+python3 -m unittest tests/test_mail.py
+
+./src/ipc_app.py -c var/config1.json -t FC_2BrbvqgwkPwNoJs5XeFHPHDkDeG5 -s Test1 -m 'Hello World' send
+```

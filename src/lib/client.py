@@ -4,9 +4,12 @@ import uuid
 import datetime as dt
 import hashlib
 import base58
+import base64
 
 import lib.overlay as overlay
+
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import load_der_public_key
 
 class Client():
 	uuid: str # Internal ID
@@ -41,6 +44,7 @@ class Client():
 	auth: int
 
 	actions: list
+	#public_key: bytes
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -69,23 +73,23 @@ class Client():
 		return 'Client({})'.format(self.uuid)
 
 	def as_dict(self) -> dict:
-		d = dict()
+		data = dict()
 		if self.address != None:
-			d['address'] = self.address
+			data['address'] = self.address
 		if self.port != None:
-			d['port'] = self.port
+			data['port'] = self.port
 		if self.id != None:
-			d['id'] = self.id
+			data['id'] = self.id
 		if self.seen_at != None:
-			d['seen_at'] = self.seen_at.strftime('%Y-%m-%d %H:%M:%S')
+			data['seen_at'] = self.seen_at.isoformat()
 		if self.meetings != None:
-			d['meetings'] = self.meetings
+			data['meetings'] = self.meetings
 		if self.is_bootstrap:
-			d['is_bootstrap'] = self.is_bootstrap
+			data['is_bootstrap'] = self.is_bootstrap
 		if self.debug_add != None:
-			d['debug_add'] = self.debug_add
+			data['debug_add'] = self.debug_add
 
-		return d
+		return data
 
 	def from_dict(self, data: dict):
 		# print('-> Client.from_dict({})'.format(self.uuid))
@@ -97,7 +101,7 @@ class Client():
 		if 'id' in data:
 			self.set_id(data['id'])
 		if 'seen_at' in data:
-			self.seen_at = dt.datetime.strptime(data['seen_at'], '%Y-%m-%d %H:%M:%S')
+			self.seen_at = dt.datetime.fromisoformat(data['seen_at'])
 		if 'meetings' in data:
 			self.meetings = int(data['meetings'])
 		if 'is_bootstrap' in data:
@@ -182,16 +186,16 @@ class Client():
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None
 
-	def load_public_key(self, path: str):
-		print('-> Client.load_public_key({})'.format(path))
+	def load_public_key_from_pem_file(self, path: str):
+		print('-> Client.load_public_key_from_pem_file({})'.format(path))
 		with open(path, 'rb') as f:
 			key = f.read()
 
 		self.public_key = serialization.load_pem_public_key(key)
 		print('-> public key: {}'.format(type(self.public_key)))
 
-	def write_public_key(self, path: str):
-		print('-> Client.write_public_key({})'.format(path))
+	def write_public_key_to_pem_file(self, path: str) -> bool:
+		print('-> Client.write_public_key_to_pem_file({})'.format(path))
 		if not self.has_public_key():
 			return False
 
@@ -200,9 +204,23 @@ class Client():
 
 		return True
 
-	def set_public_key(self, raw: str):
-		print('-> Client.set_public_key({})'.format(raw))
-		pass # TODO
+	def load_public_key_from_base64_der(self, raw: str):
+		print('-> Client.load_public_key_from_base64_der({})'.format(raw))
+		raw = base64.b64decode(raw)
+		self.public_key = serialization.load_der_public_key(raw)
+
+	def get_der_base64_public_key(self) -> str:
+		if not self.has_public_key():
+			return None
+
+		public_bytes = self.public_key.public_bytes(
+			encoding=serialization.Encoding.DER,
+			format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+		return base64.b64encode(public_bytes).decode('utf-8')
+
+	def reset_public_key(self):
+		self.public_key = None
 
 	def has_public_key(self) -> bool:
 		return self.public_key != None
@@ -220,3 +238,11 @@ class Client():
 
 		base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 		return f'FC_{base58_hash}' == self.id
+
+	def reset(self):
+		print('-> Client.reset()')
+		self.sock = None
+		self.conn_mode = 0
+		self.dir_mode = None
+		self.auth = 0
+		self.actions = []

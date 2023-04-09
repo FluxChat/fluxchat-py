@@ -33,7 +33,7 @@ class Ipc(JsonFile):
 		print('-> subject:', subject)
 		print('-> message:', message)
 
-		raw = "\n".join([self._config['id'], subject, message])
+		raw = "\n".join(['From: ' + self._config['id'], 'Subject: ' + subject, message])
 		print('-> raw:', raw)
 		# encode raw to base64
 		raw = base64.b64encode(raw.encode('utf-8')).decode('utf-8')
