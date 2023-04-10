@@ -3,9 +3,10 @@ import socket
 import base64
 import time
 
+from lib.network import Network
 from lib.helper import read_json_file
 
-class Ipc():
+class Ipc(Network):
 	_config_file: str
 	_config: dict
 	_ipc_config: dict

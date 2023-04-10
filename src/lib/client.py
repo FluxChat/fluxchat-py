@@ -199,8 +199,13 @@ class Client():
 		if not self.has_public_key():
 			return False
 
+		public_key_pkcs1 = self.public_key.public_bytes(
+			encoding=serialization.Encoding.PEM,
+			format=serialization.PublicFormat.PKCS1
+		)
+
 		with open(path, 'wb') as f:
-			f.write(str(self.public_key))
+			f.write(public_key_pkcs1)
 
 		return True
 
