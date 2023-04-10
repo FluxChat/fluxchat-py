@@ -4,6 +4,9 @@ import hashlib
 import base58
 import ipaddress
 import socket
+import json
+import os
+
 from cryptography.hazmat.primitives import serialization
 
 # Generate ID from Public Key
@@ -79,3 +82,14 @@ def resolve_contact(contact: str, raddr: str = None) -> list:
 				c_addr = None
 
 	return [c_addr, c_port, c_addr != None and c_port != None]
+
+def read_json_file(self, path: str, default = None) -> dict:
+	if not os.path.exists(path) and default != None:
+		self._write_json_file(path, default)
+
+	with open(path, 'r') as read_file:
+		return json.load(read_file)
+
+def write_json_file(self, path: str, data):
+	with open(path, 'w') as write_file:
+		json.dump(data, write_file, indent=4)

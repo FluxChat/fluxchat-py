@@ -3,9 +3,9 @@ import socket
 import base64
 import time
 
-from lib.json_file import JsonFile
+from lib.helper import read_json_file
 
-class Ipc(JsonFile):
+class Ipc():
 	_config_file: str
 	_config: dict
 	_ipc_config: dict
@@ -24,7 +24,7 @@ class Ipc(JsonFile):
 
 	def _load_config(self):
 		print('-> Ipc._load_config()')
-		self._config = self._read_json_file(self._config_file)
+		self._config = read_json_file(self._config_file)
 		self._ipc_config = self._config['ipc']
 
 	def send(self, target: str, subject: str, message: str) -> bool:

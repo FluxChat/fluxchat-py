@@ -5,11 +5,11 @@ import time
 import datetime as dt
 
 from sty import fg
-from lib.json_file import JsonFile
+from lib.helper import read_json_file
 from lib.server import Server
 from lib.scheduler import Scheduler
 
-class PyChat(JsonFile):
+class PyChat():
 	_config_file: str
 	_config: dict
 	_server: Server
@@ -48,7 +48,7 @@ class PyChat(JsonFile):
 
 	def _load_config(self):
 		# print('-> PyChat._load_config()')
-		self._config = self._read_json_file(self._config_file)
+		self._config = read_json_file(self._config_file)
 
 	def run(self):
 		# print('-> PyChat.run()')

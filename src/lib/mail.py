@@ -2,10 +2,10 @@
 import datetime as dt
 import uuid
 
-from lib.json_file import JsonFile
 import lib.overlay as overlay
+from lib.helper import read_json_file, write_json_file
 
-class Message(JsonFile):
+class Message():
 	uuid: str
 	to: str
 	target: overlay.Node
@@ -66,7 +66,7 @@ class Message(JsonFile):
 		if 'is_encrypted' in data:
 			self.is_encrypted = data['is_encrypted']
 
-class Queue(JsonFile):
+class Queue():
 	_path: str
 	_config: dict
 	_mail_config: dict
@@ -83,7 +83,7 @@ class Queue(JsonFile):
 		self._changes = False
 
 	def load(self):
-		_data = self._read_json_file(self._path, {})
+		_data = read_json_file(self._path, {})
 		for message_uuid, row in _data.items():
 			message = Message()
 			message.uuid = message_uuid
@@ -102,7 +102,7 @@ class Queue(JsonFile):
 		for message_uuid, message in self._messages_by_uuid.items():
 			_data[message_uuid] = message.as_dict()
 
-		self._write_json_file(self._path, _data)
+		write_json_file(self._path, _data)
 		self._changes = False
 
 		return True

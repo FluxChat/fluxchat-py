@@ -3,11 +3,12 @@ import datetime as dt
 import os
 
 from sty import fg
-from lib.json_file import JsonFile
 from lib.client import Client
-import lib.overlay as overlay
 
-class AddressBook(JsonFile):
+import lib.overlay as overlay
+from lib.helper import read_json_file, write_json_file
+
+class AddressBook():
 	_path: str
 	_config: dict
 	_ab_config: dict
@@ -33,7 +34,7 @@ class AddressBook(JsonFile):
 			self._clients_ttl = dt.timedelta(hours=self._ab_config['client_retention_time'])
 
 	def load(self):
-		_data = self._read_json_file(self._path, {})
+		_data = read_json_file(self._path, {})
 		for client_uuid, row in _data.items():
 			client = Client()
 			client.uuid = client_uuid
@@ -67,7 +68,7 @@ class AddressBook(JsonFile):
 				if not os.path.isfile(key_file_path):
 					client.write_public_key_to_pem_file(key_file_path)
 
-		self._write_json_file(self._path, _data)
+		write_json_file(self._path, _data)
 		self._changes = False
 
 		return True
@@ -166,7 +167,7 @@ class AddressBook(JsonFile):
 	def add_bootstrap(self, file: str):
 		# print('-> AddressBook.add_bootstrap({})'.format(file))
 
-		_data = self._read_json_file(file, [])
+		_data = read_json_file(file, [])
 		for row in _data:
 			items = row.split(':')
 
@@ -181,7 +182,7 @@ class AddressBook(JsonFile):
 				self._clients_by_id[client.id] = client
 			self.changed()
 
-		self._write_json_file(file, [])
+		write_json_file(file, [])
 
 	def changed(self):
 		# print('-> AddressBook.changed()')
