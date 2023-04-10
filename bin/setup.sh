@@ -26,6 +26,7 @@ echo "-> PYCHAT_CONTACT: ${PYCHAT_CONTACT}"
 echo "-> PYCHAT_DATA_DIR: ${PYCHAT_DATA_DIR}"
 
 mkdir -p ${PYCHAT_DATA_DIR}
+chmod go-rwx ${PYCHAT_DATA_DIR}
 
 rsa_priv_key_file=${PYCHAT_DATA_DIR}/private_key.pem
 rsa_pub_key_file=${PYCHAT_DATA_DIR}/public_key.pem

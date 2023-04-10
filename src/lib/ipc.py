@@ -62,7 +62,9 @@ class Ipc(Network):
 		time.sleep(0.1)
 		sock.close()
 
-	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []): # pragma: no cover
+		return True
+
+	def _client_write1(self, sock: socket.socket, group: int, command: int, data: list = []): # pragma: no cover
 		print('-> Server._client_write()')
 		payload_l = []
 		for item in data:

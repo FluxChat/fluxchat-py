@@ -10,17 +10,21 @@ class Message():
 	to: str
 	target: overlay.Node
 	body: str
+	created_at: dt.datetime
 	received_at: dt.datetime
 	forwarded_to: list
 	is_encrypted: bool
+	is_delivered: bool
 
 	def __init__(self, to: str = None, body: str = None):
 		self.uuid = str(uuid.uuid4())
 		self.to = to
 		self.body = body
+		self.created_at = dt.datetime.now()
 		self.received_at = dt.datetime.now()
 		self.forwarded_to = []
 		self.is_encrypted = False
+		self.is_delivered = None
 
 		if self.to == None:
 			self.target = None
@@ -37,6 +41,8 @@ class Message():
 		return self.__str__()
 
 	def as_dict(self) -> dict:
+		print('-> Message.as_dict() -> {}'.format(self.uuid))
+
 		data = dict()
 		if self.to != None:
 			data['to'] = self.to
@@ -44,13 +50,17 @@ class Message():
 			data['body'] = self.body
 		if self.received_at != None:
 			data['received_at'] = self.received_at.isoformat()
-		if self.forwarded_to != None:
+		if self.forwarded_to != None and len(self.forwarded_to) > 0:
 			data['forwarded_to'] = self.forwarded_to
 		if self.is_encrypted != None:
 			data['is_encrypted'] = self.is_encrypted
+		if self.is_delivered != None:
+			data['is_delivered'] = self.is_delivered
 		return data
 
 	def from_dict(self, data: dict):
+		print('-> Message.from_dict({})'.format(self.uuid))
+
 		if 'to' in data:
 			self.to = data['to']
 			try:
@@ -65,6 +75,8 @@ class Message():
 			self.forwarded_to = data['forwarded_to']
 		if 'is_encrypted' in data:
 			self.is_encrypted = data['is_encrypted']
+		if 'is_delivered' in data:
+			self.is_delivered = data['is_delivered']
 
 class Queue():
 	_path: str
@@ -83,6 +95,8 @@ class Queue():
 		self._changes = False
 
 	def load(self):
+		print('-> Queue.load()')
+
 		_data = read_json_file(self._path, {})
 		for message_uuid, row in _data.items():
 			message = Message()
@@ -117,18 +131,73 @@ class Queue():
 		print('-> Queue.get_messages()')
 		return self._messages_by_uuid.items()
 
+	def has_message(self, message_uuid: str) -> bool:
+		print('-> Queue.has_message({})'.format(message_uuid))
+		return message_uuid in self._messages_by_uuid
+
 	def changed(self):
 		self._changes = True
 
 	def clean_up(self):
 		print('-> Queue.clean_up()')
 
+		remove_messages = []
+
 		ffunc = lambda _message: _message[1].received_at < dt.datetime.now() - dt.timedelta(hours=self._mail_config['message_retention_time'])
 		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
-		print('-> old_messages: {}'.format(old_messages))
+		print('-> old_messages A: {}'.format(old_messages))
+		remove_messages += old_messages
 
-		# remove old messages
-		for message_uuid, message in old_messages:
+		ffunc = lambda _message: _message[1].is_delivered
+		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
+		print('-> old_messages B: {}'.format(old_messages))
+		remove_messages += old_messages
+
+		for message_uuid, message in remove_messages:
 			print('-> remove message: {}'.format(message))
 			del self._messages_by_uuid[message_uuid]
 			self._changes = True
+
+class Database():
+	_path: str
+	_messages: dict
+	_changes: bool
+
+	def __init__(self, path: str) -> None:
+		print('-> Database.__init__()')
+
+		self._path = path
+		self._data = dict()
+		self._changes = False
+
+	def load(self):
+		print('-> Database.load()')
+
+		data = read_json_file(self._path, {})
+		for message_uuid, message_raw in data.items():
+			message = Message()
+			message.from_dict(message_raw)
+
+			self._data[message_uuid] = message
+
+	def save(self):
+		print('-> Database.save()')
+
+		if not self._changes:
+			return
+
+		data = dict()
+		for message_uuid, message in self._data.items():
+			data[message_uuid] = message.as_dict()
+
+		write_json_file(self._path, data)
+		self._changes = False
+
+	def add_message(self, message: Message):
+		print('-> Database.add_message({})'.format(message))
+		self._data[message.uuid] = message
+		self._changes = True
+
+	def has_message(self, message_uuid: str) -> bool:
+		print('-> Database.has_message()')
+		return message_uuid in self._data

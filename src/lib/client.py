@@ -8,8 +8,26 @@ import base64
 
 import lib.overlay as overlay
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_der_public_key
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+
+class Action():
+	id: str
+	subid: str
+	is_strong: bool # Strong actions are not removed from the queue on soft_reset_actions()
+
+	def __init__(self, id: str, subid: str = None, data = None):
+		self.id = id
+		self.subid = subid
+		self.data = data
+		self.is_strong = False
+		self.func = None
+
+	def __str__(self):
+		return 'Action({}/{},d={},s={})'.format(self.id, self.subid, self.data, self.is_strong)
+
+	def __repr__(self): # pragma: no cover
+		return 'Action({}/{})'.format(self.id, self.subid)
 
 class Client():
 	uuid: str # Internal ID
@@ -44,7 +62,6 @@ class Client():
 	auth: int
 
 	actions: list
-	#public_key: bytes
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -63,7 +80,7 @@ class Client():
 		self.conn_mode = 0
 		self.dir_mode = None
 		self.auth = 0
-		self.actions = []
+		self.actions = list()
 		self.public_key = None
 
 	def __str__(self):
@@ -154,34 +171,42 @@ class Client():
 
 		return self.id == other.id
 
-	def add_action(self, action_id: str, data: list = None):
-		self.actions.append([action_id, data])
+	def add_action(self, action: Action):
+		self.actions.append(action)
 
-	def get_actions(self, and_reset: bool = False) -> list:
-		if and_reset:
-			return self.reset_actions()
-		return list(self.actions)
-
-	def remove_action(self, action_id: str):
-		found = list(filter(lambda _action: _action[0] == action_id, self.actions))
-		if len(found) > 0:
-			self.actions.remove(found[0])
-
-	def reset_actions(self) -> list:
+	def get_actions(self, soft_reset: bool = False) -> list:
+		print('-> Client.get_actions()')
 		_actions = list(self.actions)
-		self.actions = []
+		if soft_reset:
+			self.soft_reset_actions()
 		return _actions
 
-	def has_action(self, action_id: str, remove: bool = False) -> bool:
-		print('-> Client.has_action({})'.format(action_id))
-		found = list(filter(lambda _action: _action[0] == action_id, self.actions))
+	# Remove actions with is_strong == False
+	def soft_reset_actions(self):
+		print('-> Client.soft_reset_actions()')
+		strong_actions = list(filter(lambda _action: _action.is_strong, self.actions))
+		actions = list(self.actions)
+		self.actions = strong_actions
+		return actions
+
+	def has_action(self, id: str, subid: str = None) -> bool:
+		print('-> Client.has_action({}, {})'.format(id, subid))
+		ffunc = lambda _action: _action.id == id and _action.subid == subid
+		found = list(filter(ffunc, self.actions))
 		print('-> found: {}'.format(found))
+		return len(found) > 0
+
+	# Search for action by id and subid and remove it from actions list.
+	# Keep Strong actions.
+	# Force remove will also remove strong actions.
+	def resolve_action(self, id: str, subid: str = None, force_remove: bool = False) -> Action:
+		ffunc = lambda _action: _action.id == id and _action.subid == subid
+		found = list(filter(ffunc, self.actions))
 		if len(found) > 0:
-			item = found[0]
-			if remove:
-				self.remove_action(action_id)
-			return [True, item[1]]
-		return [False, None]
+			if not found[0].is_strong or force_remove:
+				self.actions.remove(found[0])
+			return found[0]
+		return None
 
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None
@@ -201,7 +226,7 @@ class Client():
 
 		public_key_pkcs1 = self.public_key.public_bytes(
 			encoding=serialization.Encoding.PEM,
-			format=serialization.PublicFormat.PKCS1
+			format=serialization.PublicFormat. SubjectPublicKeyInfo
 		)
 
 		with open(path, 'wb') as f:
@@ -220,29 +245,48 @@ class Client():
 
 		public_bytes = self.public_key.public_bytes(
 			encoding=serialization.Encoding.DER,
-			format=serialization.PublicFormat.SubjectPublicKeyInfo)
+			format=serialization.PublicFormat.SubjectPublicKeyInfo
+		)
 
 		return base64.b64encode(public_bytes).decode('utf-8')
 
 	def reset_public_key(self):
+		print('-> Client.reset_public_key()')
 		self.public_key = None
 
 	def has_public_key(self) -> bool:
+		print('-> Client.has_public_key()')
 		return self.public_key != None
 
 	def verify_public_key(self) -> bool:
+		print('-> Client.verify_public_key()')
 		if not self.has_public_key():
 			return False
 
 		public_bytes = self.public_key.public_bytes(
 			encoding=serialization.Encoding.DER,
-			format=serialization.PublicFormat.SubjectPublicKeyInfo)
+			format=serialization.PublicFormat.SubjectPublicKeyInfo
+		)
 
 		hash_obj = hashlib.new('ripemd160')
 		hash_obj.update(public_bytes)
 
 		base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
 		return f'FC_{base58_hash}' == self.id
+
+	def encrypt(self, data: bytes) -> bytes:
+		print('-> Client.encrypt()')
+		if not self.has_public_key():
+			return None
+
+		return self.public_key.encrypt(
+			data,
+			padding.OAEP(
+				mgf=padding.MGF1(algorithm=hashes.SHA256()),
+				algorithm=hashes.SHA256(),
+				label=None
+			)
+		)
 
 	def reset(self):
 		print('-> Client.reset()')

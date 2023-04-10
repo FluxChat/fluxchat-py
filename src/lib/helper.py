@@ -6,6 +6,7 @@ import ipaddress
 import socket
 import json
 import os
+import uuid
 
 from cryptography.hazmat.primitives import serialization
 
@@ -83,13 +84,20 @@ def resolve_contact(contact: str, raddr: str = None) -> list:
 
 	return [c_addr, c_port, c_addr != None and c_port != None]
 
-def read_json_file(self, path: str, default = None) -> dict:
+def write_json_file(path: str, data):
+	with open(path, 'w') as write_file:
+		json.dump(data, write_file, indent=4)
+
+def read_json_file(path: str, default = None) -> dict:
 	if not os.path.exists(path) and default != None:
-		self._write_json_file(path, default)
+		write_json_file(path, default)
 
 	with open(path, 'r') as read_file:
 		return json.load(read_file)
 
-def write_json_file(self, path: str, data):
-	with open(path, 'w') as write_file:
-		json.dump(data, write_file, indent=4)
+def is_valid_uuid(id: str):
+	try:
+		obj = uuid.UUID(id, version=4)
+	except ValueError:
+		return False
+	return str(obj) == id

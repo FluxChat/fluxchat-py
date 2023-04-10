@@ -6,14 +6,15 @@ import struct
 import base64
 
 from sty import fg
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
-from lib.client import Client
+from lib.client import Client, Action
 from lib.address_book import AddressBook
-from lib.helper import resolve_contact
-from lib.mail import Queue, Message
-import lib.overlay as overlay
+from lib.helper import resolve_contact, is_valid_uuid
+from lib.mail import Message, Queue as MessageQueue, Database as MessageDatabase
 from lib.network import Network
+import lib.overlay as overlay
 
 class Server(Network):
 	_config: dict
@@ -22,15 +23,14 @@ class Server(Network):
 	_discovery_socket: socket.socket
 	_ipc_server_socket: socket.socket
 	_address_book: AddressBook
-	_message_queue: Queue
+	_message_queue: MessageQueue
+	_message_db: MessageDatabase
 	_hostname: str
 	_lan_ip: str
 
 	_clients: list
 	_local_node: overlay.Node
-	# _public_key: str
 	_public_key_b64: str
-	# _public_key_parsed: str
 
 	def __init__(self, config: dict = {}):
 		# print('-> Server.__init__()')
@@ -39,6 +39,9 @@ class Server(Network):
 		self._lan_ip = socket.gethostbyname(self._host_name)
 		self._clients = []
 		self._selectors = selectors.DefaultSelector()
+		self._public_key = None
+		self._public_key_b64 = None
+		self._private_key = None
 
 		# print('-> host_name: {}'.format(self._host_name))
 		# print('-> lan_ip: {}'.format(self._lan_ip))
@@ -76,8 +79,12 @@ class Server(Network):
 				self._address_book.add_bootstrap(bootstrap_path)
 
 			message_queue_path = os.path.join(self._config['data_dir'], 'message_queue.json')
-			self._message_queue = Queue(message_queue_path, self._config)
+			self._message_queue = MessageQueue(message_queue_path, self._config)
 			self._message_queue.load()
+
+			message_db_path = os.path.join(self._config['data_dir'], 'message_db.json')
+			self._message_db = MessageDatabase(message_db_path)
+			self._message_db.load()
 		else:
 			self._address_book = None
 
@@ -93,6 +100,7 @@ class Server(Network):
 	def start(self): # pragma: no cover
 		print('-> Server.start()')
 		self._load_public_key_from_pem_file()
+		self._load_private_key_from_pem_file()
 
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -144,6 +152,20 @@ class Server(Network):
 		if self._message_queue:
 			self._message_queue.save()
 
+		if self._message_db:
+			self._message_db.save()
+
+	def _load_private_key_from_pem_file(self) -> None:
+		print('-> Server._load_private_key_from_pem_file()')
+
+		if not os.path.isfile(self._config['private_key_file']):
+			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
+
+		with open(self._config['private_key_file'], 'rb') as f:
+			self._private_key = serialization.load_pem_private_key(f.read(), password=None)
+
+		print('-> private key: {}'.format(self._private_key))
+
 	def _load_public_key_from_pem_file(self) -> None:
 		print('-> Server._load_public_key_from_pem_file()')
 
@@ -157,7 +179,8 @@ class Server(Network):
 
 		public_bytes = self._public_key.public_bytes(
 			encoding=serialization.Encoding.DER,
-			format=serialization.PublicFormat.SubjectPublicKeyInfo)
+			format=serialization.PublicFormat.SubjectPublicKeyInfo
+		)
 
 		self._public_key_b64 = base64.b64encode(public_bytes).decode('utf-8')
 
@@ -363,15 +386,15 @@ class Server(Network):
 				while pos < length:
 					if lengths_are_4_bytes:
 						item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
-						pos += 4
+						pos += 3
 					else:
 						item_len = payload_raw[pos]
-						pos += 1
+					pos += 1
 
-					print('-> item len', item_len, type(item_len))
+					# print('-> item len', item_len, type(item_len))
 
 					item = payload_raw[pos:pos + item_len]
-					print('-> item content', item)
+					# print('-> item content', item)
 
 					payload_items.append(item.decode('utf-8'))
 					pos += item_len
@@ -394,6 +417,12 @@ class Server(Network):
 
 			print('-> group', group_i, 'command', command_i)
 			print('-> payload', payload)
+
+			if group_i >= 2 and client.auth != 3:
+				print('-> not authenticated', client.auth)
+				print(f'{fg.red}-> conn mode 0{fg.rs}')
+				client.conn_mode = 0
+				continue
 
 			if group_i == 0: # Basic
 				if command_i == 0:
@@ -514,12 +543,6 @@ class Server(Network):
 				elif command_i == 3:
 					print(f'{fg.red}-> PONG command{fg.rs}')
 			elif group_i == 2: # Overlay, Address Book, Routing, etc
-				if client.auth != 3:
-					print('-> not authenticated', client.auth)
-					print(f'{fg.red}-> conn mode 0{fg.rs}')
-					client.conn_mode = 0
-					continue
-
 				if command_i == 1:
 					print(f'{fg.red}-> GET_NEAREST_TO command{fg.rs}')
 
@@ -544,12 +567,12 @@ class Server(Network):
 				elif command_i == 2:
 					print(f'{fg.red}-> GET_NEAREST_TO RESPONSE command{fg.rs}')
 
-					has_action, action_data = client.has_action('nearest_response', True)
-					if not has_action:
+					action = client.resolve_action('nearest_response')
+					if action == None:
 						print('-> not requested')
 						continue
 
-					print(has_action, action_data)
+					print('-> action', action)
 
 					nearest_client = None
 					distance = overlay.Distance()
@@ -584,7 +607,7 @@ class Server(Network):
 					if nearest_client != None:
 						print('-> nearest client', nearest_client)
 
-						bootstrap_count = action_data - 1
+						bootstrap_count = action.data - 1
 						print('-> bootstrap count', bootstrap_count)
 
 						if bootstrap_count > 0 and not self._client_is_connected(nearest_client):
@@ -606,19 +629,7 @@ class Server(Network):
 						_client = self._address_book.get_client_by_id(node_id)
 						if _client == None:
 							print('-> client not found')
-
-							# node_public_key_file = os.path.join(self._config['keys_dir'], node_id + '.pem')
-							# if os.path.isfile(node_public_key_file):
-							# 	print('-> public key file found')
-
-							# 	with open(node_public_key_file, 'r') as f:
-							# 		node_public_key = f.read()
-							# 		print('-> public key', node_public_key)
-
-							# 	self._client_response_public_key_for_node(sock, node_id, node_public_key)
-							# else:
-							# 	print('-> public key file not found')
-								# TODO
+							# TODO
 						else:
 							print('-> client found', _client)
 
@@ -633,15 +644,22 @@ class Server(Network):
 					print(f'{fg.red}-> RESPONSE PUBLIC KEY FOR NODE command{fg.rs}')
 
 					node_id, public_key_raw = payload
+					print('-> node id', node_id)
+					print('-> public key raw', public_key_raw)
 
 					try:
 						node = overlay.Node.parse(node_id)
+						print('-> node', node)
 					except:
 						print('-> invalid node')
 						continue
 
-					print('-> node', node)
-					print('-> public key raw', public_key_raw)
+					action = client.resolve_action('request_public_key_for_node', node.id, force_remove=True)
+					if action == None:
+						print('-> not requested')
+						continue
+
+					print('-> action', action)
 
 					_client = self._address_book.get_client_by_id(node.id)
 					if _client == None:
@@ -657,6 +675,7 @@ class Server(Network):
 						else:
 							print('-> public key not verified')
 							self._address_book.remove_client(_client)
+							_client = None
 					else:
 						print('-> client found', _client)
 						# _client.set_public_key(public_key_txt)
@@ -671,15 +690,55 @@ class Server(Network):
 								print('-> public key not verified')
 								_client.reset_public_key()
 
+					if _client != None and _client.has_public_key():
+						print('-> client is set and has public key')
+						action.func(_client)
+
 			elif group_i == 3: # Message
-				pass # TODO
+				if command_i == 1:
+					print(f'{fg.red}-> SEND MESSAGE command{fg.rs}')
+
+					message_uuid, message_target, message_data = payload
+
+					print('-> message uuid', message_uuid)
+					if not is_valid_uuid(message_uuid):
+						print('-> invalid message uuid')
+						continue
+
+					if self._message_db.has_message(message_uuid):
+						print('-> DB, message already exists')
+						continue
+
+					if self._message_queue.has_message(message_uuid):
+						print('-> QUEUE, message already exists')
+						continue
+
+					try:
+						message_target = overlay.Node.parse(message_target)
+						print('-> message target', message_target)
+					except:
+						print('-> invalid message target')
+						continue
+
+					print('-> message data', message_data)
+
+					message = Message(message_target.id, message_data)
+					message.uuid = message_uuid
+					message.is_encrypted = True
+
+					if message_target == self._local_node:
+						print('-> message target is local node')
+						self._decrypt_message(message)
+						self._message_db.add_message(message)
+					else:
+						print('-> message target is not local node')
+						message.forwarded_to.append(client.id)
+						self._message_queue.add_message(message)
 
 			else:
 				print('-> unknown group', group_i, 'command', command_i)
 				print(f'{fg.red}-> conn mode 0{fg.rs}')
 				client.conn_mode = 0
-
-
 
 	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
 		print('-> Server._client_send_ok()')
@@ -724,6 +783,20 @@ class Server(Network):
 
 		self._client_write(sock, 2, 4, [id, public_key])
 
+	def _client_send_message(self, sock: socket.socket, message: Message): # pragma: no cover
+		print('-> Server._client_send_message()')
+		if not message.is_encrypted:
+			print('-> message not encrypted')
+			return
+
+		print('-> message:', type(message.body))
+
+		self._client_write(sock, 3, 1, [
+			message.uuid,
+			message.target.id,
+			message.body,
+		])
+
 	def _ipc_client_read(self, sock: socket.socket): # pragma: no cover
 		print('{}-> Server._ipc_client_read(){}'.format(fg.blue, fg.rs))
 
@@ -743,22 +816,37 @@ class Server(Network):
 			commands = []
 			while raw_pos < raw_len:
 				try:
+					flags_i = raw[raw_pos]
+					raw_pos += 1
+
 					group = raw[raw_pos]
-					command = raw[raw_pos + 1]
+					raw_pos += 1
+
+					command = raw[raw_pos]
+					raw_pos += 1
 				except IndexError as e:
 					print('-> IPC IndexError', e)
 					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
 					self._selectors.unregister(sock)
 					return
+
+				lengths_are_4_bytes = flags_i & 1 != 0
+
 				try:
-					length = struct.unpack('<I', raw[raw_pos + 2:raw_pos + 6])[0]
+					length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
+					raw_pos += 4
 				except struct.error as e:
 					print('-> IPC struct.error', e)
 					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
 					self._selectors.unregister(sock)
 					return
-				payload_raw = raw[raw_pos + 6:]
+
+				payload_raw = raw[raw_pos:]
 				payload_items = []
+
+				print('-> group', group)
+				print('-> command', command)
+				print('-> length', length, type(length))
 
 				if length >= 2048:
 					print('-> IPC length too big', length)
@@ -766,14 +854,20 @@ class Server(Network):
 
 				pos = 0
 				while pos < length:
-					item_l = payload_raw[pos]
+					if lengths_are_4_bytes:
+						item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						pos += 3
+					else:
+						item_len = payload_raw[pos]
 					pos += 1
-					item = payload_raw[pos:pos + item_l]
+
+					item = payload_raw[pos:pos + item_len]
+
 					payload_items.append(item.decode('utf-8'))
-					pos += item_l
+					pos += item_len
 
 				commands.append([group, command, payload_items])
-				raw_pos += 7 + length
+				raw_pos += length + 1
 
 			self._ipc_client_commands(sock, commands)
 		else:
@@ -855,7 +949,7 @@ class Server(Network):
 
 			if client.meetings > 0:
 				if not self._client_is_connected(client):
-					print('-> client is not connected')
+					print('-> client is not connected A')
 					connect_to_clients.append(client)
 			else:
 				zero_meetings_clients.append(client)
@@ -864,14 +958,14 @@ class Server(Network):
 		for client in zero_meetings_clients:
 			print('-> zero_meetings_client', client)
 			if not self._client_is_connected(client):
-				print('-> client is not connected')
+				print('-> client is not connected B')
 				connect_to_clients.append(client)
 
 		is_bootstrapping = self.is_bootstrap_phase()
 
 		for client in connect_to_clients:
 			if is_bootstrapping:
-				client.add_action('bootstrap', 2) # TODO: set to 7
+				client.add_action(Action('bootstrap', data=2)) # TODO: set to 7
 			self._client_connect(client)
 
 		return True
@@ -884,18 +978,11 @@ class Server(Network):
 		self._clients.append(client)
 
 	def handle_clients(self) -> bool:
-		# print('-> Server.handle_clients()')
-
 		for client in self._clients:
-			# print('handle', client)
 
 			if client.conn_mode == 0:
 				print('-> remove client', client)
 				self._selectors.unregister(client.sock)
-				# try:
-					# self._selectors.unregister(client.sock)
-				# except ValueError as e:
-				# 	print('-> ValueError', e)
 				client.sock.close()
 				self._clients.remove(client)
 
@@ -926,6 +1013,7 @@ class Server(Network):
 
 		self._address_book.save()
 		self._message_queue.save()
+		self._message_db.save()
 
 		return True
 
@@ -951,21 +1039,34 @@ class Server(Network):
 		had_actions = False
 
 		for client in self._clients:
-			print('-> action client', client)
+			print('-> client', client)
 
-			for action_id, data in client.get_actions(True):
-				print('-> action', action_id, data)
+			for action in client.get_actions(soft_reset=True):
+				print('-> action', action)
 
-				if action_id == 'bootstrap':
+				if action.id == 'bootstrap':
 					self._client_send_get_nearest_to(client.sock, self._local_node.id)
-					client.add_action('nearest_response', data)
+					client.add_action(Action('nearest_response', data=action.data))
 
-				elif action_id == 'request_public_key_for_node':
-					print('-> request_public_key_for_node', data)
+				elif action.id == 'request_public_key_for_node':
+					print('-> request_public_key_for_node', action)
 
-					self._client_request_public_key_for_node(client.sock, data['target'])
+					if action.data['step'] == 0:
+						action.data['step'] += 1
+						self._client_request_public_key_for_node(client.sock, action.data['target'].id)
 
-				elif action_id == 'test':
+				elif action.id == 'message':
+					message = action.data
+					print('-> message', message)
+
+					self._client_send_message(client.sock, message)
+
+					message.forwarded_to.append(client.id)
+					message.is_delivered = client.id == message.target
+
+					self._message_queue.changed()
+
+				elif action.id == 'test':
 					had_actions = True
 
 		return had_actions
@@ -979,7 +1080,11 @@ class Server(Network):
 		print('-> Server.handle_message_queue()')
 
 		for message_uuid, message in self._message_queue.get_messages():
-			print('-> message', message, message.target)
+			print('-> message', message)
+
+			if message.is_delivered:
+				print('-> message is delivered')
+				continue
 
 			if message.target == None:
 				print('-> message has no target')
@@ -997,16 +1102,114 @@ class Server(Network):
 				if self._client_is_connected(client):
 					print('-> client is connected')
 				else:
-					print('-> client is not connected')
+					print('-> client is not connected C')
 					self._client_connect(client)
 
 			if message.is_encrypted:
 				print('-> message is encrypted')
-			else:
-				print('-> message is not encrypted')
 
 				for client in clients:
 					print('-> client', client)
-					client.add_action('request_public_key_for_node', {'target': message.target.id, 'level': 0})
+					print('-> forwarded_to', message.forwarded_to)
+
+					if not self._client_is_connected(client):
+						print('-> client is not connected D')
+						continue
+
+					if client.id in message.forwarded_to:
+						print('-> client already received message')
+						continue
+
+					if client.has_action('message', message.uuid):
+						print('-> client already has action')
+						continue
+
+					# message.forwarded_to.append(client.id)
+					# self._message_queue.changed()
+
+					print('-> add action for message')
+					action = Action('message', message.uuid, data=message)
+					client.add_action(action)
+			else:
+				print('-> message is not encrypted')
+
+				client = self._address_book.get_client_by_id(message.target.id)
+				if client == None or not client.has_public_key():
+					print('-> client is set and has not public key')
+					for client in clients:
+						print('-> client', client)
+
+						if not client.has_action('request_public_key_for_node', message.target.id):
+							action_data = {
+								'target': message.target,
+								'level': 0, # 0 = original sender, 1 = relay
+								'step': 0, # 0 = request created, 1 = send request to client, 2 = response
+							}
+							action = Action('request_public_key_for_node', message.target.id, data=action_data)
+							action.is_strong = True
+							action.func = lambda _client: self._encrypt_message(message, _client)
+
+							client.add_action(action)
+				else:
+					self._encrypt_message(message, client)
 
 		return True
+
+	def _encrypt_message(self, message: Message, client: Client):
+		print('-> Server._encrypt_message() -> {}'.format(message.is_encrypted))
+		print('-> message', message)
+		print('-> client', client)
+
+		if message.is_encrypted:
+			print('-> message is already encrypted')
+			return
+
+		# base64 decode body
+		body = base64.b64decode(message.body)
+		print('-> body', body)
+
+		encrypted = client.encrypt(body)
+		print('-> encrypted', encrypted)
+
+		encoded = base64.b64encode(encrypted)
+		print('-> b64 encoded', encoded)
+
+		decoded = encoded.decode('utf-8')
+		print('-> b64 decoded', decoded)
+
+		message.body = decoded
+		message.is_encrypted = True
+
+		self._message_queue.changed()
+
+	def _decrypt_message(self, message: Message):
+		print('-> Server._decrypt_message()')
+
+		if not message.is_encrypted:
+			print('-> message is not encrypted')
+			return
+
+		print('-> body', message.body)
+
+		# base64 decode body
+		decoded = base64.b64decode(message.body)
+		print('-> decoded', decoded)
+
+		decrypted_b = self._private_key.decrypt(
+			decoded,
+			padding.OAEP(
+				mgf=padding.MGF1(algorithm=hashes.SHA256()),
+				algorithm=hashes.SHA256(),
+				label=None
+			)
+		)
+		print('-> decrypted', decrypted_b)
+
+		encoded = base64.b64encode(decrypted_b)
+		print('-> encoded', encoded)
+
+		decoded = encoded.decode('utf-8')
+		print('-> decoded', decoded)
+
+		message.body = decoded
+		message.is_encrypted = False
