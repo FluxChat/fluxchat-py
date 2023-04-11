@@ -36,13 +36,15 @@ class PyChat():
 		# TODO change that to every 5 minutes
 		self._scheduler.add_task(self._server.clean_up, dt.timedelta(seconds=15))
 
-		# TODO activate
+		# TODO activate for production
 		#self._scheduler.add_task(self._server.ping_clients, dt.timedelta(seconds=15))
 
 		# TODO change that to every 5 minutes
 		self._scheduler.add_task(self._server.save, dt.timedelta(seconds=15))
 
+		# TODO deactivate for production
 		self._scheduler.add_task(self._server.debug_clients, dt.timedelta(minutes=1))
+
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
 		self._scheduler.add_task(self._server.handle_message_queue, dt.timedelta(seconds=15))
 

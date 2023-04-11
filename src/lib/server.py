@@ -154,7 +154,7 @@ class Server(Network):
 
 			if self.has_contact():
 				print('-> send broadcast')
-				# TODO for production set port to self._config['discovery']['port'] instead of hard-coded 26000
+				# TODO for production: set port to self._config['discovery']['port'] instead of hard-coded 26000
 				res = self._discovery_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
 				print('-> res', res)
 
@@ -298,7 +298,7 @@ class Server(Network):
 	def _client_connect(self, client: Client) -> bool: # pragma: no cover
 		print('{}-> Server._client_connect({}){}'.format(fg.blue, client, fg.rs))
 
-		# TODO: activate
+		# TODO: activate for production
 		# if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
 		# 	print('-> skip, client.address == self._lan_ip')
 		# 	return False
@@ -644,7 +644,7 @@ class Server(Network):
 						_client = self._address_book.get_client_by_id(node_id)
 						if _client == None:
 							print('-> client not found')
-							# TODO
+							# TODO implement
 						else:
 							print('-> client found', _client)
 
@@ -653,7 +653,7 @@ class Server(Network):
 								self._client_response_public_key_for_node(sock, node_id, _client.get_der_base64_public_key())
 							else:
 								print('-> client does not have public key')
-								# TODO
+								# TODO implement
 
 				elif command_i == 4:
 					print(f'{fg.red}-> RESPONSE PUBLIC KEY FOR NODE command{fg.rs}')
