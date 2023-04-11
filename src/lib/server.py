@@ -27,10 +27,10 @@ class Server(Network):
 	_message_db: MessageDatabase
 	_hostname: str
 	_lan_ip: str
-
 	_clients: list
 	_local_node: overlay.Node
 	_public_key_b64: str
+	_pid_file_path: str
 
 	def __init__(self, config: dict = {}):
 		# print('-> Server.__init__()')
@@ -54,13 +54,8 @@ class Server(Network):
 			}
 
 		if 'data_dir' in self._config:
-			pid_file_path = os.path.join(self._config['data_dir'], 'pychat.pid')
-			if os.path.isfile(pid_file_path):
-				print('-> Another instance of PyChat is already running.')
-				print('-> If this is not the case, delete the file: {}'.format(pid_file_path))
-				exit(1)
-			with open(pid_file_path, 'w') as fh:
-				fh.write(str(os.getpid()))
+			self._pid_file_path = os.path.join(self._config['data_dir'], 'pychat.pid')
+			self._write_pid_file()
 
 			if 'public_key_file' not in self._config:
 				self._config['public_key_file'] = os.path.join(self._config['data_dir'], 'public_key.pem')
@@ -118,6 +113,20 @@ class Server(Network):
 
 		if self._message_db:
 			self._message_db.save()
+
+		self._remove_pid_file()
+
+	def _write_pid_file(self):
+		if os.path.isfile(self._pid_file_path):
+			print('-> Another instance of PyChat is already running.')
+			print('-> If this is not the case, delete the file: {}'.format(self._pid_file_path))
+			exit(1)
+		with open(self._pid_file_path, 'w') as fh:
+			fh.write(str(os.getpid()))
+
+	def _remove_pid_file(self):
+		if os.path.isfile(self._pid_file_path):
+			os.remove(self._pid_file_path)
 
 	def start(self): # pragma: no cover
 		print('-> Server.start()')
