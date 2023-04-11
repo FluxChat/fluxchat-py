@@ -97,6 +97,9 @@ class Server(Network):
 				'port': 26000,
 			}
 
+		if 'bootstrap' not in self._config:
+			self._config['bootstrap'] = 'default'
+
 	def start(self): # pragma: no cover
 		print('-> Server.start()')
 		self._load_public_key_from_pem_file()
@@ -1072,9 +1075,12 @@ class Server(Network):
 		return had_actions
 
 	def is_bootstrap_phase(self) -> bool:
-		clients_len = self._address_book.get_clients_len()
-		bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
-		return clients_len <= bootstrap_clients_len
+		if self._config['bootstrap'] == 'default':
+			clients_len = self._address_book.get_clients_len()
+			bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
+			return clients_len <= bootstrap_clients_len
+
+		return bool(self._config['bootstrap'])
 
 	def handle_message_queue(self) -> bool:
 		print('-> Server.handle_message_queue()')

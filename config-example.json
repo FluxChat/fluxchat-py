@@ -12,6 +12,7 @@
 		"enabled": false,
 		"port": 26000
 	},
+	"bootstrap": "default",
 	"ipc": {
 		"enabled": true,
 		"address": "127.0.0.1",
