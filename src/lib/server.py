@@ -1231,13 +1231,13 @@ class Server(Network):
 		print('-> body', body)
 
 		encrypted = client.encrypt(body)
-		print('-> encrypted', encrypted)
+		# print('-> encrypted', encrypted)
 
 		encoded = base64.b64encode(encrypted)
-		print('-> b64 encoded', encoded)
+		# print('-> b64 encoded', encoded)
 
 		decoded = encoded.decode('utf-8')
-		print('-> b64 decoded', decoded)
+		# print('-> b64 decoded', decoded)
 
 		message.body = decoded
 		message.is_encrypted = True
@@ -1258,7 +1258,7 @@ class Server(Network):
 
 		# base64 decode body
 		decoded = base64.b64decode(message.body)
-		print('-> decoded', decoded)
+		# print('-> decoded', decoded)
 
 		decrypted_b = self._private_key.decrypt(
 			decoded,
@@ -1268,13 +1268,13 @@ class Server(Network):
 				label=None
 			)
 		)
-		print('-> decrypted', decrypted_b)
+		# print('-> decrypted', decrypted_b)
 
 		encoded = base64.b64encode(decrypted_b)
-		print('-> encoded', encoded)
+		# print('-> encoded', encoded)
 
 		decoded = encoded.decode('utf-8')
-		print('-> decoded', decoded)
+		# print('-> decoded', decoded)
 
 		message.body = decoded
 		message.is_encrypted = False
