@@ -159,6 +159,10 @@ class AddressBook():
 	def remove_client(self, client: Client):
 		# print('-> AddressBook.remove_client({})'.format(client))
 
+		key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
+		if os.path.isfile(key_file_path):
+			os.remove(key_file_path)
+
 		del self._clients_by_uuid[client.uuid]
 		if client.id != None:
 			del self._clients_by_id[client.id]
