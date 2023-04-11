@@ -14,10 +14,15 @@ class PyChat():
 	_config: dict
 	_server: Server
 	_scheduler: Scheduler
+	_is_dev: bool
 
-	def __init__(self, config_file: str = None):
+	def __init__(self, config_file: str = None, is_dev: bool = False):
 		# print('-> PyChat.__init__()')
 		self._config_file = config_file
+		self._config = None
+		self._server = None
+		self._scheduler = None
+		self._is_dev = is_dev
 
 	def start(self): # pragma: no cover
 		# Init
@@ -28,25 +33,20 @@ class PyChat():
 		self._scheduler = Scheduler()
 		self._scheduler.add_task(self._server.run, dt.timedelta(milliseconds=100))
 
-		# TODO change that to every 5 minutes, one_shot=False
-		self._scheduler.add_task(self._server.contact_address_book, dt.timedelta(seconds=5), one_shot=True)
-
 		self._scheduler.add_task(self._server.handle_clients, dt.timedelta(milliseconds=100))
-
-		# TODO change that to every 5 minutes
-		self._scheduler.add_task(self._server.clean_up, dt.timedelta(seconds=15))
-
-		# TODO activate for production
-		#self._scheduler.add_task(self._server.ping_clients, dt.timedelta(seconds=15))
-
-		# TODO change that to every 5 minutes
-		self._scheduler.add_task(self._server.save, dt.timedelta(seconds=15))
-
-		# TODO deactivate for production
-		self._scheduler.add_task(self._server.debug_clients, dt.timedelta(minutes=1))
-
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
-		self._scheduler.add_task(self._server.handle_message_queue, dt.timedelta(seconds=15))
+		self._scheduler.add_task(self._server.handle_message_queue, dt.timedelta(seconds=10))
+
+		if self._is_dev:
+			self._scheduler.add_task(self._server.contact_address_book, dt.timedelta(seconds=5), one_shot=True)
+			self._scheduler.add_task(self._server.clean_up, dt.timedelta(seconds=15))
+			self._scheduler.add_task(self._server.save, dt.timedelta(seconds=15))
+			self._scheduler.add_task(self._server.debug_clients, dt.timedelta(minutes=1))
+		else:
+			self._scheduler.add_task(self._server.contact_address_book, dt.timedelta(minutes=5))
+			self._scheduler.add_task(self._server.clean_up, dt.timedelta(minutes=5))
+			self._scheduler.add_task(self._server.ping_clients, dt.timedelta(seconds=60))
+			self._scheduler.add_task(self._server.save, dt.timedelta(minutes=5))
 
 	def _load_config(self):
 		# print('-> PyChat._load_config()')

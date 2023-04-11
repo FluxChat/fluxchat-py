@@ -40,6 +40,8 @@ export PYCHAT_DATA_DIR=var/data2
 ## Dev
 
 ```bash
+./src/pychat_app.py -c var/config1.json --dev
+
 cd src
 python3 -m unittest tests/test_mail.py
 
