@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import sys
+import signal
 import os
 import argparse
 
@@ -14,6 +16,9 @@ def main():
 	print('-> pid:', os.getpid())
 
 	app = PyChat(args.config[0])
+
+	signal.signal(signal.SIGINT, lambda sig, frame: app.shutdown())
+
 	app.start()
 	try:
 		app.run()

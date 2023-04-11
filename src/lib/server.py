@@ -42,9 +42,9 @@ class Server(Network):
 		self._public_key = None
 		self._public_key_b64 = None
 		self._private_key = None
-
-		# print('-> host_name: {}'.format(self._host_name))
-		# print('-> lan_ip: {}'.format(self._lan_ip))
+		self._address_book = None
+		self._message_queue = None
+		self._message_db = None
 
 		self._config = config
 		if 'address_book' not in self._config:
@@ -54,6 +54,14 @@ class Server(Network):
 			}
 
 		if 'data_dir' in self._config:
+			pid_file_path = os.path.join(self._config['data_dir'], 'pychat.pid')
+			if os.path.isfile(pid_file_path):
+				print('-> Another instance of PyChat is already running.')
+				print('-> If this is not the case, delete the file: {}'.format(pid_file_path))
+				exit(1)
+			with open(pid_file_path, 'w') as fh:
+				fh.write(str(os.getpid()))
+
 			if 'public_key_file' not in self._config:
 				self._config['public_key_file'] = os.path.join(self._config['data_dir'], 'public_key.pem')
 			if 'private_key_file' not in self._config:
@@ -85,8 +93,6 @@ class Server(Network):
 			message_db_path = os.path.join(self._config['data_dir'], 'message_db.json')
 			self._message_db = MessageDatabase(message_db_path)
 			self._message_db.load()
-		else:
-			self._address_book = None
 
 		if 'id' in self._config:
 			self._local_node = overlay.Node.parse(self._config['id'])
@@ -100,6 +106,19 @@ class Server(Network):
 		if 'bootstrap' not in self._config:
 			self._config['bootstrap'] = 'default'
 
+	def __del__(self):
+		# print('-> Server.__del__()')
+		self._selectors.close()
+
+		if self._address_book:
+			self._address_book.save()
+
+		if self._message_queue:
+			self._message_queue.save()
+
+		if self._message_db:
+			self._message_db.save()
+
 	def start(self): # pragma: no cover
 		print('-> Server.start()')
 		self._load_public_key_from_pem_file()
@@ -109,7 +128,13 @@ class Server(Network):
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		print('-> bind: {} {}'.format(self._config['address'], self._config['port']))
-		self._main_server_socket.bind((self._config['address'], self._config['port']))
+
+		try:
+			self._main_server_socket.bind((self._config['address'], self._config['port']))
+		except OSError as e:
+			print('-> OSError: {}'.format(e))
+			print('-> Is another instance of PyChat already running?')
+			exit(1)
 
 		print('-> listen')
 		self._main_server_socket.listen()
@@ -144,19 +169,6 @@ class Server(Network):
 			self._ipc_server_socket.setblocking(False)
 
 			self._selectors.register(self._ipc_server_socket, selectors.EVENT_READ, data={'type': 'ipc_server'})
-
-	def __del__(self):
-		# print('-> Server.__del__()')
-		self._selectors.close()
-
-		if self._address_book:
-			self._address_book.save()
-
-		if self._message_queue:
-			self._message_queue.save()
-
-		if self._message_db:
-			self._message_db.save()
 
 	def _load_private_key_from_pem_file(self) -> None:
 		print('-> Server._load_private_key_from_pem_file()')
