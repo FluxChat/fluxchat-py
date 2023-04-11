@@ -199,7 +199,7 @@ class Server(Network):
 		with open(self._config['public_key_file'], 'rb') as f:
 			self._public_key = serialization.load_pem_public_key(f.read())
 
-		print('-> public key: {}'.format(self._public_key))
+		# print('-> public key: {}'.format(self._public_key))
 
 		public_bytes = self._public_key.public_bytes(
 			encoding=serialization.Encoding.DER,
@@ -537,6 +537,7 @@ class Server(Network):
 					print(f'{fg.blue}Client B: {_client}{fg.rs}')
 
 					_client.refresh_seen_at()
+					_client.refresh_used_at()
 					_client.inc_meetings()
 
 					_client.sock = sock
@@ -577,14 +578,13 @@ class Server(Network):
 						continue
 
 					client_ids = []
-					clients = self._address_book.get_nearest_to(node)
+					clients = self._address_book.get_nearest_to(node, with_contact_infos=True)
 					for _client in clients:
 						print('-> client', _client, _client.distance(node))
 						if _client.id != self._local_node.id and _client.id != node.id:
-							if _client.has_contact():
-								contact_infos = [_client.id, _client.address, str(_client.port)]
-								print('-> contact infos', contact_infos)
-								client_ids.append(':'.join(contact_infos))
+							contact_infos = [_client.id, _client.address, str(_client.port)]
+							print('-> contact infos', contact_infos)
+							client_ids.append(':'.join(contact_infos))
 
 					self._client_send_get_nearest_response(sock, client_ids)
 
@@ -641,28 +641,62 @@ class Server(Network):
 				elif command_i == 3:
 					print(f'{fg.red}-> REQUEST PUBLIC KEY FOR NODE command{fg.rs}')
 
+					is_relay = False
+					fwd_clients = []
 					node_id = payload[0]
 					print('-> node id', node_id)
 
-					if node_id == self._local_node.id:
+					try:
+						target = overlay.Node.parse(node_id)
+					except:
+						print('-> invalid node')
+						continue
+
+					if target == self._local_node:
 						print('-> local node')
-						self._client_response_public_key_for_node(sock, node_id, self._public_key_b64)
+						self._client_response_public_key_for_node(sock, target.id, self._public_key_b64)
 					else:
 						print('-> not local node')
 
-						_client = self._address_book.get_client_by_id(node_id)
+						_client = self._address_book.get_client_by_id(target.id)
 						if _client == None:
 							print('-> client not found')
-							# TODO implement
+
+							is_relay = True
+							fwd_clients = self._address_book.get_nearest_to(target, with_contact_infos=True)
 						else:
 							print('-> client found', _client)
 
 							if _client.has_public_key():
 								print('-> client has public key')
-								self._client_response_public_key_for_node(sock, node_id, _client.get_der_base64_public_key())
+
+								self._client_response_public_key_for_node(sock, target.id, _client.get_der_base64_public_key())
 							else:
 								print('-> client does not have public key')
-								# TODO implement
+
+								print('-> relay')
+								is_relay = True
+								fwd_clients = [_client]
+
+					if is_relay:
+						for _client in fwd_clients:
+							if client == _client:
+								print('-> client is self')
+								continue
+
+							print('-> client', _client)
+
+							if not _client.has_action('request_public_key_for_node', target.id):
+								action_data = {
+									'target': target,
+									'level': 1, # 0 = original sender, 1 = relay
+									'step': 0, # 0 = request created, 1 = send request to client
+								}
+								action = Action('request_public_key_for_node', target.id, data=action_data)
+								action.is_strong = True
+								action.func = lambda _arg_client: self._client_response_public_key_for_node(sock, target.id, _arg_client.get_der_base64_public_key())
+
+								_client.add_action(action)
 
 				elif command_i == 4:
 					print(f'{fg.red}-> RESPONSE PUBLIC KEY FOR NODE command{fg.rs}')
@@ -702,7 +736,7 @@ class Server(Network):
 							_client = None
 					else:
 						print('-> client found', _client)
-						# _client.set_public_key(public_key_txt)
+
 						if _client.has_public_key():
 							print('-> client has public key')
 						else:
@@ -716,6 +750,7 @@ class Server(Network):
 
 					if _client != None and _client.has_public_key():
 						print('-> client is set and has public key')
+						print(_client)
 						action.func(_client)
 
 			elif group_i == 3: # Message
@@ -989,13 +1024,9 @@ class Server(Network):
 
 		for client in connect_to_clients:
 			if is_bootstrapping:
-				client.add_action(Action('bootstrap', data=2)) # TODO: set to 7
+				client.add_action(Action('bootstrap', data=2)) # TODO for production: set to 7
 			self._client_connect(client)
 
-		return True
-
-	def clean_up_address_book(self) -> bool:
-		self._address_book.clean_up(self._local_node.id)
 		return True
 
 	def add_client(self, client: Client):
@@ -1044,7 +1075,9 @@ class Server(Network):
 	def clean_up(self) -> bool:
 		print('-> Server.clean_up()')
 
-		self.clean_up_address_book()
+		# self._address_book.hard_clean_up(self._local_node.id)
+		self._address_book.soft_clean_up(self._local_node.id)
+
 		self._message_queue.clean_up()
 
 		return True
@@ -1121,7 +1154,7 @@ class Server(Network):
 				print('-> message is for me')
 				continue
 
-			clients = self._address_book.get_nearest_to(message.target)
+			clients = self._address_book.get_nearest_to(message.target, with_contact_infos=True)
 			print('-> clients', clients)
 
 			for client in clients:
@@ -1170,13 +1203,15 @@ class Server(Network):
 							action_data = {
 								'target': message.target,
 								'level': 0, # 0 = original sender, 1 = relay
-								'step': 0, # 0 = request created, 1 = send request to client, 2 = response
+								'step': 0, # 0 = request created, 1 = send request to client
 							}
 							action = Action('request_public_key_for_node', message.target.id, data=action_data)
 							action.is_strong = True
 							action.func = lambda _client: self._encrypt_message(message, _client)
 
 							client.add_action(action)
+
+						# self._create_request_public_key_for_node(client, message.target, level=0, message=message)
 				else:
 					self._encrypt_message(message, client)
 
@@ -1208,6 +1243,9 @@ class Server(Network):
 		message.is_encrypted = True
 
 		self._message_queue.changed()
+
+		client.refresh_used_at()
+		self._address_book.changed()
 
 	def _decrypt_message(self, message: Message):
 		print('-> Server._decrypt_message()')

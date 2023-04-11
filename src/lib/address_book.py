@@ -188,8 +188,8 @@ class AddressBook():
 		# print('-> AddressBook.changed()')
 		self._changes = True
 
-	def clean_up(self, local_id: str = None):
-		# print('-> AddressBook.clean_up({})'.format(local_id))
+	def hard_clean_up(self, local_id: str = None):
+		# print('-> AddressBook.hard_clean_up({})'.format(local_id))
 
 		# remove local_id
 		if local_id != None and local_id in self._clients_by_id:
@@ -197,7 +197,6 @@ class AddressBook():
 
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)
-
 		# print('-> clients: {}'.format(_clients_len))
 
 		if _clients_len <= self._ab_config['max_clients']:
@@ -206,17 +205,15 @@ class AddressBook():
 		# remove bootstrap clients with no meetings
 		_clients = list(filter(lambda _client: _client.is_bootstrap and _client.meetings == 0, _clients))
 		for client in _clients:
-			# print('-> removing bootstrap client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._ab_config['max_clients']:
 				return
 
-		# remove clients with invalid client_retention_time
-		# print('-> clients: {}'.format(_clients_len))
+		# remove out-of-date clients (invalid client_retention_time)
 		_clients = list(self._clients_by_uuid.values())
-		_clients = list(filter(lambda _client: dt.datetime.now() - _client.seen_at > self._clients_ttl, _clients))
-		_clients.sort(key=lambda _client: _client.seen_at)
+		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
+		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
 			# print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
@@ -237,7 +234,32 @@ class AddressBook():
 			if _clients_len <= self._ab_config['max_clients']:
 				return
 
-	def get_nearest_to(self, node: overlay.Node, limit: int = 20) -> list:
+	def soft_clean_up(self, local_id: str = None):
+		print('-> AddressBook.soft_clean_up({})'.format(local_id))
+
+		# remove local_id
+		if local_id != None and local_id in self._clients_by_id:
+			del self._clients_by_id[local_id]
+
+		_clients = list(self._clients_by_uuid.values())
+		_clients_len = len(_clients)
+
+		# remove out-of-date clients (invalid client_retention_time)
+		_clients = list(self._clients_by_uuid.values())
+		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
+		_clients.sort(key=lambda _client: _client.used_at)
+		for client in _clients:
+			# print('-> removing ttl client: {}'.format(client.uuid))
+			self.remove_client(client)
+			_clients_len -= 1
+			if _clients_len <= self._ab_config['max_clients']:
+				return
+
+	def get_nearest_to(self, node: overlay.Node, limit: int = 20, with_contact_infos: bool = None) -> list:
 		_clients = list(self._clients_by_uuid.values())
 		_clients.sort(key=lambda _client: _client.node.distance(node))
+
+		if with_contact_infos:
+			_clients = list(filter(lambda _client: with_contact_infos == _client.has_contact(), _clients))
+
 		return _clients[:limit]

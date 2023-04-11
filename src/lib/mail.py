@@ -20,8 +20,8 @@ class Message():
 		self.uuid = str(uuid.uuid4())
 		self.to = to
 		self.body = body
-		self.created_at = dt.datetime.now()
-		self.received_at = dt.datetime.now()
+		self.created_at = dt.datetime.utcnow()
+		self.received_at = dt.datetime.utcnow()
 		self.forwarded_to = []
 		self.is_encrypted = False
 		self.is_delivered = None
@@ -143,7 +143,7 @@ class Queue():
 
 		remove_messages = []
 
-		ffunc = lambda _message: _message[1].received_at < dt.datetime.now() - dt.timedelta(hours=self._mail_config['message_retention_time'])
+		ffunc = lambda _message: _message[1].received_at < dt.datetime.utcnow() - dt.timedelta(hours=self._mail_config['message_retention_time'])
 		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
 		print('-> old_messages A: {}'.format(old_messages))
 		remove_messages += old_messages

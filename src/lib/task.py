@@ -16,21 +16,21 @@ class Task():
 
 		if self._interval != None and one_shot:
 			# print('-> is one shot', self._interval)
-			self._last_run = dt.datetime.now()
+			self._last_run = dt.datetime.utcnow()
 
 	def run(self) -> bool:
 		should_run = False
 		if self._last_run is None:
 			should_run = True
 		else:
-			diff = dt.datetime.now() - self._last_run
+			diff = dt.datetime.utcnow() - self._last_run
 			if diff > self._interval:
 				should_run = True
 
 		if should_run:
 			# print('-> Task.run()')
 			exec_res = self._execfunc()
-			self._last_run = dt.datetime.now()
+			self._last_run = dt.datetime.utcnow()
 			# print('-> exec_res', exec_res)
 			return exec_res
 

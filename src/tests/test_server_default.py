@@ -23,9 +23,6 @@ class ServerTestCase(unittest.TestCase):
 	def test_contact_address_book(self):
 		self.assertTrue(self.server.contact_address_book())
 
-	def test_clean_up_address_book(self):
-		self.assertTrue(self.server.clean_up_address_book())
-
 	def test_handle_clients(self):
 		self.assertTrue(self.server.handle_clients())
 

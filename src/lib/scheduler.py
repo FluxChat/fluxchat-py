@@ -28,7 +28,7 @@ class Scheduler():
 
 		_cycle = 0
 		while (self._running and max_cycles == None) or (max_cycles != None and _cycle < max_cycles):
-			_start = dt.datetime.now()
+			_start = dt.datetime.utcnow()
 
 			tasks_running = 0
 			for task in self._tasks:
@@ -39,7 +39,7 @@ class Scheduler():
 						# print('-> removing one shot task')
 						self._tasks.remove(task)
 
-				_diff = dt.datetime.now() - _start
+				_diff = dt.datetime.utcnow() - _start
 				if _diff > dt.timedelta(seconds=self.MAX_TIME):
 					# print('-> Scheduler.run() exceeded max time')
 					break

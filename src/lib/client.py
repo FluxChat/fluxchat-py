@@ -69,7 +69,9 @@ class Client():
 		self.address = None
 		self.port = None
 		self.id = None
+		self.created_at = dt.datetime.utcnow()
 		self.seen_at = dt.datetime.strptime('2001-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
+		self.used_at = dt.datetime.utcnow()
 		self.meetings = 0
 		self.is_bootstrap = False
 		self.debug_add = 'Init'
@@ -89,6 +91,21 @@ class Client():
 	def __repr__(self): # pragma: no cover
 		return 'Client({})'.format(self.uuid)
 
+	def __eq__(self, other) -> bool:
+		if not isinstance(other, Client):
+			return False
+
+		if self.id == '' or other.id == '':
+			return False
+
+		if self.uuid != None and other.uuid != None and self.uuid == other.uuid:
+			return True
+
+		if self.id == None or other.id == None:
+			return False
+
+		return self.id == other.id
+
 	def as_dict(self) -> dict:
 		data = dict()
 		if self.address != None:
@@ -97,8 +114,12 @@ class Client():
 			data['port'] = self.port
 		if self.id != None:
 			data['id'] = self.id
+		if self.created_at != None:
+			data['created_at'] = self.created_at.isoformat()
 		if self.seen_at != None:
 			data['seen_at'] = self.seen_at.isoformat()
+		if self.used_at != None:
+			data['used_at'] = self.used_at.isoformat()
 		if self.meetings != None:
 			data['meetings'] = self.meetings
 		if self.is_bootstrap:
@@ -117,8 +138,12 @@ class Client():
 			self.port = int(data['port'])
 		if 'id' in data:
 			self.set_id(data['id'])
+		if 'created_at' in data:
+			self.created_at = dt.datetime.fromisoformat(data['created_at'])
 		if 'seen_at' in data:
 			self.seen_at = dt.datetime.fromisoformat(data['seen_at'])
+		if 'used_at' in data:
+			self.used_at = dt.datetime.fromisoformat(data['used_at'])
 		if 'meetings' in data:
 			self.meetings = int(data['meetings'])
 		if 'is_bootstrap' in data:
@@ -139,6 +164,9 @@ class Client():
 	def refresh_seen_at(self):
 		self.seen_at = dt.datetime.utcnow()
 
+	def refresh_used_at(self):
+		self.used_at = dt.datetime.utcnow()
+
 	def inc_meetings(self):
 		self.meetings += 1
 
@@ -155,21 +183,6 @@ class Client():
 			return overlay.Distance()
 
 		return self.node.distance(node)
-
-	def __eq__(self, other) -> bool:
-		if not isinstance(other, Client):
-			return False
-
-		if self.id == '' or other.id == '':
-			return False
-
-		if self.uuid != None and other.uuid != None and self.uuid == other.uuid:
-			return True
-
-		if self.id == None or other.id == None:
-			return False
-
-		return self.id == other.id
 
 	def add_action(self, action: Action):
 		self.actions.append(action)
@@ -193,7 +206,7 @@ class Client():
 		print('-> Client.has_action({}, {})'.format(id, subid))
 		ffunc = lambda _action: _action.id == id and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
-		print('-> found: {}'.format(found))
+		# print('-> found: {}'.format(found))
 		return len(found) > 0
 
 	# Search for action by id and subid and remove it from actions list.
@@ -217,7 +230,7 @@ class Client():
 			key = f.read()
 
 		self.public_key = serialization.load_pem_public_key(key)
-		print('-> public key: {}'.format(type(self.public_key)))
+		# print('-> public key: {}'.format(type(self.public_key)))
 
 	def write_public_key_to_pem_file(self, path: str) -> bool:
 		print('-> Client.write_public_key_to_pem_file({})'.format(path))
