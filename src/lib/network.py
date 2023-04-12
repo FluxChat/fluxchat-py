@@ -1,8 +1,8 @@
 
 import socket
 
-class Network():
-	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []): # pragma: no cover
+class Network(): # pragma: no cover
+	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
 		print('-> Network._client_write()')
 
 		flag_lengths_are_4_bytes = False

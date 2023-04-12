@@ -5,7 +5,9 @@ SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
 rm -rf tmp/tests
-mkdir -p tmp/tests/data_default tmp/tests/data_custom
+mkdir -p tmp/tests/data_default
+mkdir -p tmp/tests/data_custom
+mkdir -p tmp/tests/keys
 
 . .venv/bin/activate
 

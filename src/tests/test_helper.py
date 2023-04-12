@@ -1,6 +1,6 @@
 
 import unittest
-from lib.helper import generate_id_from_public_key_file, resolve_contact
+from lib.helper import generate_id_from_public_key_file, resolve_contact, is_valid_uuid
 
 class HelperTestCase(unittest.TestCase):
 	def test_generate_id_from_public_key_file(self):
@@ -30,3 +30,7 @@ class HelperTestCase(unittest.TestCase):
 		]
 		for contact, raddr, expect in data:
 			self.assertEqual(resolve_contact(contact, raddr), expect)
+
+	def test_is_valid_uuid_v4(self):
+		self.assertTrue(is_valid_uuid('642b8d3b-7b73-4941-bb11-c6ac13c18ba5'))
+		self.assertFalse(is_valid_uuid('xyz'))

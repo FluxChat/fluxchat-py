@@ -7,11 +7,20 @@ ADDRESS_BOOK_PATH = 'tmp/tests/address_book.json'
 BOOTSTRAP_PATH = 'tmp/tests/bootstrap.json'
 
 class AddressBookTestCase(unittest.TestCase):
+	def setUp(self) -> None:
+		self.config = {
+			'keys_dir': 'tmp/tests/keys',
+			'address_book': {
+				'max_clients': 2,
+				'client_retention_time': 24,
+			},
+		}
+
 	def test_save_load(self):
 		if os.path.exists(ADDRESS_BOOK_PATH):
 			os.remove(ADDRESS_BOOK_PATH)
 
-		address_book = AddressBook(ADDRESS_BOOK_PATH)
+		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
 
 		client1 = address_book.add_client('FC_test1', 'localhost', 25001)
 		client1.is_bootstrap = True
@@ -21,7 +30,14 @@ class AddressBookTestCase(unittest.TestCase):
 		address_book.save()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
-		address_book = AddressBook(ADDRESS_BOOK_PATH)
+		client1b = address_book.get_client('FC_test1')
+		self.assertEqual(client1b.id, 'FC_test1')
+
+		client1c = address_book.get_client_by_id('FC_test1')
+		self.assertEqual(client1c.id, 'FC_test1')
+
+		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
+		address_book.load()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
 		address_book.remove_client(client1)
@@ -37,38 +53,29 @@ class AddressBookTestCase(unittest.TestCase):
 		f.write('["localhost:25001", "localhost:25002"]')
 		f.close()
 
-		address_book = AddressBook(ADDRESS_BOOK_PATH)
+		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
 		address_book.add_bootstrap(BOOTSTRAP_PATH)
 		self.assertEqual(address_book.get_bootstrap_clients_len(), 2)
 
 	# clients < max_clients
-	def test_clean_up1(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab1.json', config)
-		address_book.clean_up()
+	def test_hard_clean_up1(self):
+		address_book = AddressBook('resources/tests/ab1.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up()
 		self.assertEqual(address_book.get_clients_len(), 1)
 
 	# remove bootstrap clients with no meetings
-	def test_clean_up2(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab2.json', config)
-		address_book.clean_up()
+	def test_hard_clean_up2(self):
+		address_book = AddressBook('resources/tests/ab2.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
 	# remove bootstrap clients with no meetings
-	def test_clean_up3(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab3.json', config)
-		address_book.clean_up()
+	def test_hard_clean_up3(self):
+		address_book = AddressBook('resources/tests/ab3.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up()
 		# address_book.save()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
@@ -76,39 +83,30 @@ class AddressBookTestCase(unittest.TestCase):
 		self.assertEqual(clients, ['FC_test2', 'FC_test3'])
 
 	# remove clients with invalid client_retention_time
-	def test_clean_up4(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab4.json', config)
-		address_book.clean_up()
+	def test_hard_clean_up4(self):
+		address_book = AddressBook('resources/tests/ab4.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
 		clients = list(map(lambda kv: kv[1].id, address_book.get_clients().items()))
 		self.assertEqual(clients, ['FC_test2', 'FC_test3'])
 
 	# remove clients with invalid client_retention_time, sorted by last_seen
-	def test_clean_up5(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab5.json', config)
-		address_book.clean_up()
+	def test_hard_clean_up5(self):
+		address_book = AddressBook('resources/tests/ab5.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
 		clients = list(map(lambda kv: kv[1].id, address_book.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2'])
 
 	# remove clients, sorted by meetings
-	def test_clean_up6(self):
-		config = {'address_book': {
-			'max_clients': 2,
-			'client_retention_time': 24,
-		}}
-		address_book = AddressBook('resources/tests/ab6.json', config)
-		address_book.clean_up('test6')
+	def test_hard_clean_up6(self):
+		address_book = AddressBook('resources/tests/ab6.json', self.config)
+		address_book.load()
+		address_book.hard_clean_up('test6')
 		# address_book.save()
 		self.assertEqual(address_book.get_clients_len(), 2)
 

@@ -9,6 +9,13 @@ class ServerTestCase(unittest.TestCase):
 		self.server = Server({
 			'id': 'FC_test',
 			'data_dir': SERVER_DATA_DIR,
+			'discovery': {
+				'enabled': False,
+				'port': 26000,
+			},
+			'mail': {
+				'message_retention_time': 24,
+			}
 		})
 
 	def test_has_contact(self):

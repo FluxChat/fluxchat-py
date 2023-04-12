@@ -29,6 +29,15 @@ class Action():
 	def __repr__(self): # pragma: no cover
 		return 'Action({}/{})'.format(self.id, self.subid)
 
+	def __eq__(self, other) -> bool:
+		if not isinstance(other, Action):
+			return False
+
+		if self.id == other.id and self.subid == other.subid:
+			return True
+
+		return False
+
 class Client():
 	uuid: str # Internal ID
 	address: str

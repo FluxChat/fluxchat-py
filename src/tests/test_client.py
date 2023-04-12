@@ -97,45 +97,6 @@ class ClientTestCase(unittest.TestCase):
 		client2.id = ''
 		self.assertFalse(client1 == client2)
 
-	def test_actions(self):
-		client = Client()
-		client.add_action('test')
-		self.assertEqual(client.get_actions(), [['test', None]])
-		self.assertEqual(client.get_actions(), [['test', None]])
-		self.assertEqual(client.get_actions(True), [['test', None]])
-		self.assertEqual(client.get_actions(), [])
-
-		client.add_action('test1', 'data1')
-		client.add_action('test2')
-		client.add_action('test3', 33)
-		self.assertEqual(client.get_actions(), [
-			['test1', 'data1'],
-			['test2', None],
-			['test3', 33],
-		])
-
-		client.remove_action('test2')
-		self.assertEqual(client.get_actions(), [
-			['test1', 'data1'],
-			['test3', 33],
-		])
-
-		has_a, data = client.has_action('test3')
-		self.assertTrue(has_a)
-		self.assertEqual(client.get_actions(), [
-			['test1', 'data1'],
-			['test3', 33],
-		])
-
-		has_a, data = client.has_action('test3', True)
-		self.assertTrue(has_a)
-		self.assertEqual(data, 33)
-		self.assertEqual(client.get_actions(), [['test1', 'data1']])
-
-		has_a, data = client.has_action('test4', True)
-		self.assertFalse(has_a)
-		self.assertEqual(data, None)
-
 	def test_has_contact(self):
 		client = Client()
 		self.assertFalse(client.has_contact())
