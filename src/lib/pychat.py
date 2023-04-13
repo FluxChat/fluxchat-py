@@ -84,7 +84,8 @@ class PyChat():
 	def run(self):
 		self._logger.info('run')
 		self._scheduler.run()
+		self._logger.info('run finished')
 
-	def shutdown(self):
-		self._logger.info('shutdown')
-		self._scheduler.shutdown()
+	def shutdown(self, reason: str = None):
+		self._logger.info('shutdown: %s', reason)
+		self._scheduler.shutdown(reason)

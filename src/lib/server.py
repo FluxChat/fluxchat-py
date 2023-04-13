@@ -1060,7 +1060,7 @@ class Server(Network):
 		return True
 
 	def save(self) -> bool:
-		self._logger.debug('save')
+		self._logger.debug('save()')
 
 		self._address_book.save()
 		self._message_queue.save()

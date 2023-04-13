@@ -59,7 +59,7 @@ class AddressBook():
 					client.load_public_key_from_pem_file(key_file_path)
 
 	def save(self) -> bool:
-		self._logger.debug('save %s', self._changes)
+		self._logger.debug('save() changes=%s', self._changes)
 
 		if not self._changes:
 			return False

@@ -15,14 +15,13 @@ def main():
 
 	app = PyChat(args.config[0], args.dev, args.loglevel)
 
-	signal.signal(signal.SIGINT, lambda sig, frame: app.shutdown())
+	signal.signal(signal.SIGINT, lambda sig, frame: app.shutdown('SIGINT'))
 
 	app.start()
 	try:
 		app.run()
 	except KeyboardInterrupt:
-		print()
-		app.shutdown()
+		app.shutdown('KeyboardInterrupt')
 
 if __name__ == '__main__':
 	main()

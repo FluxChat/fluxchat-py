@@ -25,7 +25,7 @@ class Scheduler():
 		self._tasks.append(task)
 
 	def run(self, max_cycles: int = None):
-		self._logger.debug('run()')
+		self._logger.info('run()')
 		self._running = True
 		_sleep_time = self.SLEEP_TIME
 
@@ -61,6 +61,8 @@ class Scheduler():
 
 			_cycle += 1
 
-	def shutdown(self):
-		self._logger.info('shutdown')
+		self._logger.info('run() finished after %s cycles', _cycle)
+
+	def shutdown(self, reason: str = None):
+		self._logger.info('shutdown: %s', reason)
 		self._running = False

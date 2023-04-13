@@ -106,7 +106,7 @@ class Queue():
 			self._messages_by_uuid[message_uuid] = message
 
 	def save(self) -> bool:
-		self._logger.info('save %s', self._changes)
+		self._logger.info('save() changes=%s', self._changes)
 
 		if not self._changes:
 			return False
@@ -180,7 +180,7 @@ class Database():
 			self._data[message_uuid] = message
 
 	def save(self):
-		self._logger.info('save')
+		self._logger.info('save() changes=%s', self._changes)
 
 		if not self._changes:
 			return
