@@ -20,12 +20,12 @@ class Scheduler():
 		self._logger.info('init')
 
 	def add_task(self, execfunc, interval: dt.timedelta = None, one_shot: bool = False):
-		# print('-> Scheduler.add_task({}, {})'.format(execfunc, interval))
+		self._logger.debug('add_task(%s, %s)', execfunc, interval)
 		task = Task(execfunc, interval, one_shot)
 		self._tasks.append(task)
 
 	def run(self, max_cycles: int = None):
-		# print('-> Scheduler.run()')
+		self._logger.debug('run()')
 		self._running = True
 		_sleep_time = self.SLEEP_TIME
 
@@ -35,27 +35,28 @@ class Scheduler():
 
 			tasks_running = 0
 			for task in self._tasks:
+				# self._logger.debug('run task %s', task)
 				was_running = task.run()
 				if was_running:
 					tasks_running += 1
 					if task.is_one_shot:
-						# print('-> removing one shot task')
+						# self._logger.debug('removing one shot task')
 						self._tasks.remove(task)
 
 				_diff = dt.datetime.utcnow() - _start
 				if _diff > dt.timedelta(seconds=self.MAX_TIME):
-					# print('-> Scheduler.run() exceeded max time')
+					# self._logger.debug('run() exceeded max time')
 					break
 
 			if tasks_running == 0:
 				_sleep_time = _sleep_time * self.IDLE_MULTIPLIER
 				if _sleep_time > self.MAX_SLEEP_TIME:
 					_sleep_time = self.MAX_SLEEP_TIME
-				# print('-> _sleep_time', _sleep_time)
+				# self._logger.debug('_sleep_time', _sleep_time)
 			else:
 				_sleep_time = self.SLEEP_TIME
 
-			#print('-> Scheduler sleeping: {}'.format(_sleep_time))
+			#self._logger.debug('sleeping: {}'.format(_sleep_time))
 			time.sleep(_sleep_time)
 
 			_cycle += 1

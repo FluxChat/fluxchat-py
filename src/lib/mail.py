@@ -42,8 +42,6 @@ class Message():
 		return self.__str__()
 
 	def as_dict(self) -> dict:
-		#print('-> Message.as_dict() -> {}'.format(self.uuid))
-
 		data = dict()
 		if self.to != None:
 			data['to'] = self.to
@@ -60,8 +58,6 @@ class Message():
 		return data
 
 	def from_dict(self, data: dict):
-		#print('-> Message.from_dict({})'.format(self.uuid))
-
 		if 'to' in data:
 			self.to = data['to']
 			try:
@@ -128,15 +124,13 @@ class Queue():
 		self._logger.debug('add_message %s', message)
 
 		self._messages_by_uuid[message.uuid] = message
-		print(self._messages_by_uuid)
 		self._changes = True
 
 	def get_messages(self) -> dict:
-		# print('-> Queue.get_messages()')
 		return self._messages_by_uuid.items()
 
 	def has_message(self, message_uuid: str) -> bool:
-		# print('-> Queue.has_message({})'.format(message_uuid))
+		self._logger.debug('has_message(%s)', message_uuid)
 		return message_uuid in self._messages_by_uuid
 
 	def changed(self):

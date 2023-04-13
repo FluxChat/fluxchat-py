@@ -115,7 +115,6 @@ class AddressBook():
 	def get_client_by_addr_port(self, addr: str, port: int):
 		ffunc = lambda _client: _client[1].address == addr and _client[1].port == port
 		_clients = list(filter(ffunc, self._clients_by_uuid.items()))
-		# print('-> _clients: {}'.format(_clients))
 
 		if len(_clients) > 0:
 			return _clients[0][1]
@@ -184,7 +183,6 @@ class AddressBook():
 
 		_clients = list(self._clients_by_uuid.values())
 		_clients_len = len(_clients)
-		# print('-> clients: {}'.format(_clients_len))
 
 		if _clients_len <= self._ab_config['max_clients']:
 			return
@@ -202,20 +200,16 @@ class AddressBook():
 		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
-			# print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._ab_config['max_clients']:
 				return
 
 		# remove clients, sorted by meetings
-		# print('-> clients: {}'.format(_clients_len))
 		_clients = list(self._clients_by_uuid.values())
 		_clients.sort(key=lambda _client: _client.meetings)
-		# print('-> clients: {}'.format(_clients))
 
 		for client in _clients:
-			# print('-> removing client: {} {} {}'.format(client.uuid, client.meetings, client.seen_at))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._ab_config['max_clients']:
@@ -236,7 +230,6 @@ class AddressBook():
 		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
-			# print('-> removing ttl client: {}'.format(client.uuid))
 			self.remove_client(client)
 			_clients_len -= 1
 			if _clients_len <= self._ab_config['max_clients']:

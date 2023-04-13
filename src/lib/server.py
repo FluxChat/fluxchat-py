@@ -6,7 +6,7 @@ import selectors
 import struct
 import base64
 
-from sty import fg
+# from sty import fg
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -34,8 +34,6 @@ class Server(Network):
 	_pid_file_path: str
 
 	def __init__(self, config: dict = {}):
-		# print('-> Server.__init__()')
-
 		self._host_name = socket.gethostname()
 		self._lan_ip = socket.gethostbyname(self._host_name)
 		self._clients = []
@@ -106,7 +104,7 @@ class Server(Network):
 			self._config['bootstrap'] = 'default'
 
 	def __del__(self):
-		# print('-> Server.__del__()')
+		self._logger.info('__del__()')
 		self._selectors.close()
 
 		if self._address_book:
@@ -122,8 +120,8 @@ class Server(Network):
 
 	def _write_pid_file(self):
 		if os.path.isfile(self._pid_file_path):
-			print('-> Another instance of PyChat is already running.')
-			print('-> If this is not the case, delete the file: {}'.format(self._pid_file_path))
+			self._logger.error('Another instance of PyChat is already running.')
+			self._logger.error('If this is not the case, delete the file: %s', self._pid_file_path)
 			exit(1)
 		with open(self._pid_file_path, 'w') as fh:
 			fh.write(str(os.getpid()))
@@ -145,8 +143,7 @@ class Server(Network):
 			self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
 			self._main_server_socket.bind((self._config['address'], self._config['port']))
 		except OSError as e:
-			print('-> OSError: {}'.format(e))
-			print('-> Is another instance of PyChat already running?')
+			self._logger.error('OSError: %s', e)
 			exit(1)
 
 		self._logger.debug('listen')
@@ -236,23 +233,22 @@ class Server(Network):
 		return 'N/A'
 
 	def _client_is_connected(self, client: Client) -> bool: # pragma: no cover
-		print('-> Server._client_is_connected()')
+		self._logger.debug('_client_is_connected()')
 
 		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
 		clients = list(filter(ffunc, self._clients))
-		# print('-> clients: {}'.format(clients))
 
 		return len(clients) > 0
 
 	def _accept_main_server(self, server_sock: socket.socket): # pragma: no cover
-		print('-> Server._accept_main_server()')
+		self._logger.debug('_accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
 
-		# print('-> client_sock: {}'.format(client_sock))
-		# print('-> addr: {}'.format(addr))
-		# print('-> accepted: {} {}'.format(addr[0], addr[1]))
+		# self._logger.debug('client_sock: %s', client_sock)
+		# self._logger.debug('addr: %s', addr)
+		# self._logger.debug('accepted: %s:%d', addr[0], addr[1])
 
 		client = Client()
 		client.sock = client_sock
@@ -267,19 +263,19 @@ class Server(Network):
 
 		self._clients.append(client)
 
-		print('-> accept_main_server client: {}'.format(client))
+		self._logger.debug('_accept_main_server() client: %s', client)
 
 	def _read_discovery(self, server_sock: socket.socket): # pragma: no cover
-		print('-> Server._read_discovery()')
+		self._logger.debug('_read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
 		c_contact = data.decode('utf-8')
 
-		print('-> data: {}'.format(data))
-		print('-> addr: {}'.format(addr))
+		self._logger.debug('-> data: %s', data)
+		self._logger.debug('-> addr: %s', addr)
 
 		if addr[0] == self._lan_ip and addr[1] == self._config['discovery']['port']:
-			print('-> skip self')
+			self._logger.debug('-> skip self')
 			return
 
 		c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(c_contact, addr[0])
@@ -292,14 +288,14 @@ class Server(Network):
 			client = self._address_book.add_client(addr=c_contact_addr, port=c_contact_port)
 			client.debug_add = 'discovery, contact: {}'.format(c_contact)
 		else:
-			print('-> client: {}'.format(client))
+			self._logger.debug('-> client: %s', client)
 
-		print('-> read_discovery client: {}'.format(client))
+		self._logger.debug('-> read_discovery client: %s', client)
 
 		self._client_connect(client)
 
 	def _accept_ipc_server(self, server_sock: socket.socket): # pragma: no cover
-		print('-> Server._accept_ipc_server()')
+		self._logger.debug('_accept_ipc_server()')
 
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
@@ -309,17 +305,17 @@ class Server(Network):
 		})
 
 	def _client_connect(self, client: Client) -> bool: # pragma: no cover
-		print('{}-> Server._client_connect({}){}'.format(fg.blue, client, fg.rs))
+		self._logger.debug('_client_connect(%s)', client)
 
 		# TODO: activate for production
 		# if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
-		# 	print('-> skip, client.address == self._lan_ip')
+		# 	self._logger.debug('-> skip, client.address == self._lan_ip')
 		# 	return False
 		if client.node == self._local_node:
-			print('-> skip, client.node == self._local_node')
+			self._logger.debug('skip, client.node == self._local_node')
 			return False
 		if client.address == None or client.port == None:
-			print('-> skip, client.address == None or client.port == None')
+			self._logger.debug('skip, client.address == None or client.port == None')
 			return False
 
 		client.conn_mode = 1
@@ -328,17 +324,17 @@ class Server(Network):
 		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		client.sock.settimeout(2)
 		try:
-			print('-> client.sock.connect to')
+			self._logger.error('client.sock.connect to %s:%s', client.address, client.port)
 			client.sock.connect((client.address, client.port))
-			print('-> client.sock.connect done')
+			self._logger.error('client.sock.connect done')
 		except ConnectionRefusedError as e:
-			print('-> ConnectionRefusedError', e)
+			self._logger.error('ConnectionRefusedError: %s', e)
 			return False
 		except TimeoutError as e:
-			print('-> TimeoutError', e)
+			self._logger.error('TimeoutError: %s', e)
 			return False
 		except socket.timeout as e:
-			print('-> socket.timeout', e)
+			self._logger.error('socket.timeout: %s', e)
 			return False
 
 		client.sock.settimeout(None)
@@ -351,24 +347,24 @@ class Server(Network):
 
 		self._clients.append(client)
 
-		print('-> Server._client_connect done'.format())
+		self._logger.debug('_client_connect done')
 		return True
 
 	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
-		print('-> Server._client_read({})'.format(client))
+		self._logger.debug('_client_read(%s)', client)
 
 		try:
 			raw = sock.recv(2048)
 		except TimeoutError as e:
-			print('-> TimeoutError', e)
+			self._logger.debug('TimeoutError: %s', e)
 			return
 		except ConnectionResetError as e:
-			print('-> ConnectionResetError', e)
+			self._logger.debug('ConnectionResetError: %s', e)
 			raw = False
 
 		if raw:
 			raw_len = len(raw)
-			print('-> recv raw {} {}'.format(raw_len, raw))
+			self._logger.debug('recv raw %d %s', raw_len, raw)
 
 			raw_pos = 0
 			commands = []
@@ -383,8 +379,8 @@ class Server(Network):
 					command = raw[raw_pos]
 					raw_pos += 1
 				except IndexError as e:
-					print('-> IndexError', e)
-					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					self._logger.debug('IndexError: %s', e)
+					self._logger.debug('conn mode 0')
 					client.conn_mode = 0
 					return
 
@@ -394,20 +390,20 @@ class Server(Network):
 					length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
 					raw_pos += 4
 				except struct.error as e:
-					print('-> struct.error', e)
-					print(f'{fg.red}-> conn mode 0{fg.rs}')
+					self._logger.debug('struct.error: %s', e)
+					self._logger.debug('conn mode 0')
 					client.conn_mode = 0
 					return
 
 				payload_raw = raw[raw_pos:]
 				payload_items = []
 
-				print('-> group', group)
-				print('-> command', command)
-				print('-> length', length, type(length))
+				self._logger.debug('group: %d', group)
+				self._logger.debug('command: %d', command)
+				self._logger.debug('length: %d %s', length, type(length))
 
 				if length >= 2048:
-					print('-> length too big', length)
+					self._logger.error('length too big: %d', length)
 					return
 
 				pos = 0
@@ -419,23 +415,23 @@ class Server(Network):
 						item_len = payload_raw[pos]
 					pos += 1
 
-					# print('-> item len', item_len, type(item_len))
+					# self._logger.debug('item len: %d %s', item_len, type(item_len))
 
 					item = payload_raw[pos:pos + item_len]
-					# print('-> item content', item)
+					# self._logger.debug('item content: %s', item)
 
 					payload_items.append(item.decode('utf-8'))
 					pos += item_len
 
 				commands.append([group, command, payload_items])
 				raw_pos += length + 1
-				# print('-> raw_pos', raw_pos)
+				# self._logger.debug('raw_pos: %d', raw_pos)
 
 			self._client_commands(sock, client, commands)
 		else:
-			print('-> no data')
+			self._logger.debug('no data')
 
-			print(f'{fg.red}-> conn mode 0{fg.rs}')
+			self._logger.debug('conn mode 0')
 			client.conn_mode = 0
 
 	def _client_commands(self, sock: socket.socket, client: Client, commands: list): # pragma: no cover
@@ -443,31 +439,31 @@ class Server(Network):
 			group_i, command_i, payload = command_raw
 			payload_len = len(payload)
 
-			print('-> group', group_i, 'command', command_i)
-			print('-> payload', payload)
+			self._logger.debug('group: %d, command %d', group_i, command_i)
+			self._logger.debug('payload: %s', payload)
 
 			if group_i >= 2 and client.auth != 3:
-				print('-> not authenticated', client.auth)
-				print(f'{fg.red}-> conn mode 0{fg.rs}')
+				self._logger.debug('not authenticated: %s', client.auth)
+				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
 				continue
 
 			if group_i == 0: # Basic
 				if command_i == 0:
-					print(f'{fg.red}-> OK command{fg.rs}')
+					self._logger.debug('OK command')
 			elif group_i == 1: # Connection, Authentication, etc
 				if command_i == 1:
-					print(f'{fg.red}-> ID command{fg.rs}')
+					self._logger.debug('ID command')
 					if client.auth & 2 != 0:
-						print('-> skip, already authenticated')
+						self._logger.debug('skip, already authenticated')
 						continue
 
 					c_id = payload[0]
-					print('-> c_id', c_id)
+					self._logger.debug('c_id: %s', c_id)
 
 					if self._local_node == c_id:
-						print('-> skip, ID is local node')
-						print(f'{fg.red}-> conn mode 0{fg.rs}')
+						self._logger.debug('skip, ID is local node')
+						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
 						continue
 
@@ -481,17 +477,17 @@ class Server(Network):
 
 					if client.dir_mode == 'i':
 						# Client is incoming
-						print('-> client is incoming')
+						self._logger.debug('client is incoming')
 
 						if c_has_contact_info:
 							# Client sent contact info
 							_client = self._address_book.get_client_by_id(c_id)
 							if _client == None:
-								print('-> client not found A')
+								self._logger.debug('client not found A')
 
 								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
 								if _client == None:
-									print('-> client not found B')
+									self._logger.debug('client not found B')
 
 									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
 									_client.dir_mode = client.dir_mode
@@ -499,10 +495,10 @@ class Server(Network):
 
 									c_switch = True
 								else:
-									print('-> client found B: {}'.format(_client))
+									self._logger.debug('client found B: %s', _client)
 									c_switch = True
 							else:
-								print('-> client found A: {}'.format(_client))
+								self._logger.debug('client found A: %s', _client)
 								c_switch = True
 
 							_client.address = c_contact_addr
@@ -511,34 +507,34 @@ class Server(Network):
 							# Client sent no contact info
 							_client = self._address_book.get_client_by_id(c_id)
 							if _client == None:
-								print('-> client not found C')
+								self._logger.debug('client not found C')
 
 								_client = self._address_book.add_client(c_id)
 								_client.dir_mode = client.dir_mode
 								_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
 							else:
-								print('-> client found C: {}'.format(_client))
+								self._logger.debug('client found C: {}'.format(_client))
 
 							c_switch = True
 
 					elif client.dir_mode == 'o':
 						# Client is outgoing
-						print('-> client is outgoing')
+						self._logger.debug('client is outgoing')
 
 						_client = client
 
 						if c_has_contact_info:
-							print('-> client has contact infos')
+							self._logger.debug('client has contact infos')
 							_client.address = c_contact_addr
 							_client.port = c_contact_port
 						else:
-							print('-> client has NO contact infos')
+							self._logger.debug('client has NO contact infos')
 
 					if _client.id == None:
 						_client.id = c_id
 
-					print(f'{fg.blue}Client A: {client}{fg.rs}')
-					print(f'{fg.blue}Client B: {_client}{fg.rs}')
+					self._logger.debug('Client A: %s', client)
+					self._logger.debug('Client B: %s', _client)
 
 					_client.refresh_seen_at()
 					_client.refresh_used_at()
@@ -553,7 +549,7 @@ class Server(Network):
 					self._address_book.changed()
 
 					if c_switch and _client != client:
-						print('-> switch client')
+						self._logger.debug('switch client')
 						self._clients.remove(client)
 						self._clients.append(_client)
 
@@ -565,60 +561,60 @@ class Server(Network):
 
 					self._client_send_ok(_client.sock)
 
-					print(f'{fg.blue}Client Z: {_client}{fg.rs}')
+					self._logger.debug('Client Z: %s', _client)
 				elif command_i == 2:
-					print(f'{fg.red}-> PING command{fg.rs}')
+					self._logger.debug('PING command')
 					self._client_send_pong(sock)
 				elif command_i == 3:
-					print(f'{fg.red}-> PONG command{fg.rs}')
+					self._logger.debug('PONG command')
 			elif group_i == 2: # Overlay, Address Book, Routing, etc
 				if command_i == 1:
-					print(f'{fg.red}-> GET_NEAREST_TO command{fg.rs}')
+					self._logger.debug('GET_NEAREST_TO command')
 
 					try:
 						node = overlay.Node(payload[0])
 					except:
-						print('-> invalid node')
+						self._logger.debug('invalid node')
 						continue
 
 					client_ids = []
 					clients = self._address_book.get_nearest_to(node, with_contact_infos=True)
 					for _client in clients:
-						print('-> client', _client, _client.distance(node))
+						self._logger.debug('client: %s %s', _client, _client.distance(node))
 						if _client.id != self._local_node.id and _client.id != node.id:
 							contact_infos = [_client.id, _client.address, str(_client.port)]
-							print('-> contact infos', contact_infos)
+							self._logger.debug('contact infos: %s', contact_infos)
 							client_ids.append(':'.join(contact_infos))
 
 					self._client_send_get_nearest_response(sock, client_ids)
 
 				elif command_i == 2:
-					print(f'{fg.red}-> GET_NEAREST_TO RESPONSE command{fg.rs}')
+					self._logger.debug('GET_NEAREST_TO RESPONSE command')
 
 					action = client.resolve_action('nearest_response')
 					if action == None:
-						print('-> not requested')
+						self._logger.debug('not requested')
 						continue
 
-					print('-> action', action)
+					self._logger.debug('action: %s', action)
 
 					nearest_client = None
 					distance = overlay.Distance()
 					for c_contact in payload:
-						print('-> client contact', c_contact)
+						self._logger.debug('client contact A: %s', c_contact)
 
 						c_id, c_contact = c_contact.split(':', 1)
-						print(c_id, c_contact)
+						self._logger.debug('client contact B: %s %s', c_id, c_contact)
 
 						c_addr, c_port, c_has_contact_info = resolve_contact(c_contact)
-						print(c_addr, c_port, c_has_contact_info)
+						self._logger.debug('client contact C: %s %s %s', c_addr, c_port, c_has_contact_info)
 
 						if c_id == self._local_node.id:
 							continue
 
 						_client = self._address_book.get_client_by_id(c_id)
 						if _client == None:
-							print('-> client not found')
+							self._logger.debug('client not found')
 							_client = self._address_book.add_client(c_id, c_addr, c_port)
 							_client.debug_add = 'nearest response, not found by id'
 
@@ -626,69 +622,69 @@ class Server(Network):
 							if _c_distance < distance:
 								# distance = _client.distance(self._local_node)
 								distance = _c_distance
-								print('-> new distance', distance)
+								self._logger.debug('new distance: %s', distance)
 
 								nearest_client = _client
 						else:
-							print('-> client found', _client)
+							self._logger.debug('client found: %s', _client)
 
 					if nearest_client != None:
-						print('-> nearest client', nearest_client)
+						self._logger.debug('nearest client: %s', nearest_client)
 
 						bootstrap_count = action.data - 1
-						print('-> bootstrap count', bootstrap_count)
+						self._logger.debug('bootstrap count: %d', bootstrap_count)
 
 						if bootstrap_count > 0 and not self._client_is_connected(nearest_client):
 							self._client_connect(nearest_client)
 							nearest_client.add_action('bootstrap', bootstrap_count)
 
 				elif command_i == 3:
-					print(f'{fg.red}-> REQUEST PUBLIC KEY FOR NODE command{fg.rs}')
+					self._logger.debug('REQUEST PUBLIC KEY FOR NODE command')
 
 					is_relay = False
 					fwd_clients = []
 					node_id = payload[0]
-					print('-> node id', node_id)
+					self._logger.debug('node id: %s', node_id)
 
 					try:
 						target = overlay.Node.parse(node_id)
 					except:
-						print('-> invalid node')
+						self._logger.debug('invalid node')
 						continue
 
 					if target == self._local_node:
-						print('-> local node')
+						self._logger.debug('local node')
 						self._client_response_public_key_for_node(sock, target.id, self._public_key_b64)
 					else:
-						print('-> not local node')
+						self._logger.debug('not local node')
 
 						_client = self._address_book.get_client_by_id(target.id)
 						if _client == None:
-							print('-> client not found')
+							self._logger.debug('client not found')
 
 							is_relay = True
 							fwd_clients = self._address_book.get_nearest_to(target, with_contact_infos=True)
 						else:
-							print('-> client found', _client)
+							self._logger.debug('client found: %s', _client)
 
 							if _client.has_public_key():
-								print('-> client has public key')
+								self._logger.debug('client has public key')
 
 								self._client_response_public_key_for_node(sock, target.id, _client.get_der_base64_public_key())
 							else:
-								print('-> client does not have public key')
+								self._logger.debug('client does not have public key')
 
-								print('-> relay')
+								self._logger.debug('relay')
 								is_relay = True
 								fwd_clients = [_client]
 
 					if is_relay:
 						for _client in fwd_clients:
 							if client == _client:
-								print('-> client is self')
+								self._logger.debug('client is self')
 								continue
 
-							print('-> client', _client)
+							self._logger.debug('client: %s', _client)
 
 							if not _client.has_action('request_public_key_for_node', target.id):
 								action_data = {
@@ -703,156 +699,156 @@ class Server(Network):
 								_client.add_action(action)
 
 				elif command_i == 4:
-					print(f'{fg.red}-> RESPONSE PUBLIC KEY FOR NODE command{fg.rs}')
+					self._logger.debug('RESPONSE PUBLIC KEY FOR NODE command')
 
 					node_id, public_key_raw = payload
-					print('-> node id', node_id)
-					print('-> public key raw', public_key_raw)
+					self._logger.debug('node id: %s', node_id)
+					self._logger.debug('public key raw: %s', public_key_raw)
 
 					try:
 						node = overlay.Node.parse(node_id)
-						print('-> node', node)
+						self._logger.debug('node: %s', node)
 					except:
-						print('-> invalid node')
+						self._logger.debug('invalid node')
 						continue
 
 					action = client.resolve_action('request_public_key_for_node', node.id, force_remove=True)
 					if action == None:
-						print('-> not requested')
+						self._logger.debug('not requested')
 						continue
 
-					print('-> action', action)
+					self._logger.debug('action: %s', action)
 
 					_client = self._address_book.get_client_by_id(node.id)
 					if _client == None:
-						print('-> client not found')
+						self._logger.debug('client not found')
 
 						_client = self._address_book.add_client(node.id)
-						print('-> client added', _client)
+						self._logger.debug('client added: %s', _client)
 
 						_client.load_public_key_from_base64_der(public_key_raw)
 
 						if _client.verify_public_key():
-							print('-> public key verified')
+							self._logger.debug('public key verified')
 						else:
-							print('-> public key not verified')
+							self._logger.debug('public key not verified')
 							self._address_book.remove_client(_client)
 							_client = None
 					else:
-						print('-> client found', _client)
+						self._logger.debug('client found: %s', _client)
 
 						if _client.has_public_key():
-							print('-> client has public key')
+							self._logger.debug('client has public key')
 						else:
 							_client.load_public_key_from_base64_der(public_key_raw)
 							if _client.verify_public_key():
-								print('-> public key verified')
+								self._logger.debug('public key verified')
 								self._address_book.changed()
 							else:
-								print('-> public key not verified')
+								self._logger.debug('public key not verified')
 								_client.reset_public_key()
 
 					if _client != None and _client.has_public_key():
-						print('-> client is set and has public key')
-						print(_client)
+						self._logger.debug('client is set and has public key')
+						self._logger.debug('client: %s', _client)
 						action.func(_client)
 
 			elif group_i == 3: # Message
 				if command_i == 1:
-					print(f'{fg.red}-> SEND MESSAGE command{fg.rs}')
+					self._logger.debug('SEND MESSAGE command')
 
 					message_uuid, message_target, message_data = payload
 
-					print('-> message uuid', message_uuid)
+					self._logger.debug('message uuid: %s', message_uuid)
 					if not is_valid_uuid(message_uuid):
-						print('-> invalid message uuid')
+						self._logger.debug('invalid message uuid')
 						continue
 
 					if self._message_db.has_message(message_uuid):
-						print('-> DB, message already exists')
+						self._logger.debug('DB, message already exists')
 						continue
 
 					if self._message_queue.has_message(message_uuid):
-						print('-> QUEUE, message already exists')
+						self._logger.debug('QUEUE, message already exists')
 						continue
 
 					try:
 						message_target = overlay.Node.parse(message_target)
-						print('-> message target', message_target)
+						self._logger.debug('message target: %s', message_target)
 					except:
-						print('-> invalid message target')
+						self._logger.debug('invalid message target')
 						continue
 
-					print('-> message data', message_data)
+					self._logger.debug('message data: %s', message_data)
 
 					message = Message(message_target.id, message_data)
 					message.uuid = message_uuid
 					message.is_encrypted = True
 
 					if message_target == self._local_node:
-						print('-> message target is local node')
+						self._logger.debug('message target is local node')
 						self._decrypt_message(message)
 						self._message_db.add_message(message)
 					else:
-						print('-> message target is not local node')
+						self._logger.debug('message target is not local node')
 						message.forwarded_to.append(client.id)
 						self._message_queue.add_message(message)
 
 			else:
-				print('-> unknown group', group_i, 'command', command_i)
-				print(f'{fg.red}-> conn mode 0{fg.rs}')
+				self._logger.debug('unknown group %d, command %d', group_i, command_i)
+				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
 
 	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
-		print('-> Server._client_send_ok()')
+		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
 	def _client_send_id(self, sock: socket.socket): # pragma: no cover
-		print('-> Server._client_send_id()')
+		self._logger.debug('_client_send_id()')
 		data = [
 			self._config['id'],
 		]
 		if self.has_contact():
 			data.append(self.get_contact())
 
-		# print('-> data', data)
+		# self._logger.debug('data: %s', data)
 		self._client_write(sock, 1, 1, data)
 
 	def _client_send_ping(self, sock: socket.socket): # pragma: no cover
-		print('-> Server._client_send_ping()')
+		self._logger.debug('_client_send_ping()')
 		self._client_write(sock, 1, 2)
 
 	def _client_send_pong(self, sock: socket.socket): # pragma: no cover
-		print('-> Server._client_send_pong()')
+		self._logger.debug('_client_send_pong()')
 		self._client_write(sock, 1, 3)
 
 	def _client_send_get_nearest_to(self, sock: socket.socket, id: str): # pragma: no cover
-		print('-> Server._client_send_get_nearest_to()')
+		self._logger.debug('_client_send_get_nearest_to()')
 		self._client_write(sock, 2, 1, [id])
 
 	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list): # pragma: no cover
-		print('-> Server._client_send_get_nearest_response()')
+		self._logger.debug('_client_send_get_nearest_response()')
 		self._client_write(sock, 2, 2, client_ids)
 
 	def _client_request_public_key_for_node(self, sock: socket.socket, id: str): # pragma: no cover
-		print('-> Server._client_request_public_key_for_node({})'.format(id))
+		self._logger.debug('_client_request_public_key_for_node(%s)', id)
 		self._client_write(sock, 2, 3, [id])
 
 	def _client_response_public_key_for_node(self, sock: socket.socket, id: str, public_key: str): # pragma: no cover
-		print('-> Server._client_response_public_key_for_node()')
-		print(type(id))
-		print(type(public_key))
-		print(public_key)
+		self._logger.debug('_client_response_public_key_for_node()')
+		self._logger.debug('type: %s', type(id))
+		self._logger.debug('type: %s', type(public_key))
+		self._logger.debug('public key: %s', public_key)
 
 		self._client_write(sock, 2, 4, [id, public_key])
 
 	def _client_send_message(self, sock: socket.socket, message: Message): # pragma: no cover
-		print('-> Server._client_send_message()')
+		self._logger.debug('_client_send_message()')
 		if not message.is_encrypted:
-			print('-> message not encrypted')
+			self._logger.debug('message not encrypted')
 			return
 
-		print('-> message:', type(message.body))
+		self._logger.debug('message: %s', type(message.body))
 
 		self._client_write(sock, 3, 1, [
 			message.uuid,
@@ -861,15 +857,15 @@ class Server(Network):
 		])
 
 	def _ipc_client_read(self, sock: socket.socket): # pragma: no cover
-		print('{}-> Server._ipc_client_read(){}'.format(fg.blue, fg.rs))
+		self._logger.debug('_ipc_client_read()')
 
 		try:
 			raw = sock.recv(2048)
 		except TimeoutError as e:
-			print('-> IPC TimeoutError', e)
+			self._logger.error('IPC TimeoutError: %s', e)
 			return
 		except ConnectionResetError as e:
-			print('-> IPC ConnectionResetError', e)
+			self._logger.error('IPC ConnectionResetError: %s', e)
 			raw = False
 
 		if raw:
@@ -888,8 +884,8 @@ class Server(Network):
 					command = raw[raw_pos]
 					raw_pos += 1
 				except IndexError as e:
-					print('-> IPC IndexError', e)
-					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+					self._logger.error('IPC IndexError: %s', e)
+					self._logger.error('IPC unregister socket')
 					self._selectors.unregister(sock)
 					return
 
@@ -899,20 +895,20 @@ class Server(Network):
 					length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
 					raw_pos += 4
 				except struct.error as e:
-					print('-> IPC struct.error', e)
-					print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+					self._logger.error('IPC struct.error: %s', e)
+					self._logger.error('IPC unregister socket')
 					self._selectors.unregister(sock)
 					return
 
 				payload_raw = raw[raw_pos:]
 				payload_items = []
 
-				print('-> group', group)
-				print('-> command', command)
-				print('-> length', length, type(length))
+				self._logger.debug('group: %d', group)
+				self._logger.debug('command: %d', command)
+				self._logger.debug('length: %d %s', length, type(length))
 
 				if length >= 2048:
-					print('-> IPC length too big', length)
+					self._logger.error('IPC length too big: %d', length)
 					return
 
 				pos = 0
@@ -934,48 +930,46 @@ class Server(Network):
 
 			self._ipc_client_commands(sock, commands)
 		else:
-			print('-> no data')
+			self._logger.debug('no data')
 
-			print(f'{fg.red}-> IPC unregister socket{fg.rs}')
+			self._logger.debug('IPC unregister socket')
 			self._selectors.unregister(sock)
 
 	def _ipc_client_commands(self, sock: socket.socket, commands: list): # pragma: no cover
-		print('{}-> Server._ipc_client_commands(){}'.format(fg.blue, fg.rs))
-		print('-> commands', commands)
+		self._logger.debug('_ipc_client_commands()')
+		self._logger.debug('commands: %s', commands)
 
 		for command_raw in commands:
 			group_i, command_i, payload = command_raw
 			payload_len = len(payload)
 
-			print('-> group', group_i, 'command', command_i)
-			print('-> payload', payload)
+			self._logger.debug('group %d, command %d', group_i, command_i)
+			self._logger.debug('payload: %s', payload)
 
 			if group_i == 0: # Basic
 				if command_i == 0:
-					print('-> OK command')
+					self._logger.debug('OK command')
 			elif group_i == 1:
 				if command_i == 0:
-					print('-> SEND MESSAGE command')
+					self._logger.debug('SEND MESSAGE command')
 					target, message = payload
-					print('-> target', target)
-					print('-> message', message)
+					self._logger.debug('target: %s', target)
+					self._logger.debug('message: %s', message)
 
 					message = Message(target, message)
 					self._message_queue.add_message(message)
 
-					print('-> uuid', message.uuid)
+					self._logger.debug('uuid: %s', message.uuid)
 
 					self._client_send_ok(sock)
 
 	def run(self) -> bool:
-		# print('-> Server.run()')
+		# self._logger.debug('run()')
 
 		data_processed = False
 
 		events = self._selectors.select(timeout=0)
 		for key, mask in events:
-			# print('-> key', key, 'mask', mask)
-
 			if key.data != None:
 				if key.data['type'] == 'main_server':
 					self._accept_main_server(key.fileobj)
@@ -984,7 +978,7 @@ class Server(Network):
 					self._client_read(key.fileobj, key.data['client'])
 
 				elif key.data['type'] == 'discovery':
-					print('-> discovery')
+					self._logger.debug('discovery')
 					self._read_discovery(key.fileobj)
 
 				elif key.data['type'] == 'ipc_server':
@@ -998,30 +992,30 @@ class Server(Network):
 		return data_processed # will be returned to the Scheduler
 
 	def contact_address_book(self) -> bool:
-		# print('-> Server.contact_address_book()')
+		# self._logger.debug('Server.contact_address_book()')
 
 		_clients = list(self._address_book.get_clients().values())
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
-		# print('-> clients', len(_clients))
+		# self._logger.debug('clients: %d', len(_clients))
 
 		connect_to_clients = []
 		zero_meetings_clients = []
 		for client in _clients:
-			print('-> contact', client)
+			self._logger.debug('contact: %s', client)
 
 			if client.meetings > 0:
 				if not self._client_is_connected(client):
-					print('-> client is not connected A')
+					self._logger.debug('client is not connected A')
 					connect_to_clients.append(client)
 			else:
 				zero_meetings_clients.append(client)
 
 		zero_meetings_clients.sort(key=lambda _client: _client.distance(self._local_node))
 		for client in zero_meetings_clients:
-			print('-> zero_meetings_client', client)
+			self._logger.debug('zero_meetings_client: %s', client)
 			if not self._client_is_connected(client):
-				print('-> client is not connected B')
+				self._logger.debug('client is not connected B')
 				connect_to_clients.append(client)
 
 		is_bootstrapping = self.is_bootstrap_phase()
@@ -1040,7 +1034,7 @@ class Server(Network):
 		for client in self._clients:
 
 			if client.conn_mode == 0:
-				print('-> remove client', client)
+				self._logger.debug('remove client: %s', client)
 				self._selectors.unregister(client.sock)
 				client.sock.close()
 				self._clients.remove(client)
@@ -1048,7 +1042,7 @@ class Server(Network):
 				client.reset()
 
 			if client.conn_mode == 1 and client.auth & 1 == 0:
-				print('-> send ID')
+				self._logger.debug('send ID')
 				self._client_send_id(client.sock)
 				client.auth |= 1
 
@@ -1085,7 +1079,7 @@ class Server(Network):
 		return True
 
 	def debug_clients(self) -> bool: # pragma: no cover
-		self._logger.debug('debug_clients %d', len(self._clients))
+		self._logger.debug('debug_clients() -> %d', len(self._clients))
 
 		for client in self._clients:
 			self._logger.debug('debug %s', client)
@@ -1093,7 +1087,7 @@ class Server(Network):
 		return True
 
 	def client_actions(self) -> bool:
-		self._logger.debug('client_actions %d', len(self._clients))
+		self._logger.debug('client_actions() -> %d', len(self._clients))
 
 		had_actions = False
 
@@ -1139,7 +1133,7 @@ class Server(Network):
 		return bool(self._config['bootstrap'])
 
 	def handle_message_queue(self) -> bool:
-		self._logger.debug('handle_message_queue')
+		self._logger.debug('handle_message_queue()')
 
 		for message_uuid, message in self._message_queue.get_messages():
 			self._logger.debug('message %s', message)
@@ -1230,13 +1224,13 @@ class Server(Network):
 		self._logger.debug('body %s', body)
 
 		encrypted = client.encrypt(body)
-		# print('-> encrypted', encrypted)
+		# self._logger.debug('encrypted: %s', encrypted)
 
 		encoded = base64.b64encode(encrypted)
-		# print('-> b64 encoded', encoded)
+		# self._logger.debug('b64 encoded: %s', encoded)
 
 		decoded = encoded.decode('utf-8')
-		# print('-> b64 decoded', decoded)
+		# self._logger.debug('b64 decoded: %s', decoded)
 
 		message.body = decoded
 		message.is_encrypted = True
@@ -1257,7 +1251,7 @@ class Server(Network):
 
 		# base64 decode body
 		decoded = base64.b64decode(message.body)
-		self._logger.debug('decoded', decoded)
+		self._logger.debug('decoded: %s', decoded)
 
 		decrypted_b = self._private_key.decrypt(
 			decoded,
@@ -1267,13 +1261,13 @@ class Server(Network):
 				label=None
 			)
 		)
-		self._logger.debug('decrypted', decrypted_b)
+		self._logger.debug('decrypted: %s', decrypted_b)
 
 		encoded = base64.b64encode(decrypted_b)
-		self._logger.debug('encoded', encoded)
+		self._logger.debug('encoded: %s', encoded)
 
 		decoded = encoded.decode('utf-8')
-		self._logger.debug('decoded', decoded)
+		self._logger.debug('decoded: %s', decoded)
 
 		message.body = decoded
 		message.is_encrypted = False

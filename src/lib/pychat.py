@@ -45,7 +45,7 @@ class PyChat():
 
 		logConfig = {
 			'level': self._config['log']['level'],
-			'format': '%(asctime)s %(process)d %(name)-13s %(levelname)-8s %(message)s',
+			'format': '%(asctime)s %(process)d %(levelname)-8s %(name)-13s %(message)s',
 		}
 		if not self._is_dev:
 			if 'file' in self._config['log'] and self._config['log']['file']:

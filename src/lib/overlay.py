@@ -68,7 +68,6 @@ class Distance():
 
 	def __eq__(self, other):
 		if isinstance(other, int):
-			#print('Distance.__eq__(int) {}=={}'.format(self._distance, other))
 			return self._distance == other
 
 		if not isinstance(other, Distance):

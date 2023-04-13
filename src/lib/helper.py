@@ -41,8 +41,6 @@ def generate_test_id() -> str: # pragma: no cover
 	return f'FC_{base58_hash}'
 
 def resolve_contact(contact: str, raddr: str = None) -> list:
-	#print('-> resolve_contact({})'.format(contact))
-
 	items = contact.split(':')
 	items_len = len(items)
 
@@ -72,8 +70,6 @@ def resolve_contact(contact: str, raddr: str = None) -> list:
 			try:
 				results = socket.getaddrinfo(c_addr, None)
 				for result in results:
-					# print('result: {} {}'.format(c_addr, result))
-
 					ip_address = result[4][0]
 					if ip_address[0:4] == '127.':
 						# Localhost is invalid.
