@@ -11,6 +11,7 @@ export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/config1.json}
 export PYCHAT_ADDRESS=${PYCHAT_ADDRESS:-0.0.0.0}
 export PYCHAT_PORT=${PYCHAT_PORT:-25001}
 export PYCHAT_DATA_DIR=${PYCHAT_DATA_DIR:-var/data1}
+export PYCHAT_LOG_FILE=${PYCHAT_LOG_FILE:-pychat.log}
 
 cd "${SCRIPT_BASEDIR}/.."
 pwd

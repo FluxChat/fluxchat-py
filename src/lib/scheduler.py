@@ -1,4 +1,5 @@
 
+import logging
 import time
 import datetime as dt
 from lib.task import Task
@@ -12,9 +13,11 @@ class Scheduler():
 	MAX_SLEEP_TIME = 10
 
 	def __init__(self):
-		# print('-> Scheduler.__init__()')
 		self._running = False
 		self._tasks = []
+
+		self._logger = logging.getLogger('scheduler')
+		self._logger.info('init')
 
 	def add_task(self, execfunc, interval: dt.timedelta = None, one_shot: bool = False):
 		# print('-> Scheduler.add_task({}, {})'.format(execfunc, interval))
@@ -58,5 +61,5 @@ class Scheduler():
 			_cycle += 1
 
 	def shutdown(self):
-		# print('-> Scheduler.shutdown()')
+		self._logger.info('shutdown')
 		self._running = False

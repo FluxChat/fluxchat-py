@@ -20,5 +20,9 @@
 	},
 	"mail": {
 		"message_retention_time": 24
+	},
+	"log": {
+		"level": "warning",
+		"file": "${PYCHAT_LOG_FILE}"
 	}
 }

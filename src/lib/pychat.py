@@ -1,7 +1,6 @@
 
+import logging
 import os
-import json
-import time
 import datetime as dt
 
 from sty import fg
@@ -16,17 +15,45 @@ class PyChat():
 	_scheduler: Scheduler
 	_is_dev: bool
 
-	def __init__(self, config_file: str = None, is_dev: bool = False):
-		# print('-> PyChat.__init__()')
+	def __init__(self, config_file: str = None, is_dev: bool = False, loglevel: str = None):
 		self._config_file = config_file
 		self._config = None
 		self._server = None
 		self._scheduler = None
 		self._is_dev = is_dev
+		self._logger = None
+		self._loglevel = loglevel
 
 	def start(self): # pragma: no cover
 		# Init
 		self._load_config()
+
+		# Logging
+		if not 'log' in self._config:
+			self._config['log'] = {}
+
+		if 'file' in self._config['log'] and self._config['log']['file']:
+			if '/' not in self._config['log']['file'] and self._config['log']['file'][0] != '/':
+				self._config['log']['file'] = os.path.join(self._config['data_dir'], self._config['log']['file'])
+
+		if self._loglevel != None:
+			self._config['log']['level'] = self._loglevel
+		self._config['log']['level'] = self._config['log']['level'].upper()
+
+		logConfig = {
+			'level': self._config['log']['level'],
+			'format': '%(asctime)s %(process)d %(name)-13s %(levelname)-8s %(message)s',
+		}
+		if not self._is_dev:
+			if 'file' in self._config['log'] and self._config['log']['file']:
+				logConfig['filename'] = self._config['log']['file']
+			logConfig['filemode'] = 'a'
+		logging.basicConfig(**logConfig)
+
+		self._logger = logging.getLogger('pychat')
+		self._logger.info('start')
+
+		# Server
 		self._server = Server(self._config)
 		self._server.start()
 
@@ -49,13 +76,12 @@ class PyChat():
 			self._scheduler.add_task(self._server.save, dt.timedelta(minutes=5))
 
 	def _load_config(self):
-		# print('-> PyChat._load_config()')
 		self._config = read_json_file(self._config_file)
 
 	def run(self):
-		# print('-> PyChat.run()')
+		self._logger.info('run')
 		self._scheduler.run()
 
 	def shutdown(self):
-		# print('-> PyChat.shutdown()')
+		self._logger.info('shutdown')
 		self._scheduler.shutdown()

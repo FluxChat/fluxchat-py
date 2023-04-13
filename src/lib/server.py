@@ -1,4 +1,5 @@
 
+import logging
 import os
 import socket
 import selectors
@@ -45,6 +46,9 @@ class Server(Network):
 		self._address_book = None
 		self._message_queue = None
 		self._message_db = None
+
+		self._logger = logging.getLogger('server')
+		self._logger.info('init')
 
 		self._config = config
 		if 'address_book' not in self._config:
@@ -129,49 +133,53 @@ class Server(Network):
 			os.remove(self._pid_file_path)
 
 	def start(self): # pragma: no cover
-		print('-> Server.start()')
+		self._logger.info('start')
+
 		self._load_public_key_from_pem_file()
 		self._load_private_key_from_pem_file()
 
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-		print('-> bind: {} {}'.format(self._config['address'], self._config['port']))
-
 		try:
+			self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
 			self._main_server_socket.bind((self._config['address'], self._config['port']))
 		except OSError as e:
 			print('-> OSError: {}'.format(e))
 			print('-> Is another instance of PyChat already running?')
 			exit(1)
 
-		print('-> listen')
+		self._logger.debug('listen')
 		self._main_server_socket.listen()
 		self._main_server_socket.setblocking(False)
 		self._selectors.register(self._main_server_socket, selectors.EVENT_READ, data={'type': 'main_server'})
 
 		if 'discovery' in self._config and self._config['discovery']['enabled']:
-			print('-> discovery')
+			self._logger.debug('discovery')
+
 			self._discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
 			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 			try:
 				self._discovery_socket.bind(('', self._config['discovery']['port']))
 			except OSError as e:
-				print('-> OSError: {}'.format(e))
+				self._logger.error('OSError: %s', e)
+
 			self._discovery_socket.setblocking(False)
 
 			if self.has_contact():
-				print('-> send broadcast')
+				self._logger.debug('send broadcast')
 				# TODO for production: set port to self._config['discovery']['port'] instead of hard-coded 26000
 				res = self._discovery_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
-				print('-> res', res)
+				self._logger.debug('res %s', res)
 
 			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
 
 		if 'ipc' in self._config and self._config['ipc']:
-			print('-> ipc')
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
+			self._logger.debug('ipc %s', ipc_addr)
+
 			self._ipc_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self._ipc_server_socket.bind(ipc_addr)
 			self._ipc_server_socket.listen()
@@ -180,7 +188,7 @@ class Server(Network):
 			self._selectors.register(self._ipc_server_socket, selectors.EVENT_READ, data={'type': 'ipc_server'})
 
 	def _load_private_key_from_pem_file(self) -> None:
-		print('-> Server._load_private_key_from_pem_file()')
+		self._logger.debug('load private key from pem file')
 
 		if not os.path.isfile(self._config['private_key_file']):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
@@ -188,18 +196,14 @@ class Server(Network):
 		with open(self._config['private_key_file'], 'rb') as f:
 			self._private_key = serialization.load_pem_private_key(f.read(), password=None)
 
-		print('-> private key: {}'.format(self._private_key))
-
 	def _load_public_key_from_pem_file(self) -> None:
-		print('-> Server._load_public_key_from_pem_file()')
+		self._logger.debug('load public key from pem file')
 
 		if not os.path.isfile(self._config['public_key_file']):
 			raise Exception('public key file not found: {}'.format(self._config['public_key_file']))
 
 		with open(self._config['public_key_file'], 'rb') as f:
 			self._public_key = serialization.load_pem_public_key(f.read())
-
-		# print('-> public key: {}'.format(self._public_key))
 
 		public_bytes = self._public_key.public_bytes(
 			encoding=serialization.Encoding.DER,
@@ -1054,17 +1058,15 @@ class Server(Network):
 		return True
 
 	def ping_clients(self) -> bool:
-		# print('-> Server.ping_clients() -> {}'.format(len(self._clients)))
-
 		for client in self._clients:
 			if client.conn_mode == 2:
-				print('-> send PING')
+				self._logger.debug('send PING')
 				self._client_send_ping(client.sock)
 
 		return True
 
 	def save(self) -> bool:
-		print('-> Server.save()')
+		self._logger.debug('save')
 
 		self._address_book.save()
 		self._message_queue.save()
@@ -1073,7 +1075,7 @@ class Server(Network):
 		return True
 
 	def clean_up(self) -> bool:
-		print('-> Server.clean_up()')
+		self._logger.debug('clean_up')
 
 		# self._address_book.hard_clean_up(self._local_node.id)
 		self._address_book.soft_clean_up(self._local_node.id)
@@ -1083,30 +1085,30 @@ class Server(Network):
 		return True
 
 	def debug_clients(self) -> bool: # pragma: no cover
-		print('-> Server.debug_clients() -> {}'.format(len(self._clients)))
+		self._logger.debug('debug_clients %d', len(self._clients))
 
 		for client in self._clients:
-			print('-> debug', client)
+			self._logger.debug('debug %s', client)
 
 		return True
 
 	def client_actions(self) -> bool:
-		print('-> Server.client_actions() -> {}'.format(len(self._clients)))
+		self._logger.debug('client_actions %d', len(self._clients))
 
 		had_actions = False
 
 		for client in self._clients:
-			print('-> client', client)
+			self._logger.debug('client %s', client)
 
 			for action in client.get_actions(soft_reset=True):
-				print('-> action', action)
+				self._logger.debug('action %s', action)
 
 				if action.id == 'bootstrap':
 					self._client_send_get_nearest_to(client.sock, self._local_node.id)
 					client.add_action(Action('nearest_response', data=action.data))
 
 				elif action.id == 'request_public_key_for_node':
-					print('-> request_public_key_for_node', action)
+					self._logger.debug('request_public_key_for_node %s', action)
 
 					if action.data['step'] == 0:
 						action.data['step'] += 1
@@ -1114,7 +1116,7 @@ class Server(Network):
 
 				elif action.id == 'message':
 					message = action.data
-					print('-> message', message)
+					self._logger.debug('message %s', message)
 
 					self._client_send_message(client.sock, message)
 
@@ -1137,67 +1139,64 @@ class Server(Network):
 		return bool(self._config['bootstrap'])
 
 	def handle_message_queue(self) -> bool:
-		print('-> Server.handle_message_queue()')
+		self._logger.debug('handle_message_queue')
 
 		for message_uuid, message in self._message_queue.get_messages():
-			print('-> message', message)
+			self._logger.debug('message %s', message)
 
 			if message.is_delivered:
-				print('-> message is delivered')
+				self._logger.debug('message is delivered')
 				continue
 
 			if message.target == None:
-				print('-> message has no target')
+				self._logger.debug('message has no target')
 				continue
 
 			if message.target == self._local_node.id:
-				print('-> message is for me')
+				self._logger.debug('message is for me')
 				continue
 
 			clients = self._address_book.get_nearest_to(message.target, with_contact_infos=True)
-			print('-> clients', clients)
+			self._logger.debug('clients %s', clients)
 
 			for client in clients:
-				print('-> client', client)
+				self._logger.debug('client %s', client)
 				if self._client_is_connected(client):
-					print('-> client is connected')
+					self._logger.debug('client is connected')
 				else:
-					print('-> client is not connected C')
+					self._logger.debug('client is not connected C')
 					self._client_connect(client)
 
 			if message.is_encrypted:
-				print('-> message is encrypted')
+				self._logger.debug('message is encrypted')
 
 				for client in clients:
-					print('-> client', client)
-					print('-> forwarded_to', message.forwarded_to)
+					self._logger.debug('client %s', client)
+					self._logger.debug('forwarded_to %s', message.forwarded_to)
 
 					if not self._client_is_connected(client):
-						print('-> client is not connected D')
+						self._logger.debug('client is not connected D')
 						continue
 
 					if client.id in message.forwarded_to:
-						print('-> client already received message')
+						self._logger.debug('client already received message')
 						continue
 
 					if client.has_action('message', message.uuid):
-						print('-> client already has action')
+						self._logger.debug('client already has action')
 						continue
 
-					# message.forwarded_to.append(client.id)
-					# self._message_queue.changed()
-
-					print('-> add action for message')
+					self._logger.debug('add action for message')
 					action = Action('message', message.uuid, data=message)
 					client.add_action(action)
 			else:
-				print('-> message is not encrypted')
+				self._logger.debug('message is not encrypted')
 
 				client = self._address_book.get_client_by_id(message.target.id)
 				if client == None or not client.has_public_key():
-					print('-> client is set and has not public key')
+					self._logger.debug('client is set and has not public key')
 					for client in clients:
-						print('-> client', client)
+						self._logger.debug('client %s', client)
 
 						if not client.has_action('request_public_key_for_node', message.target.id):
 							action_data = {
@@ -1218,17 +1217,17 @@ class Server(Network):
 		return True
 
 	def _encrypt_message(self, message: Message, client: Client):
-		print('-> Server._encrypt_message() -> {}'.format(message.is_encrypted))
-		print('-> message', message)
-		print('-> client', client)
+		self._logger.debug('_encrypt_message() -> {}'.format(message.is_encrypted))
+		self._logger.debug('message %s', message)
+		self._logger.debug('client %s', client)
 
 		if message.is_encrypted:
-			print('-> message is already encrypted')
+			self._logger.debug('message is already encrypted')
 			return
 
 		# base64 decode body
 		body = base64.b64decode(message.body)
-		print('-> body', body)
+		self._logger.debug('body %s', body)
 
 		encrypted = client.encrypt(body)
 		# print('-> encrypted', encrypted)
@@ -1248,17 +1247,17 @@ class Server(Network):
 		self._address_book.changed()
 
 	def _decrypt_message(self, message: Message):
-		print('-> Server._decrypt_message()')
+		self._logger.debug('_decrypt_message()')
 
 		if not message.is_encrypted:
-			print('-> message is not encrypted')
+			self._logger.debug('message is not encrypted')
 			return
 
-		print('-> body', message.body)
+		self._logger.debug('body %s', message.body)
 
 		# base64 decode body
 		decoded = base64.b64decode(message.body)
-		# print('-> decoded', decoded)
+		self._logger.debug('decoded', decoded)
 
 		decrypted_b = self._private_key.decrypt(
 			decoded,
@@ -1268,13 +1267,13 @@ class Server(Network):
 				label=None
 			)
 		)
-		# print('-> decrypted', decrypted_b)
+		self._logger.debug('decrypted', decrypted_b)
 
 		encoded = base64.b64encode(decrypted_b)
-		# print('-> encoded', encoded)
+		self._logger.debug('encoded', encoded)
 
 		decoded = encoded.decode('utf-8')
-		# print('-> decoded', decoded)
+		self._logger.debug('decoded', decoded)
 
 		message.body = decoded
 		message.is_encrypted = False

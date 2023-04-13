@@ -3,7 +3,7 @@ import socket
 
 class Network(): # pragma: no cover
 	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
-		print('-> Network._client_write()')
+		self._logger.debug('_client_write()')
 
 		flag_lengths_are_4_bytes = False
 
@@ -43,6 +43,7 @@ class Network(): # pragma: no cover
 		payload_len_b = payload_len_i.to_bytes(4, byteorder='little')
 
 		raw = flags_b + cmd_grp + payload_len_b + payload + (chr(0)).encode('utf-8')
-		print('-> send raw', raw)
+
+		self._logger.debug('send raw %s', raw)
 
 		sock.sendall(raw)

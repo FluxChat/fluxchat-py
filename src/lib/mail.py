@@ -1,4 +1,5 @@
 
+import logging
 import datetime as dt
 import uuid
 
@@ -41,7 +42,7 @@ class Message():
 		return self.__str__()
 
 	def as_dict(self) -> dict:
-		print('-> Message.as_dict() -> {}'.format(self.uuid))
+		#print('-> Message.as_dict() -> {}'.format(self.uuid))
 
 		data = dict()
 		if self.to != None:
@@ -59,7 +60,7 @@ class Message():
 		return data
 
 	def from_dict(self, data: dict):
-		print('-> Message.from_dict({})'.format(self.uuid))
+		#print('-> Message.from_dict({})'.format(self.uuid))
 
 		if 'to' in data:
 			self.to = data['to']
@@ -86,16 +87,17 @@ class Queue():
 	_changes: bool
 
 	def __init__(self, path: str, config: dict = None):
-		print('-> Queue.__init__({})'.format(path))
-
 		self._path = path
 		self._config = config
 		self._mail_config = self._config['mail']
 		self._messages_by_uuid = dict()
 		self._changes = False
 
+		self._logger = logging.getLogger('mail.Queue')
+		self._logger.info('init')
+
 	def load(self):
-		print('-> Queue.load()')
+		self._logger.info('load')
 
 		_data = read_json_file(self._path, {})
 		for message_uuid, row in _data.items():
@@ -103,12 +105,13 @@ class Queue():
 			message.uuid = message_uuid
 			message.from_dict(row)
 
-			print('-> load message: {}'.format(message))
+			self._logger.debug('load message: %s', message)
 
 			self._messages_by_uuid[message_uuid] = message
 
 	def save(self) -> bool:
-		print('-> Queue.save() -> {}'.format(self._changes))
+		self._logger.info('save %s', self._changes)
+
 		if not self._changes:
 			return False
 
@@ -122,39 +125,40 @@ class Queue():
 		return True
 
 	def add_message(self, message: Message):
-		print('-> Queue.add_message({})'.format(message))
+		self._logger.debug('add_message %s', message)
+
 		self._messages_by_uuid[message.uuid] = message
 		print(self._messages_by_uuid)
 		self._changes = True
 
 	def get_messages(self) -> dict:
-		print('-> Queue.get_messages()')
+		# print('-> Queue.get_messages()')
 		return self._messages_by_uuid.items()
 
 	def has_message(self, message_uuid: str) -> bool:
-		print('-> Queue.has_message({})'.format(message_uuid))
+		# print('-> Queue.has_message({})'.format(message_uuid))
 		return message_uuid in self._messages_by_uuid
 
 	def changed(self):
 		self._changes = True
 
 	def clean_up(self):
-		print('-> Queue.clean_up()')
+		self._logger.info('clean up')
 
 		remove_messages = []
 
 		ffunc = lambda _message: _message[1].received_at < dt.datetime.utcnow() - dt.timedelta(hours=self._mail_config['message_retention_time'])
 		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
-		print('-> old_messages A: {}'.format(old_messages))
+		self._logger.debug('old_messages A: %s', old_messages)
 		remove_messages += old_messages
 
 		ffunc = lambda _message: _message[1].is_delivered
 		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
-		print('-> old_messages B: {}'.format(old_messages))
+		self._logger.debug('old_messages B: %s', old_messages)
 		remove_messages += old_messages
 
 		for message_uuid, message in remove_messages:
-			print('-> remove message: {}'.format(message))
+			self._logger.debug('remove message: %s', message)
 			del self._messages_by_uuid[message_uuid]
 			self._changes = True
 
@@ -164,14 +168,15 @@ class Database():
 	_changes: bool
 
 	def __init__(self, path: str) -> None:
-		print('-> Database.__init__()')
-
 		self._path = path
 		self._data = dict()
 		self._changes = False
 
+		self._logger = logging.getLogger('mail.Database')
+		self._logger.info('init')
+
 	def load(self):
-		print('-> Database.load()')
+		self._logger.info('load')
 
 		data = read_json_file(self._path, {})
 		for message_uuid, message_raw in data.items():
@@ -181,7 +186,7 @@ class Database():
 			self._data[message_uuid] = message
 
 	def save(self):
-		print('-> Database.save()')
+		self._logger.info('save')
 
 		if not self._changes:
 			return
@@ -194,10 +199,11 @@ class Database():
 		self._changes = False
 
 	def add_message(self, message: Message):
-		print('-> Database.add_message({})'.format(message))
+		self._logger.debug('add_message %s', message)
+
 		self._data[message.uuid] = message
 		self._changes = True
 
 	def has_message(self, message_uuid: str) -> bool:
-		print('-> Database.has_message()')
+		self._logger.debug('has_message %s', message_uuid)
 		return message_uuid in self._data

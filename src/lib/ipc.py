@@ -1,4 +1,5 @@
 
+import logging
 import socket
 import base64
 import time
@@ -12,49 +13,49 @@ class Ipc(Network):
 	_ipc_config: dict
 
 	def __init__(self, config_file: str = None):
-		print('-> Ipc.__init__()')
-
 		self._config_file = config_file
 
+		self._logger = logging.getLogger('server')
+		self._logger.info('init')
+
 	def start(self): # pragma: no cover
-		# Init
 		self._load_config()
 
 		if not self._ipc_config['enabled']:
 			raise Exception('IPC is not enabled')
 
 	def _load_config(self):
-		print('-> Ipc._load_config()')
+		# print('-> Ipc._load_config()')
 		self._config = read_json_file(self._config_file)
 		self._ipc_config = self._config['ipc']
 
 	def send(self, target: str, subject: str, message: str) -> bool:
-		print('-> Ipc.send()')
-		print('-> target:', target)
-		print('-> subject:', subject)
-		print('-> message:', message)
+		# print('-> Ipc.send()')
+		# print('-> target:', target)
+		# print('-> subject:', subject)
+		# print('-> message:', message)
 
 		raw = "\n".join(['From: ' + self._config['id'], 'Subject: ' + subject, message])
-		print('-> raw:', raw)
+		# print('-> raw:', raw)
 		# encode raw to base64
 		raw = base64.b64encode(raw.encode('utf-8')).decode('utf-8')
-		print('-> raw:', type(raw))
-		print('-> raw:', raw)
+		# print('-> raw:', type(raw))
+		# print('-> raw:', raw)
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		sock.settimeout(2)
 		try:
-			print('-> sock.connect to')
+			# print('-> sock.connect to')
 			sock.connect((self._ipc_config['address'], self._ipc_config['port']))
-			print('-> sock.connect done')
+			# print('-> sock.connect done')
 		except ConnectionRefusedError as e:
-			print('-> ConnectionRefusedError', e)
+			# print('-> ConnectionRefusedError', e)
 			return False
 		except TimeoutError as e:
-			print('-> TimeoutError', e)
+			# print('-> TimeoutError', e)
 			return False
 		except socket.timeout as e:
-			print('-> socket.timeout', e)
+			# print('-> socket.timeout', e)
 			return False
 
 		sock.settimeout(None)

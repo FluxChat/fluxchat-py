@@ -74,7 +74,6 @@ class Client():
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
-		# print('-> Client.__init__({})'.format(self.uuid))
 		self.address = None
 		self.port = None
 		self.id = None
@@ -139,8 +138,6 @@ class Client():
 		return data
 
 	def from_dict(self, data: dict):
-		# print('-> Client.from_dict({})'.format(self.uuid))
-
 		if 'address' in data:
 			self.address = data['address']
 		if 'port' in data:
@@ -161,12 +158,9 @@ class Client():
 			self.debug_add = data['debug_add']
 
 	def from_list(self, data: list):
-		# print('-> Client.from_list({})'.format(data))
-		l = len(data)
-
 		self.id = data[0]
 
-		if l >= 3:
+		if len(data) >= 3:
 			self.address = data[1]
 			self.port = int(data[2])
 
@@ -184,10 +178,6 @@ class Client():
 		self.node = overlay.Node.parse(id)
 
 	def distance(self, node: overlay.Node) -> int:
-		# print('-> Client.distance()')
-		# print('-> self: {}'.format(self))
-		# print('-> node: {}'.format(node))
-
 		if self.node == None:
 			return overlay.Distance()
 
@@ -197,7 +187,6 @@ class Client():
 		self.actions.append(action)
 
 	def get_actions(self, soft_reset: bool = False) -> list:
-		print('-> Client.get_actions()')
 		_actions = list(self.actions)
 		if soft_reset:
 			self.soft_reset_actions()
@@ -205,17 +194,14 @@ class Client():
 
 	# Remove actions with is_strong == False
 	def soft_reset_actions(self):
-		print('-> Client.soft_reset_actions()')
 		strong_actions = list(filter(lambda _action: _action.is_strong, self.actions))
 		actions = list(self.actions)
 		self.actions = strong_actions
 		return actions
 
 	def has_action(self, id: str, subid: str = None) -> bool:
-		print('-> Client.has_action({}, {})'.format(id, subid))
 		ffunc = lambda _action: _action.id == id and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
-		# print('-> found: {}'.format(found))
 		return len(found) > 0
 
 	# Search for action by id and subid and remove it from actions list.
@@ -234,15 +220,12 @@ class Client():
 		return self.address != None and self.port != None
 
 	def load_public_key_from_pem_file(self, path: str):
-		print('-> Client.load_public_key_from_pem_file({})'.format(path))
 		with open(path, 'rb') as f:
 			key = f.read()
 
 		self.public_key = serialization.load_pem_public_key(key)
-		# print('-> public key: {}'.format(type(self.public_key)))
 
 	def write_public_key_to_pem_file(self, path: str) -> bool:
-		print('-> Client.write_public_key_to_pem_file({})'.format(path))
 		if not self.has_public_key():
 			return False
 
@@ -257,7 +240,6 @@ class Client():
 		return True
 
 	def load_public_key_from_base64_der(self, raw: str):
-		print('-> Client.load_public_key_from_base64_der({})'.format(raw))
 		raw = base64.b64decode(raw)
 		self.public_key = serialization.load_der_public_key(raw)
 
@@ -273,15 +255,12 @@ class Client():
 		return base64.b64encode(public_bytes).decode('utf-8')
 
 	def reset_public_key(self):
-		print('-> Client.reset_public_key()')
 		self.public_key = None
 
 	def has_public_key(self) -> bool:
-		print('-> Client.has_public_key()')
 		return self.public_key != None
 
 	def verify_public_key(self) -> bool:
-		print('-> Client.verify_public_key()')
 		if not self.has_public_key():
 			return False
 
@@ -297,7 +276,6 @@ class Client():
 		return f'FC_{base58_hash}' == self.id
 
 	def encrypt(self, data: bytes) -> bytes:
-		print('-> Client.encrypt()')
 		if not self.has_public_key():
 			return None
 
@@ -311,7 +289,6 @@ class Client():
 		)
 
 	def reset(self):
-		print('-> Client.reset()')
 		self.sock = None
 		self.conn_mode = 0
 		self.dir_mode = None
