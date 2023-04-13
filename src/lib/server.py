@@ -481,7 +481,7 @@ class Server(Network):
 
 						if c_has_contact_info:
 							# Client sent contact info
-							_client = self._address_book.get_client(c_id)
+							_client = self._address_book.get_client_by_id(c_id)
 							if _client == None:
 								print('-> client not found A')
 
@@ -505,7 +505,7 @@ class Server(Network):
 							_client.port = c_contact_port
 						else:
 							# Client sent no contact info
-							_client = self._address_book.get_client(c_id)
+							_client = self._address_book.get_client_by_id(c_id)
 							if _client == None:
 								print('-> client not found C')
 
@@ -612,7 +612,7 @@ class Server(Network):
 						if c_id == self._local_node.id:
 							continue
 
-						_client = self._address_book.get_client(c_id)
+						_client = self._address_book.get_client_by_id(c_id)
 						if _client == None:
 							print('-> client not found')
 							_client = self._address_book.add_client(c_id, c_addr, c_port)

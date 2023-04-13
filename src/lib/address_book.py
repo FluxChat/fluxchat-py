@@ -19,7 +19,6 @@ class AddressBook():
 
 	def __init__(self, path: str, config: dict = None):
 		print('-> AddressBook.__init__({})'.format(path))
-		print(config)
 
 		self._path = path
 		self._config = config
@@ -95,11 +94,8 @@ class AddressBook():
 		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 		return len(bootstrap_clients)
 
-	def get_client(self, id: str) -> Client:
-		# print('-> AddressBook.get_client({})'.format(id))
-
-		if id in self._clients_by_uuid:
-			return self._clients_by_uuid[id]
+	def get_client_by_id(self, id: str) -> Client:
+		print('-> AddressBook.get_client_by_id({})'.format(id))
 
 		if id in self._clients_by_id:
 			return self._clients_by_id[id]
@@ -111,14 +107,6 @@ class AddressBook():
 
 		if uuid in self._clients_by_uuid:
 			return self._clients_by_uuid[uuid]
-
-		return None
-
-	def get_client_by_id(self, id: str) -> Client:
-		print('-> AddressBook.get_client_by_id({})'.format(id))
-
-		if id in self._clients_by_id:
-			return self._clients_by_id[id]
 
 		return None
 
@@ -250,7 +238,7 @@ class AddressBook():
 
 		# remove out-of-date clients (invalid client_retention_time)
 		_clients = list(self._clients_by_uuid.values())
-		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
+		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
 			# print('-> removing ttl client: {}'.format(client.uuid))

@@ -30,18 +30,32 @@ class AddressBookTestCase(unittest.TestCase):
 		address_book.save()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
-		client1b = address_book.get_client('FC_test1')
-		self.assertEqual(client1b.id, 'FC_test1')
-
-		client1c = address_book.get_client_by_id('FC_test1')
-		self.assertEqual(client1c.id, 'FC_test1')
-
 		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
 		address_book.load()
 		self.assertEqual(address_book.get_clients_len(), 2)
 
 		address_book.remove_client(client1)
 		self.assertEqual(address_book.get_clients_len(), 1)
+
+	def test_get_client_by_id(self):
+		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
+
+		client1 = address_book.add_client('FC_test1', 'localhost', 25001)
+
+		client1b = address_book.get_client_by_id('FC_test1')
+		self.assertEqual(client1b.id, 'FC_test1')
+
+		client1c = address_book.get_client_by_id('FC_test1')
+		self.assertEqual(client1c.id, 'FC_test1')
+
+		client3 = address_book.get_client_by_id('FC_test3')
+		self.assertEqual(client3, None)
+
+		client1e = address_book.get_client_by_addr_port('localhost', 25001)
+		self.assertEqual(client1e.id, 'FC_test1')
+
+		client2 = address_book.get_client_by_addr_port('localhost', 25002)
+		self.assertEqual(client2, None)
 
 	def test_bootstrap(self):
 		if os.path.exists(ADDRESS_BOOK_PATH):
@@ -112,3 +126,48 @@ class AddressBookTestCase(unittest.TestCase):
 
 		clients = list(map(lambda kv: kv[1].id, address_book.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2'])
+
+	def test_soft_clean_up1(self):
+		address_book = AddressBook('resources/tests/ab1.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 1)
+
+	def test_soft_clean_up2(self):
+		address_book = AddressBook('resources/tests/ab2.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 2)
+
+	def test_soft_clean_up3(self):
+		address_book = AddressBook('resources/tests/ab3.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 3)
+
+	def test_soft_clean_up4(self):
+		address_book = AddressBook('resources/tests/ab4.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 3)
+
+		client = address_book.get_client_by_addr_port('localhost', 25001)
+		self.assertNotEqual(client, None)
+
+		client = address_book.get_client_by_addr_port('localhost', 25002)
+		self.assertNotEqual(client, None)
+
+		client = address_book.get_client_by_addr_port('localhost', 25003)
+		self.assertNotEqual(client, None)
+
+	def test_soft_clean_up5(self):
+		address_book = AddressBook('resources/tests/ab5.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 3)
+
+	def test_soft_clean_up6(self):
+		address_book = AddressBook('resources/tests/ab6.json', self.config)
+		address_book.load()
+		address_book.soft_clean_up()
+		self.assertEqual(address_book.get_clients_len(), 3)
