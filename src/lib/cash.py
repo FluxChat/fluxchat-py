@@ -70,6 +70,27 @@ class Cash():
 		return cycle
 
 	def verify(self, proof: str, nonce: int) -> bool:
+		if len(proof) != 64:
+			return False
+
+		full_bytes = self.bits % 4 == 0
+		if full_bytes:
+			if not proof.startswith('0' * (self.bits // 4)):
+				return False
+		else:
+			found_bits = 0
+			for c in bytes.fromhex(proof):
+				pos = bin(c)[2:].zfill(8).find('1')
+				if pos == -1:
+					found_bits += 8
+					continue
+
+				found_bits += pos
+				break
+
+			if found_bits != self.bits:
+				return False
+
 		input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(nonce).encode()
 		return hashlib.sha256(input_data).hexdigest() == proof
 
