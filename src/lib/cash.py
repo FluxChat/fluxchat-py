@@ -6,16 +6,26 @@ class Cash():
 	nonce: int
 	proof: str
 
-	def __init__(self):
+	def __init__(self, data: str, bits: int):
 		self.nonce = None
 		self.proof = None
+		self.data = data.encode('utf-8')
+		self.bits = bits
 
-	def mine(self, data: bytes, bits: int) -> int:
+	def __str__(self):
+		return 'Cash(b={})'.format(self.bits)
+
+	def __repr__(self):
+		return self.__str__()
+
+	def mine(self) -> int:
 		self.nonce = random.randint(0, 100000000)
 
 		cycle = 0
 		while True:
-			input_data = b'FC_' + data + str(self.nonce).encode()
+			cycle += 1
+
+			input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(self.nonce).encode('utf-8')
 
 			hashobj = hashlib.sha256(input_data)
 			hash_output = hashobj.digest()
@@ -48,14 +58,20 @@ class Cash():
 				if c == 0:
 					found_bits += 8
 
-				if found_bits >= bits:
+				if found_bits >= self.bits:
 					break
 
-			if found_bits >= bits:
+			if found_bits >= self.bits:
 				self.proof = hashobj.hexdigest()
 				break
 
 			self.nonce += 1
-			cycle += 1
 
 		return cycle
+
+	def verify(self, proof: str, nonce: int) -> bool:
+		input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(nonce).encode()
+		return hashlib.sha256(input_data).hexdigest() == proof
+
+class Database():
+	pass # TODO
