@@ -7,6 +7,7 @@ import base58
 import base64
 
 import lib.overlay as overlay
+# import lib.cash as cash
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -64,13 +65,17 @@ class Client():
 	dir_mode: str
 
 	# Authenticated (Binary)
-	# 0, 0 = 0 (Not Authenticated)
-	# 0, 1 = 1 (send ID command)
-	# 1, 0 = 2 (received ID command)
-	# 1, 1 = 3 (Authenticated both)
+	# 0, 0, 0, 0 = 0 (Not Authenticated)
+	# 0, 0, 0, 1 = 1 (sent CHALLENGE command)
+	# 0, 0, 1, 0 = 2 (received CHALLENGE command)
+	# 0, 1, 0, 0 = 4 (sent ID command)
+	# 1, 0, 0, 0 = 8 (received ID command)
+	# 1, 1, 1, 1 = 15 (Authenticated both)
 	auth: int
 
 	actions: list
+	#cash: cash.Cash
+	challenge: list
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -92,6 +97,8 @@ class Client():
 		self.auth = 0
 		self.actions = list()
 		self.public_key = None
+		self.cash = None
+		self.challenge = [None, None, None, None, None] # min, max, data, proof, nonce
 
 	def __str__(self):
 		return 'Client({},a:p={}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
@@ -294,3 +301,4 @@ class Client():
 		self.dir_mode = None
 		self.auth = 0
 		self.actions = []
+		self.challenge = [None, None, None, None, None]

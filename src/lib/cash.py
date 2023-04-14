@@ -3,14 +3,16 @@ import hashlib
 import random
 
 class Cash():
-	nonce: int
+	data: str
+	bits: int
 	proof: str
+	nonce: int
 
 	def __init__(self, data: str, bits: int):
-		self.nonce = None
-		self.proof = None
 		self.data = data.encode('utf-8')
 		self.bits = bits
+		self.proof = None
+		self.nonce = None
 
 	def __str__(self):
 		return 'Cash(b={})'.format(self.bits)
@@ -71,11 +73,13 @@ class Cash():
 
 	def verify(self, proof: str, nonce: int) -> bool:
 		if len(proof) != 64:
+			# print('verify, invalid length')
 			return False
 
 		full_bytes = self.bits % 4 == 0
 		if full_bytes:
 			if not proof.startswith('0' * (self.bits // 4)):
+				# print('verify, startswith wrong')
 				return False
 		else:
 			found_bits = 0
@@ -88,11 +92,10 @@ class Cash():
 				found_bits += pos
 				break
 
-			if found_bits != self.bits:
+			# print('verify, found_bits: {} {}'.format(found_bits, self.bits))
+			if found_bits < self.bits:
+				# print('verify, found_bits wrong')
 				return False
 
 		input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(nonce).encode()
 		return hashlib.sha256(input_data).hexdigest() == proof
-
-class Database():
-	pass # TODO

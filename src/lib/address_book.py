@@ -97,7 +97,7 @@ class AddressBook():
 		return len(bootstrap_clients)
 
 	def get_client_by_id(self, id: str) -> Client:
-		self._logger.debug('get_client_by_id %s', id)
+		self._logger.debug('get_client_by_id(%s)', id)
 
 		if id in self._clients_by_id:
 			return self._clients_by_id[id]
@@ -105,7 +105,7 @@ class AddressBook():
 		return None
 
 	def get_client_by_uuid(self, uuid: str) -> Client:
-		self._logger.debug('get_client_by_uuid %s', uuid)
+		self._logger.debug('get_client_by_uuid(%s)', uuid)
 
 		if uuid in self._clients_by_uuid:
 			return self._clients_by_uuid[uuid]

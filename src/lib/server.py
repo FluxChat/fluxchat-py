@@ -5,6 +5,7 @@ import socket
 import selectors
 import struct
 import base64
+import uuid
 
 # from sty import fg
 from cryptography.hazmat.primitives import serialization, hashes
@@ -15,6 +16,7 @@ from lib.address_book import AddressBook
 from lib.helper import resolve_contact, is_valid_uuid
 from lib.mail import Message, Queue as MessageQueue, Database as MessageDatabase
 from lib.network import Network
+from lib.cash import Cash
 import lib.overlay as overlay
 
 class Server(Network):
@@ -90,6 +92,9 @@ class Server(Network):
 			message_db_path = os.path.join(self._config['data_dir'], 'message_db.json')
 			self._message_db = MessageDatabase(message_db_path)
 			self._message_db.load()
+
+		if 'challenge' not in self._config:
+			self._config['challenge'] = {'min': 15, 'max': 20}
 
 		if 'id' in self._config:
 			self._local_node = overlay.Node.parse(self._config['id'])
@@ -442,7 +447,7 @@ class Server(Network):
 			self._logger.debug('group: %d, command %d', group_i, command_i)
 			self._logger.debug('payload: %s', payload)
 
-			if group_i >= 2 and client.auth != 3:
+			if group_i >= 2 and client.auth != 15:
 				self._logger.debug('not authenticated: %s', client.auth)
 				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
@@ -451,21 +456,77 @@ class Server(Network):
 			if group_i == 0: # Basic
 				if command_i == 0:
 					self._logger.debug('OK command')
+
 			elif group_i == 1: # Connection, Authentication, etc
 				if command_i == 1:
-					self._logger.debug('ID command')
+					self._logger.debug('CHALLENGE command')
+
 					if client.auth & 2 != 0:
+						self._logger.debug('skip, already got CHALLENGE')
+						continue
+
+					client.auth |= 2
+					client.challenge[0] = int(payload[0]) # min
+					client.challenge[1] = int(payload[1]) # max
+					client.challenge[2] = str(payload[2]) # data
+
+					self._logger.debug('challenge: %s', client.challenge)
+
+					c_data_len = len(client.challenge[2])
+					if c_data_len > 36:
+						self._logger.warning('skip, challenge data too long: %d > 36', c_data_len)
+						self._logger.debug('conn mode 0')
+						client.conn_mode = 0
+						continue
+
+					if client.challenge[0] > self._config['challenge']['max']:
+						self._logger.warning('skip, challenge min is too big: %d > %d', client.challenge[0], self._config['challenge']['max'])
+						self._logger.debug('conn mode 0')
+						client.conn_mode = 0
+						continue
+
+					cash = Cash(client.challenge[2], client.challenge[0])
+					self._logger.debug('mine')
+					cash.mine()
+					self._logger.debug('mine done')
+					client.challenge[3] = cash.proof
+					client.challenge[4] = cash.nonce
+
+					self._logger.debug('challenge: %s', client.challenge)
+
+				elif command_i == 2:
+					self._logger.debug('ID command')
+
+					if client.auth & 2 == 0:
+						self._logger.warning('skip, client has first to send CHALLENGE')
+						continue
+
+					if client.auth & 8 != 0:
 						self._logger.debug('skip, already authenticated')
 						continue
 
 					c_id = payload[0]
-					self._logger.debug('c_id: %s', c_id)
+					c_cc_proof = payload[1]
+					c_cc_nonce = int(payload[2])
 
+					self._logger.debug('c_id: %s', c_id)
+					self._logger.debug('c_cc_proof: %s', c_cc_proof)
+					self._logger.debug('c_cc_nonce: %s', c_cc_nonce)
+
+					# Local
 					if self._local_node == c_id:
 						self._logger.debug('skip, ID is local node')
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
 						continue
+
+					# Challenge
+					if not client.cash.verify(c_cc_proof, c_cc_nonce):
+						self._logger.warning('skip, challenge not verified')
+						self._logger.debug('conn mode 0')
+						client.conn_mode = 0
+						continue
+					self._logger.debug('cash verifiyed')
 
 					c_switch = False
 					c_has_contact_info = False
@@ -473,7 +534,7 @@ class Server(Network):
 						addr = sock.getpeername()
 
 						# Client sent contact info
-						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[1], addr[0])
+						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[3], addr[0])
 
 					if client.dir_mode == 'i':
 						# Client is incoming
@@ -542,8 +603,9 @@ class Server(Network):
 
 					_client.sock = sock
 					_client.conn_mode = client.conn_mode
-					_client.auth = client.auth | 2
+					_client.auth = client.auth | 8
 					_client.actions = client.actions
+					_client.challenge = client.challenge
 
 					# Update Address Book because also an existing client can be updated
 					self._address_book.changed()
@@ -562,11 +624,12 @@ class Server(Network):
 					self._client_send_ok(_client.sock)
 
 					self._logger.debug('Client Z: %s', _client)
-				elif command_i == 2:
+				elif command_i == 3:
 					self._logger.debug('PING command')
 					self._client_send_pong(sock)
-				elif command_i == 3:
+				elif command_i == 4:
 					self._logger.debug('PONG command')
+
 			elif group_i == 2: # Overlay, Address Book, Routing, etc
 				if command_i == 1:
 					self._logger.debug('GET_NEAREST_TO command')
@@ -803,24 +866,35 @@ class Server(Network):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_id(self, sock: socket.socket): # pragma: no cover
-		self._logger.debug('_client_send_id()')
+	def _client_send_challenge(self, sock: socket.socket, challenge: str): # pragma: no cover
+		self._logger.debug('_client_send_challenge(%s)', type(challenge))
+
+		self._client_write(sock, 1, 1, [
+			str(self._config['challenge']['min']),
+			str(self._config['challenge']['max']),
+			challenge,
+		])
+
+	def _client_send_id(self, sock: socket.socket, proof: str, nonce: str): # pragma: no cover
+		self._logger.debug('_client_send_id(%s, %s)', proof, nonce)
 		data = [
 			self._config['id'],
+			proof,
+			nonce,
 		]
 		if self.has_contact():
 			data.append(self.get_contact())
 
 		# self._logger.debug('data: %s', data)
-		self._client_write(sock, 1, 1, data)
+		self._client_write(sock, 1, 2, data)
 
 	def _client_send_ping(self, sock: socket.socket): # pragma: no cover
 		self._logger.debug('_client_send_ping()')
-		self._client_write(sock, 1, 2)
+		self._client_write(sock, 1, 3)
 
 	def _client_send_pong(self, sock: socket.socket): # pragma: no cover
 		self._logger.debug('_client_send_pong()')
-		self._client_write(sock, 1, 3)
+		self._client_write(sock, 1, 4)
 
 	def _client_send_get_nearest_to(self, sock: socket.socket, id: str): # pragma: no cover
 		self._logger.debug('_client_send_get_nearest_to()')
@@ -1033,6 +1107,7 @@ class Server(Network):
 	def handle_clients(self) -> bool:
 		for client in self._clients:
 
+			# Remove clients that are not connected
 			if client.conn_mode == 0:
 				self._logger.debug('remove client: %s', client)
 				self._selectors.unregister(client.sock)
@@ -1041,13 +1116,22 @@ class Server(Network):
 
 				client.reset()
 
-			if client.conn_mode == 1 and client.auth & 1 == 0:
-				self._logger.debug('send ID')
-				self._client_send_id(client.sock)
-				client.auth |= 1
+			if client.conn_mode == 1:
+				if client.auth & 1 == 0:
+					data_org = str(uuid.uuid4())
+					client.cash = Cash(data_org, self._config['challenge']['min'])
 
-			if client.auth == 3:
-				client.conn_mode = 2
+					self._logger.debug('send CHALLENGE')
+					self._client_send_challenge(client.sock, data_org)
+					client.auth |= 1
+
+				elif client.auth & 2 != 0 and client.auth & 4 == 0:
+					self._logger.debug('send ID')
+					self._client_send_id(client.sock, client.challenge[3], str(client.challenge[4]))
+					client.auth |= 4
+
+				if client.auth == 15:
+					client.conn_mode = 2
 
 		return True
 
