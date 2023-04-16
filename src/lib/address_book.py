@@ -122,7 +122,7 @@ class AddressBook():
 		return None
 
 	def add_client(self, id: str = None, addr: str = None, port: int = None) -> Client:
-		self._logger.debug('add_client %s %s %s', id, addr, port)
+		self._logger.debug('add_client(%s, %s, %s)', id, addr, port)
 
 		client = Client()
 
@@ -138,14 +138,24 @@ class AddressBook():
 		self._clients_by_uuid[client.uuid] = client
 		if client.id != None:
 			self._clients_by_id[client.id] = client
+
 		self.changed()
 
 		return client
 
-	def remove_client(self, client: Client) -> bool:
-		self._logger.debug('remove_client(%s)', client)
+	def append_client(self, client: Client):
+		self._logger.debug('append_client(%s)', client)
 
-		if client.is_trusted:
+		self._clients_by_uuid[client.uuid] = client
+		if client.id != None:
+			self._clients_by_id[client.id] = client
+
+		self.changed()
+
+	def remove_client(self, client: Client, force: bool = False) -> bool:
+		self._logger.debug('remove_client(%s, %s)', client, force)
+
+		if not force and client.is_trusted:
 			return False
 
 		key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')

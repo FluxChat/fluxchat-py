@@ -792,16 +792,17 @@ class Server(Network):
 					if _client == None:
 						self._logger.debug('client not found')
 
-						_client = self._address_book.add_client(node.id)
-						self._logger.debug('client added: %s', _client)
-
+						_client = Client()
+						_client.set_id(node.id)
 						_client.load_public_key_from_base64_der(public_key_raw)
 
 						if _client.verify_public_key():
 							self._logger.debug('public key verified')
+
+							self._address_book.append_client(_client)
+							self._logger.debug('client added: %s', _client)
 						else:
 							self._logger.debug('public key not verified')
-							self._address_book.remove_client(_client)
 							_client = None
 					else:
 						self._logger.debug('client found: %s', _client)
