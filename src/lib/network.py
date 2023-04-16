@@ -42,7 +42,7 @@ class Network(): # pragma: no cover
 		cmd_grp = (chr(group) + chr(command)).encode('utf-8')
 		payload_len_b = payload_len_i.to_bytes(4, byteorder='little')
 
-		raw = flags_b + cmd_grp + payload_len_b + payload + (chr(0)).encode('utf-8')
+		raw = flags_b + cmd_grp + payload_len_b + payload + b'\x00'
 
 		self._logger.debug('send raw %s', raw)
 

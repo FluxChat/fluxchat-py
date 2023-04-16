@@ -2,13 +2,15 @@
 import logging
 import datetime as dt
 import uuid
+import base64
 
 import lib.overlay as overlay
 from lib.helper import read_json_file, write_json_file
 
 class Message():
 	uuid: str
-	to: str
+	sender: str
+	receiver: str
 	target: overlay.Node
 	body: str
 	created_at: dt.datetime
@@ -17,9 +19,9 @@ class Message():
 	is_encrypted: bool
 	is_delivered: bool
 
-	def __init__(self, to: str = None, body: str = None):
+	def __init__(self, receiver: str = None, body: str = None):
 		self.uuid = str(uuid.uuid4())
-		self.to = to
+		self.receiver = receiver
 		self.body = body
 		self.created_at = dt.datetime.utcnow()
 		self.received_at = dt.datetime.utcnow()
@@ -27,26 +29,30 @@ class Message():
 		self.is_encrypted = False
 		self.is_delivered = None
 
-		if self.to == None:
+		if self.receiver == None:
 			self.target = None
 		else:
 			try:
-				self.target = overlay.Node.parse(self.to)
+				self.target = overlay.Node.parse(self.receiver)
 			except:
 				self.target = None
 
 	def __str__(self):
-		return 'Message({},t={})'.format(self.uuid, self.to)
+		return 'Message({},t={})'.format(self.uuid, self.receiver)
 
 	def __repr__(self):
 		return self.__str__()
 
 	def as_dict(self) -> dict:
 		data = dict()
-		if self.to != None:
-			data['to'] = self.to
+		if self.sender != None:
+			data['sender'] = self.sender
+		if self.receiver != None:
+			data['receiver'] = self.receiver
 		if self.body != None:
 			data['body'] = self.body
+		if self.created_at != None:
+			data['created_at'] = self.created_at.isoformat()
 		if self.received_at != None:
 			data['received_at'] = self.received_at.isoformat()
 		if self.forwarded_to != None and len(self.forwarded_to) > 0:
@@ -58,10 +64,16 @@ class Message():
 		return data
 
 	def from_dict(self, data: dict):
-		if 'to' in data:
-			self.to = data['to']
+		if 'to' in data: # deprecated # TODO remove
+			self.receiver = data['to']
 			try:
-				self.target = overlay.Node.parse(self.to)
+				self.target = overlay.Node.parse(self.receiver)
+			except:
+				self.target = None
+		if 'receiver' in data:
+			self.receiver = data['receiver']
+			try:
+				self.target = overlay.Node.parse(self.receiver)
 			except:
 				self.target = None
 		if 'body' in data:
@@ -74,6 +86,17 @@ class Message():
 			self.is_encrypted = data['is_encrypted']
 		if 'is_delivered' in data:
 			self.is_delivered = data['is_delivered']
+
+	def encode(sender: str, subject: str, message: str) -> str:
+		today = dt.datetime.utcnow().isoformat()
+		items = [
+			b'\x01', today.encode('utf-8'),
+			b'\x10', sender.encode('utf-8'),
+			b'\x11', subject.encode('utf-8'),
+			b'\x12', message.encode('utf-8'),
+		]
+		raw = ''.join(items)
+		return base64.b64encode(raw.encode('utf-8')).decode('utf-8')
 
 class Queue():
 	_path: str
