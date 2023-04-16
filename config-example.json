@@ -12,6 +12,9 @@
 		"max_clients": 20,
 		"client_retention_time": 24
 	},
+	"client": {
+		"auth_timeout": 2,
+	},
 	"discovery": {
 		"enabled": false,
 		"port": 26000

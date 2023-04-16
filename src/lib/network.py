@@ -8,7 +8,7 @@ class Network(): # pragma: no cover
 		flag_lengths_are_4_bytes = False
 
 		for item in data:
-			#self._logger.debug('-> data item: %s %s', type(item), item)
+			#self._logger.debug('data item: %s %s', type(item), item)
 			item_content_len = len(item)
 			if item_content_len > 255:
 				flag_lengths_are_4_bytes = True
@@ -20,20 +20,20 @@ class Network(): # pragma: no cover
 		for item in data:
 			item_content_len = len(item)
 			payload_len_i += item_content_len
-			self._logger.debug('-> item: l=%d t=%s i=%s', item_content_len, type(item), item)
+			self._logger.debug('item: l=%d t=%s i=%s', item_content_len, type(item), item)
 
 			if flag_lengths_are_4_bytes:
 				payload_items.append(item_content_len.to_bytes(4, 'little'))
 				payload_len_i += 3
 			else:
-				self._logger.debug('-> item_content_len: %s', item_content_len.to_bytes(1, 'little'))
+				self._logger.debug('item_content_len: %s', item_content_len.to_bytes(1, 'little'))
 				payload_items.append(item_content_len.to_bytes(1, 'little'))
 
 			payload_len_i += 1
 			payload_items.append(item.encode('utf-8'))
 
-		self._logger.debug('-> payload_len_i: %d', payload_len_i)
-		self._logger.debug('-> payload_items: %s', payload_items)
+		self._logger.debug('payload_len_i: %d', payload_len_i)
+		self._logger.debug('payload_items: %s', payload_items)
 
 		payload = b''.join(payload_items)
 

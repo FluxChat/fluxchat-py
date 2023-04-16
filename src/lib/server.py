@@ -6,6 +6,7 @@ import selectors
 import struct
 import base64
 import uuid
+import datetime as dt
 
 # from sty import fg
 from cryptography.hazmat.primitives import serialization, hashes
@@ -35,6 +36,7 @@ class Server(Network):
 	_public_key_b64: str
 	_pid_file_path: str
 	_wrote_pid_file: bool
+	_client_auth_timeout: dt.timedelta
 
 	def __init__(self, config: dict = {}):
 		self._host_name = socket.gethostname()
@@ -48,6 +50,7 @@ class Server(Network):
 		self._message_queue = None
 		self._message_db = None
 		self._wrote_pid_file = False
+		self._client_auth_timeout = None
 
 		self._logger = logging.getLogger('server')
 		self._logger.info('init')
@@ -58,6 +61,12 @@ class Server(Network):
 				'max_clients': 20,
 				'client_retention_time': 24,
 			}
+
+		if 'client' not in self._config:
+			self._config['client'] = {
+				'auth_timeout': 2,
+			}
+		self._client_auth_timeout = dt.timedelta(seconds=self._config['client']['auth_timeout'])
 
 		if 'data_dir' in self._config:
 			self._pid_file_path = os.path.join(self._config['data_dir'], 'pychat.pid')
@@ -282,11 +291,11 @@ class Server(Network):
 		data, addr = server_sock.recvfrom(1024)
 		c_contact = data.decode('utf-8')
 
-		self._logger.debug('-> data: %s', data)
-		self._logger.debug('-> addr: %s', addr)
+		self._logger.debug('data: %s', data)
+		self._logger.debug('addr: %s', addr)
 
 		if addr[0] == self._lan_ip and addr[1] == self._config['discovery']['port']:
-			self._logger.debug('-> skip self')
+			self._logger.debug('skip self')
 			return
 
 		c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(c_contact, addr[0])
@@ -299,9 +308,9 @@ class Server(Network):
 			client = self._address_book.add_client(addr=c_contact_addr, port=c_contact_port)
 			client.debug_add = 'discovery, contact: {}'.format(c_contact)
 		else:
-			self._logger.debug('-> client: %s', client)
+			self._logger.debug('client: %s', client)
 
-		self._logger.debug('-> read_discovery client: %s', client)
+		self._logger.debug('read_discovery client: %s', client)
 
 		self._client_connect(client)
 
@@ -320,7 +329,7 @@ class Server(Network):
 
 		# TODO: activate for production
 		# if client.address == self._lan_ip and os.environ.get('ALLOW_SELF_CONNECT') != '1':
-		# 	self._logger.debug('-> skip, client.address == self._lan_ip')
+		# 	self._logger.debug('skip, client.address == self._lan_ip')
 		# 	return False
 		if client.node == self._local_node:
 			self._logger.debug('skip, client.node == self._local_node')
@@ -874,7 +883,7 @@ class Server(Network):
 		self._client_write(sock, 0, 0)
 
 	def _client_send_challenge(self, sock: socket.socket, challenge: str): # pragma: no cover
-		self._logger.debug('_client_send_challenge(%s)', type(challenge))
+		self._logger.debug('_client_send_challenge(%s)', challenge)
 
 		self._client_write(sock, 1, 1, [
 			str(self._config['challenge']['min']),
@@ -1144,6 +1153,10 @@ class Server(Network):
 
 				if client.auth == 15:
 					client.conn_mode = 2
+
+				if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
+					self._logger.debug('client timeout')
+					client.conn_mode = 0
 
 		return True
 
