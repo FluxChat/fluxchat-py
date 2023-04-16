@@ -12,6 +12,7 @@ class Message():
 	sender: str
 	receiver: str
 	target: overlay.Node
+	subject: str
 	body: str
 	created_at: dt.datetime
 	received_at: dt.datetime
@@ -21,7 +22,9 @@ class Message():
 
 	def __init__(self, receiver: str = None, body: str = None):
 		self.uuid = str(uuid.uuid4())
+		self.sender = None
 		self.receiver = receiver
+		self.subject = None
 		self.body = body
 		self.created_at = dt.datetime.utcnow()
 		self.received_at = dt.datetime.utcnow()
@@ -49,6 +52,8 @@ class Message():
 			data['sender'] = self.sender
 		if self.receiver != None:
 			data['receiver'] = self.receiver
+		if self.subject != None:
+			data['subject'] = self.subject
 		if self.body != None:
 			data['body'] = self.body
 		if self.created_at != None:
@@ -76,8 +81,14 @@ class Message():
 				self.target = overlay.Node.parse(self.receiver)
 			except:
 				self.target = None
+		if 'sender' in data:
+			self.sender = data['sender']
+		if 'subject' in data:
+			self.subject = data['subject']
 		if 'body' in data:
 			self.body = data['body']
+		if 'created_at' in data:
+			self.created_at = dt.datetime.fromisoformat(data['created_at'])
 		if 'received_at' in data:
 			self.received_at = dt.datetime.fromisoformat(data['received_at'])
 		if 'forwarded_to' in data:
@@ -87,16 +98,20 @@ class Message():
 		if 'is_delivered' in data:
 			self.is_delivered = data['is_delivered']
 
-	def encode(sender: str, subject: str, message: str) -> str:
-		today = dt.datetime.utcnow().isoformat()
+	def encode(self) -> str:
+		sender_len = len(self.sender)
+		receiver_len = len(self.receiver)
+		subject_len = len(self.subject)
+		body_len = len(self.body)
 		items = [
-			b'\x01', today.encode('utf-8'),
-			b'\x10', sender.encode('utf-8'),
-			b'\x11', subject.encode('utf-8'),
-			b'\x12', message.encode('utf-8'),
+			b'\x00\x13', dt.datetime.utcnow().strftime('%F %T').encode('utf-8'),
+			b'\x10', sender_len.to_bytes(1, 'little'), self.sender.encode('utf-8'),
+			b'\x11', receiver_len.to_bytes(1, 'little'), self.receiver.encode('utf-8'),
+			b'\x21', subject_len.to_bytes(1, 'little'), self.subject.encode('utf-8'),
+			b'\x22', body_len.to_bytes(4, 'little'), self.body.encode('utf-8'),
 		]
-		raw = ''.join(items)
-		return base64.b64encode(raw.encode('utf-8')).decode('utf-8')
+		raw = b''.join(items)
+		return base64.b64encode(raw).decode('utf-8')
 
 class Queue():
 	_path: str

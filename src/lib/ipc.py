@@ -17,8 +17,6 @@ class Ipc(Network):
 	def __init__(self, config_file: str = None):
 		self._config_file = config_file
 
-		self._logger = logging.getLogger('server')
-		self._logger.info('init')
 
 	def start(self): # pragma: no cover
 		self._load_config()
@@ -26,31 +24,45 @@ class Ipc(Network):
 		if not self._ipc_config['enabled']:
 			raise Exception('IPC is not enabled')
 
+		logConfig = {
+			'level': logging.DEBUG,
+			'format': '%(asctime)s %(process)d %(levelname)-8s %(name)-13s %(message)s',
+		}
+		logging.basicConfig(**logConfig)
+
+		self._logger = logging.getLogger('ipc')
+		self._logger.info('start')
+
 	def _load_config(self):
 		self._config = read_json_file(self._config_file)
 		self._ipc_config = self._config['ipc']
 
-	def send(self, target: str, subject: str, message: str) -> bool:
+	def send(self, target: str, subject: str, body: str) -> bool:
 		self._logger.info('send(%s, %s)', target, subject)
-
-		raw = "\n".join(['From: ' + self._config['id'], 'Subject: ' + subject, message])
-		raw = base64.b64encode(raw.encode('utf-8')).decode('utf-8')
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		sock.settimeout(2)
 		try:
 			self._logger.debug('sock.connect to %s:%s', self._ipc_config['address'], self._ipc_config['port'])
 			sock.connect((self._ipc_config['address'], self._ipc_config['port']))
-			self._logger.debug('-> sock.connect done')
+			self._logger.debug('sock.connect done')
 		except ConnectionRefusedError as e:
-			self._logger.error('-> ConnectionRefusedError: %s', e)
+			self._logger.error('ConnectionRefusedError: %s', e)
 			return False
 		except TimeoutError as e:
-			self._logger.error('-> TimeoutError: %s', e)
+			self._logger.error('TimeoutError: %s', e)
 			return False
 		except socket.timeout as e:
-			self._logger.error('-> socket.timeout: %s', e)
+			self._logger.error('socket.timeout: %s', e)
 			return False
+
+		message = Message()
+		message.sender = self._config['id']
+		message.receiver = target
+		message.subject = subject
+		message.body = body
+
+		raw = message.encode()
 
 		sock.settimeout(None)
 		self._client_send_message(sock, target, raw)

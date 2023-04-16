@@ -34,6 +34,7 @@ class Server(Network):
 	_local_node: overlay.Node
 	_public_key_b64: str
 	_pid_file_path: str
+	_wrote_pid_file: bool
 
 	def __init__(self, config: dict = {}):
 		self._host_name = socket.gethostname()
@@ -46,6 +47,7 @@ class Server(Network):
 		self._address_book = None
 		self._message_queue = None
 		self._message_db = None
+		self._wrote_pid_file = False
 
 		self._logger = logging.getLogger('server')
 		self._logger.info('init')
@@ -128,10 +130,14 @@ class Server(Network):
 			self._logger.error('Another instance of PyChat is already running.')
 			self._logger.error('If this is not the case, delete the file: %s', self._pid_file_path)
 			exit(1)
+
 		with open(self._pid_file_path, 'w') as fh:
 			fh.write(str(os.getpid()))
+		self._wrote_pid_file = True
 
 	def _remove_pid_file(self):
+		if not self._wrote_pid_file:
+			return
 		if os.path.isfile(self._pid_file_path):
 			os.remove(self._pid_file_path)
 
@@ -977,9 +983,9 @@ class Server(Network):
 				payload_raw = raw[raw_pos:]
 				payload_items = []
 
-				self._logger.debug('group: %d', group)
-				self._logger.debug('command: %d', command)
-				self._logger.debug('length: %d %s', length, type(length))
+				self._logger.debug('IPC group: %d', group)
+				self._logger.debug('IPC command: %d', command)
+				self._logger.debug('IPC length: %d %s', length, type(length))
 
 				if length >= 2048:
 					self._logger.error('IPC length too big: %d', length)
@@ -987,6 +993,7 @@ class Server(Network):
 
 				pos = 0
 				while pos < length:
+					self._logger.debug('IPC pos: %d', pos)
 					if lengths_are_4_bytes:
 						item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
 						pos += 3
@@ -994,7 +1001,10 @@ class Server(Network):
 						item_len = payload_raw[pos]
 					pos += 1
 
+					self._logger.debug('IPC item len: %d', item_len)
+
 					item = payload_raw[pos:pos + item_len]
+					self._logger.debug('IPC item: %s', item)
 
 					payload_items.append(item.decode('utf-8'))
 					pos += item_len
@@ -1026,6 +1036,7 @@ class Server(Network):
 			elif group_i == 1:
 				if command_i == 0:
 					self._logger.debug('SEND MESSAGE command')
+
 					target, message = payload
 					self._logger.debug('target: %s', target)
 					self._logger.debug('message: %s', message)
@@ -1268,11 +1279,11 @@ class Server(Network):
 					action = Action('message', message.uuid, data=message)
 					client.add_action(action)
 			else:
-				self._logger.debug('message is not encrypted')
+				self._logger.debug('message is not encrypted yet')
 
 				client = self._address_book.get_client_by_id(message.target.id)
 				if client == None or not client.has_public_key():
-					self._logger.debug('client is set and has not public key')
+					self._logger.debug('client is set and has no public key')
 					for client in clients:
 						self._logger.debug('client %s', client)
 
@@ -1328,7 +1339,7 @@ class Server(Network):
 		self._logger.debug('_decrypt_message()')
 
 		if not message.is_encrypted:
-			self._logger.debug('message is not encrypted')
+			self._logger.debug('message already decrypted')
 			return
 
 		self._logger.debug('body %s', message.body)

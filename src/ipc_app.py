@@ -14,9 +14,6 @@ def main():
 	parser.add_argument('command')
 
 	args = parser.parse_args()
-	print(args)
-
-	print('-> pid:', os.getpid())
 
 	app = Ipc(args.config[0])
 	app.start()
