@@ -142,8 +142,11 @@ class AddressBook():
 
 		return client
 
-	def remove_client(self, client: Client):
-		self._logger.debug('remove_client %s', client)
+	def remove_client(self, client: Client) -> bool:
+		self._logger.debug('remove_client(%s)', client)
+
+		if client.is_trusted:
+			return False
 
 		key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
 		if os.path.isfile(key_file_path):
@@ -155,28 +158,48 @@ class AddressBook():
 
 		self.changed()
 
-	def add_bootstrap(self, file: str):
-		_data = read_json_file(file, [])
+		return True
+
+	def add_bootstrap(self, file_path: str):
+		self._logger.debug('add_bootstrap(%s)', file_path)
+		_data = read_json_file(file_path, [])
 		for row in _data:
 			items = row.split(':')
+			items_len = len(items)
+
+			address = items[0]
+			port = int(items[1])
+			if items_len >= 3:
+				is_trusted = items[2] == 't'
+			else:
+				is_trusted = False
+
+			_client = self.get_client_by_addr_port(address, port)
+			if _client != None:
+				self._logger.debug('bootstrap client already exists: %s', _client)
+				continue
 
 			client = Client()
-			client.address = items[0]
-			client.port = int(items[1])
+			client.address = address
+			client.port = port
 			client.is_bootstrap = True
+			client.is_trusted = is_trusted
 			client.debug_add = 'bootstrap'
 
 			self._clients_by_uuid[client.uuid] = client
 			if client.id != None:
 				self._clients_by_id[client.id] = client
+
 			self.changed()
 
-		write_json_file(file, [])
+		write_json_file(file_path, [])
 
 	def changed(self):
 		self._changes = True
 
 	def hard_clean_up(self, local_id: str = None):
+		self._logger.debug('hard_clean_up(%s)', local_id)
+
 		# remove local_id
 		if local_id != None and local_id in self._clients_by_id:
 			del self._clients_by_id[local_id]
@@ -190,33 +213,33 @@ class AddressBook():
 		# remove bootstrap clients with no meetings
 		_clients = list(filter(lambda _client: _client.is_bootstrap and _client.meetings == 0, _clients))
 		for client in _clients:
-			self.remove_client(client)
-			_clients_len -= 1
-			if _clients_len <= self._ab_config['max_clients']:
-				return
+			if self.remove_client(client):
+				_clients_len -= 1
+				if _clients_len <= self._ab_config['max_clients']:
+					return
 
 		# remove out-of-date clients (invalid client_retention_time)
 		_clients = list(self._clients_by_uuid.values())
 		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
-			self.remove_client(client)
-			_clients_len -= 1
-			if _clients_len <= self._ab_config['max_clients']:
-				return
+			if self.remove_client(client):
+				_clients_len -= 1
+				if _clients_len <= self._ab_config['max_clients']:
+					return
 
 		# remove clients, sorted by meetings
 		_clients = list(self._clients_by_uuid.values())
 		_clients.sort(key=lambda _client: _client.meetings)
 
 		for client in _clients:
-			self.remove_client(client)
-			_clients_len -= 1
-			if _clients_len <= self._ab_config['max_clients']:
-				return
+			if self.remove_client(client):
+				_clients_len -= 1
+				if _clients_len <= self._ab_config['max_clients']:
+					return
 
 	def soft_clean_up(self, local_id: str = None):
-		self._logger.debug('soft_clean_up() %s', local_id)
+		self._logger.debug('soft_clean_up(%s)', local_id)
 
 		# remove local_id
 		if local_id != None and local_id in self._clients_by_id:
@@ -230,10 +253,10 @@ class AddressBook():
 		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
-			self.remove_client(client)
-			_clients_len -= 1
-			if _clients_len <= self._ab_config['max_clients']:
-				return
+			if self.remove_client(client):
+				_clients_len -= 1
+				if _clients_len <= self._ab_config['max_clients']:
+					return
 
 	def get_nearest_to(self, node: overlay.Node, limit: int = 20, with_contact_infos: bool = None) -> list:
 		_clients = list(self._clients_by_uuid.values())

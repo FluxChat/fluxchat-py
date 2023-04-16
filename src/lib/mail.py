@@ -159,7 +159,7 @@ class Queue():
 		return True
 
 	def add_message(self, message: Message):
-		self._logger.debug('add_message %s', message)
+		self._logger.debug('add_message(%s)', message)
 
 		self._messages_by_uuid[message.uuid] = message
 		self._changes = True

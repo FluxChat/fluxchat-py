@@ -916,8 +916,8 @@ class Server(Network):
 
 	def _client_response_public_key_for_node(self, sock: socket.socket, id: str, public_key: str): # pragma: no cover
 		self._logger.debug('_client_response_public_key_for_node()')
-		self._logger.debug('type: %s', type(id))
-		self._logger.debug('type: %s', type(public_key))
+		# self._logger.debug('type: %s', type(id))
+		# self._logger.debug('type: %s', type(public_key))
 		self._logger.debug('public key: %s', public_key)
 
 		self._client_write(sock, 2, 4, [id, public_key])

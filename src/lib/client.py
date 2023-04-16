@@ -7,7 +7,6 @@ import base58
 import base64
 
 import lib.overlay as overlay
-# import lib.cash as cash
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -47,6 +46,7 @@ class Client():
 	seen_at: dt.datetime
 	meetings: int
 	is_bootstrap: bool
+	is_trusted: bool
 	debug_add: str
 
 	# Unmapped
@@ -87,6 +87,7 @@ class Client():
 		self.used_at = dt.datetime.utcnow()
 		self.meetings = 0
 		self.is_bootstrap = False
+		self.is_trusted = False
 		self.debug_add = 'Init'
 
 		# Unmapped
@@ -139,6 +140,8 @@ class Client():
 			data['meetings'] = self.meetings
 		if self.is_bootstrap:
 			data['is_bootstrap'] = self.is_bootstrap
+		if self.is_trusted:
+			data['is_trusted'] = self.is_trusted
 		if self.debug_add != None:
 			data['debug_add'] = self.debug_add
 
@@ -161,6 +164,8 @@ class Client():
 			self.meetings = int(data['meetings'])
 		if 'is_bootstrap' in data:
 			self.is_bootstrap = data['is_bootstrap']
+		if 'is_trusted' in data:
+			self.is_trusted = data['is_trusted']
 		if 'debug_add' in data:
 			self.debug_add = data['debug_add']
 
