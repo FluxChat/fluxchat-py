@@ -13,7 +13,7 @@
 		"client_retention_time": 24
 	},
 	"client": {
-		"auth_timeout": 2,
+		"auth_timeout": 2
 	},
 	"discovery": {
 		"enabled": false,
