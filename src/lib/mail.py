@@ -27,7 +27,7 @@ class Message():
 		self.subject = None
 		self.body = body
 		self.created_at = dt.datetime.utcnow()
-		self.received_at = dt.datetime.utcnow()
+		self.received_at = None
 		self.forwarded_to = []
 		self.is_encrypted = False
 		self.is_delivered = None
@@ -119,6 +119,7 @@ class Queue():
 	_mail_config: dict
 	_messages_by_uuid: dict
 	_changes: bool
+	_message_retention_time: dt.timedelta
 
 	def __init__(self, path: str, config: dict = None):
 		self._path = path
@@ -126,6 +127,8 @@ class Queue():
 		self._mail_config = self._config['mail']
 		self._messages_by_uuid = dict()
 		self._changes = False
+
+		self._message_retention_time = dt.timedelta(hours=self._mail_config['message_retention_time'])
 
 		self._logger = logging.getLogger('mail.Queue')
 		self._logger.info('init()')
@@ -179,7 +182,7 @@ class Queue():
 
 		remove_messages = []
 
-		ffunc = lambda _message: _message[1].received_at < dt.datetime.utcnow() - dt.timedelta(hours=self._mail_config['message_retention_time'])
+		ffunc = lambda _message: dt.datetime.utcnow() - _message[1].created_at >= self._message_retention_time
 		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
 		self._logger.debug('old_messages A: %s', old_messages)
 		remove_messages += old_messages
