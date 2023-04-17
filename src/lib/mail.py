@@ -41,7 +41,7 @@ class Message():
 				self.target = None
 
 	def __str__(self):
-		return 'Message({},t={})'.format(self.uuid, self.receiver)
+		return 'Message({},r={})'.format(self.uuid, self.receiver)
 
 	def __repr__(self):
 		return self.__str__()
