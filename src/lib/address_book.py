@@ -27,7 +27,7 @@ class AddressBook():
 		self._changes = False
 
 		self._logger = logging.getLogger('address_book')
-		self._logger.info('init')
+		self._logger.info('init()')
 
 		if self._ab_config == None:
 			self._clients_ttl = dt.timedelta(hours=1)
@@ -37,7 +37,7 @@ class AddressBook():
 		self._logger.info('clients_ttl %s', self._clients_ttl)
 
 	def load(self):
-		self._logger.debug('load')
+		self._logger.debug('load()')
 
 		_data = read_json_file(self._path, {})
 		for client_uuid, row in _data.items():

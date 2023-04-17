@@ -128,7 +128,7 @@ class Queue():
 		self._changes = False
 
 		self._logger = logging.getLogger('mail.Queue')
-		self._logger.info('init')
+		self._logger.info('init()')
 
 	def load(self):
 		self._logger.info('load')
@@ -205,10 +205,10 @@ class Database():
 		self._changes = False
 
 		self._logger = logging.getLogger('mail.Database')
-		self._logger.info('init')
+		self._logger.info('init()')
 
 	def load(self):
-		self._logger.info('load')
+		self._logger.info('load()')
 
 		data = read_json_file(self._path, {})
 		for message_uuid, message_raw in data.items():

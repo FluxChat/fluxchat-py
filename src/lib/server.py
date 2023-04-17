@@ -53,7 +53,7 @@ class Server(Network):
 		self._client_auth_timeout = None
 
 		self._logger = logging.getLogger('server')
-		self._logger.info('init')
+		self._logger.info('init()')
 
 		self._config = config
 		if 'address_book' not in self._config:
@@ -134,6 +134,8 @@ class Server(Network):
 
 		self._remove_pid_file()
 
+		self._logger.info('__del__() end')
+
 	def _write_pid_file(self):
 		if os.path.isfile(self._pid_file_path):
 			self._logger.error('Another instance of PyChat is already running.')
@@ -145,6 +147,7 @@ class Server(Network):
 		self._wrote_pid_file = True
 
 	def _remove_pid_file(self):
+		self._logger.info('_remove_pid_file()')
 		if not self._wrote_pid_file:
 			return
 		if os.path.isfile(self._pid_file_path):
@@ -1043,6 +1046,7 @@ class Server(Network):
 			if group_i == 0: # Basic
 				if command_i == 0:
 					self._logger.debug('OK command')
+
 			elif group_i == 1:
 				if command_i == 0:
 					self._logger.debug('SEND MESSAGE command')
@@ -1057,6 +1061,11 @@ class Server(Network):
 					self._logger.debug('uuid: %s', message.uuid)
 
 					self._client_send_ok(sock)
+
+			elif group_i == 2:
+				if command_i == 0:
+					self._logger.debug('SAVE command')
+					self.save()
 
 	def run(self) -> bool:
 		# self._logger.debug('run()')

@@ -3,7 +3,7 @@ import logging
 import socket
 import base64
 import time
-import json
+import selectors
 
 from lib.network import Network
 from lib.helper import read_json_file
@@ -16,7 +16,7 @@ class Ipc(Network):
 
 	def __init__(self, config_file: str = None):
 		self._config_file = config_file
-
+		self._selectors = selectors.DefaultSelector()
 
 	def start(self): # pragma: no cover
 		self._load_config()
@@ -40,6 +40,36 @@ class Ipc(Network):
 	def send(self, target: str, subject: str, body: str) -> bool:
 		self._logger.info('send(%s, %s)', target, subject)
 
+		sock = self._client_connect()
+		if not sock:
+			return False
+
+		message = Message()
+		message.sender = self._config['id']
+		message.receiver = target
+		message.subject = subject
+		message.body = body
+
+		raw = message.encode()
+
+		self._client_send_message(sock, target, raw)
+		time.sleep(0.1) # TODO replace with selectors
+		sock.close()
+
+		return True
+
+	def save(self):
+		self._logger.info('save()')
+
+		sock = self._client_connect()
+		if not sock:
+			return False
+
+		self._client_send_save(sock)
+		time.sleep(0.1) # TODO replace with selectors
+		sock.close()
+
+	def _client_connect(self):
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		sock.settimeout(2)
 		try:
@@ -55,21 +85,9 @@ class Ipc(Network):
 		except socket.timeout as e:
 			self._logger.error('socket.timeout: %s', e)
 			return False
-
-		message = Message()
-		message.sender = self._config['id']
-		message.receiver = target
-		message.subject = subject
-		message.body = body
-
-		raw = message.encode()
-
 		sock.settimeout(None)
-		self._client_send_message(sock, target, raw)
-		time.sleep(0.1) # TODO replace with selectors
-		sock.close()
 
-		return True
+		return sock
 
 	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
 		self._logger.debug('_client_send_ok()')
@@ -78,3 +96,7 @@ class Ipc(Network):
 	def _client_send_message(self, sock: socket.socket, target: str, raw: str): # pragma: no cover
 		self._logger.debug('_client_send_message()')
 		self._client_write(sock, 1, 0, [target, raw])
+
+	def _client_send_save(self, sock: socket.socket): # pragma: no cover
+		self._logger.debug('_client_send_save()')
+		self._client_write(sock, 2, 0)

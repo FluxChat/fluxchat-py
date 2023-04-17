@@ -85,10 +85,10 @@ class PyChat():
 		self._config = read_json_file(self._config_file)
 
 	def run(self):
-		self._logger.info('run')
+		self._logger.info('run()')
 		self._scheduler.run()
 		self._logger.info('run finished')
 
 	def shutdown(self, reason: str = None):
-		self._logger.info('shutdown: %s', reason)
+		self._logger.info('shutdown(%s)', reason)
 		self._scheduler.shutdown(reason)

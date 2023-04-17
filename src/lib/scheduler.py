@@ -17,7 +17,10 @@ class Scheduler():
 		self._tasks = []
 
 		self._logger = logging.getLogger('scheduler')
-		self._logger.info('init')
+		self._logger.info('init()')
+
+	def __del__(self):
+		self._logger.info('__del__()')
 
 	def add_task(self, execfunc, interval: dt.timedelta = None, one_shot: bool = False):
 		self._logger.debug('add_task(%s, %s)', execfunc, interval)

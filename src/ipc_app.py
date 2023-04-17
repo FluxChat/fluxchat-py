@@ -8,9 +8,9 @@ from lib.ipc import Ipc
 def main():
 	parser = argparse.ArgumentParser(prog='ipc_app', description='IPC App')
 	parser.add_argument('-c', '--config', type=str, nargs=1, required=True, help='Path to Config File')
-	parser.add_argument('-t', '--target', type=str, nargs='?', required=True, help='Target to send message to')
-	parser.add_argument('-s', '--subject', type=str, nargs='?', required=True, help='Subject')
-	parser.add_argument('-m', '--message', type=str, nargs='?', required=True, help='Message to send')
+	parser.add_argument('-t', '--target', type=str, nargs='?', required=False, help='Target to send message to')
+	parser.add_argument('-s', '--subject', type=str, nargs='?', required=False, help='Subject')
+	parser.add_argument('-m', '--message', type=str, nargs='?', required=False, help='Message to send')
 	parser.add_argument('command')
 
 	args = parser.parse_args()
@@ -23,6 +23,8 @@ def main():
 			print('-> Message sent')
 		else:
 			print('-> Message not sent')
+	elif args.command == 'save':
+		app.save()
 
 if __name__ == '__main__':
 	main()
