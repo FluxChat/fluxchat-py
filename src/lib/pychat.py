@@ -24,6 +24,9 @@ class PyChat():
 		self._logger = None
 		self._loglevel = loglevel
 
+	def __del__(self):
+		self._logger.info('__del__()')
+
 	def start(self): # pragma: no cover
 		# Init
 		self._load_config()
