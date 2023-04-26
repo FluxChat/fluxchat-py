@@ -4,7 +4,7 @@ from lib.helper import generate_id_from_public_key_file, resolve_contact, is_val
 
 class HelperTestCase(unittest.TestCase):
 	def test_generate_id_from_public_key_file(self):
-		self.assertEqual(generate_id_from_public_key_file('resources/tests/public_key.pem'), 'FC_3iB6UnLXWdPfi2eLVEfY1d5eEaMR')
+		self.assertEqual(generate_id_from_public_key_file('resources/tests/public_key.pem'), 'FC_Da6bDVBD1wT84v3z3nTMB8uWwgUw1DSxsfsvToaVYr9m')
 
 	def test_resolve_contact(self):
 		data = [

@@ -281,7 +281,7 @@ class Client():
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		hash_obj = hashlib.new('ripemd160')
+		hash_obj = hashlib.new('sha256')
 		hash_obj.update(public_bytes)
 
 		base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')

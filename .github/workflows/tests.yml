@@ -26,7 +26,8 @@ jobs:
         run: |
           set -x
           openssl version -d
-          openssl speed ripemd160
+          echo -n ABC | openssl dgst -sha256
+          openssl speed sha256
 
           which -a python
           which -a python2 || true

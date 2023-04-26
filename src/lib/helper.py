@@ -25,7 +25,7 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 		encoding=serialization.Encoding.DER,
 		format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
-	hash_obj = hashlib.new('ripemd160')
+	hash_obj = hashlib.new('sha256')
 	hash_obj.update(public_bytes)
 
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
@@ -34,7 +34,7 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 def generate_test_id() -> str: # pragma: no cover
 	public_bytes = secrets.token_bytes(20)
 
-	hash_obj = hashlib.new('ripemd160')
+	hash_obj = hashlib.new('sha256')
 	hash_obj.update(public_bytes)
 
 	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
