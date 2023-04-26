@@ -22,9 +22,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Python Versions
+      - name: Versions
         run: |
           set -x
+          openssl version -d
+          openssl speed ripemd160
+
           which -a python
           which -a python2 || true
           which -a python3 || true
