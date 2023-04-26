@@ -196,7 +196,7 @@ class Server(Network):
 
 			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
 
-		if 'ipc' in self._config and self._config['ipc']:
+		if 'ipc' in self._config and self._config['ipc']['enabled']:
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
 			self._logger.debug('ipc %s', ipc_addr)
 
