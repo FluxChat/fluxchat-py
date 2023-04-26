@@ -24,6 +24,14 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          which -a python
+          which -a python2 || true
+          which -a python3 || true
+
+          python --version
+          python2 --version || true
+          python3 --version || true
+
           python -m pip install --upgrade pip
           pip --version
           pip3 --version
