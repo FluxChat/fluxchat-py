@@ -69,7 +69,7 @@ class Server(Network):
 		self._client_auth_timeout = dt.timedelta(seconds=self._config['client']['auth_timeout'])
 
 		if 'data_dir' in self._config:
-			self._pid_file_path = os.path.join(self._config['data_dir'], 'fluxchat.pid')
+			self._pid_file_path = os.path.join(self._config['data_dir'], 'server.pid')
 			self._write_pid_file()
 
 			if 'public_key_file' not in self._config:

@@ -3,7 +3,7 @@
 import signal
 import argparse
 
-from lib.fluxchat import FluxChat
+from lib.app.server import ServerApp
 
 def main():
 	parser = argparse.ArgumentParser(prog='server_app', description='Server App')
@@ -13,7 +13,7 @@ def main():
 
 	args = parser.parse_args()
 
-	app = FluxChat(args.config[0], args.dev, args.loglevel)
+	app = ServerApp(args.config[0], args.dev, args.loglevel)
 
 	signal.signal(signal.SIGINT, lambda sig, frame: app.shutdown('SIGINT'))
 

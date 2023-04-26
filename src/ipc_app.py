@@ -3,7 +3,7 @@
 import os
 import argparse
 
-from lib.ipc import Ipc
+from lib.app.ipc import IpcApp
 
 def main():
 	parser = argparse.ArgumentParser(prog='ipc_app', description='IPC App')
@@ -15,7 +15,7 @@ def main():
 
 	args = parser.parse_args()
 
-	app = Ipc(args.config[0])
+	app = IpcApp(args.config[0])
 	app.start()
 
 	if args.command == 'send':

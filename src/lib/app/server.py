@@ -8,7 +8,7 @@ from lib.helper import read_json_file
 from lib.server import Server
 from lib.scheduler import Scheduler
 
-class FluxChat():
+class ServerApp():
 	_config_file: str
 	_config: dict
 	_server: Server

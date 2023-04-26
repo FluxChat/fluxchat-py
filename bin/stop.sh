@@ -3,7 +3,7 @@
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
-pid_file=var/data1/fluxchat.pid
+pid_file=var/data1/server.pid
 if test -f ${pid_file} ; then
 	echo "-> found pid file"
 

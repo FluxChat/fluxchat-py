@@ -9,7 +9,7 @@ from lib.network import Network
 from lib.helper import read_json_file
 from lib.mail import Message
 
-class Ipc(Network):
+class IpcApp(Network):
 	_config_file: str
 	_config: dict
 	_ipc_config: dict

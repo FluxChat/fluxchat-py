@@ -41,7 +41,7 @@ export FLUXCHAT_DATA_DIR=var/data2
 
 ```bash
 source ./.venv/bin/activate
-./src/fluxchat_app.py --dev -c var/config1.json
+./src/server_app.py --dev -c var/config1.json
 
 cd src
 python3 -m unittest tests/test_mail.py
