@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.11']
+        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10', '3.11']
 
     steps:
       - uses: actions/checkout@v3
@@ -25,9 +25,6 @@ jobs:
       - name: Versions
         run: |
           set -x
-          openssl version -d
-          echo -n ABC | openssl dgst -sha256
-          openssl speed sha256
 
           which -a python
           which -a python2 || true
