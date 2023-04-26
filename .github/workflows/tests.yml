@@ -21,23 +21,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Versions
-        run: |
-          set -x
-
-          which -a python
-          which -a python2 || true
-          which -a python3 || true
-
-          python --version
-          python2 --version || true
-          python3 --version || true
-
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          set -x
-          pip --version
           pip3 --version
           pip3 install -r requirements.txt
 
