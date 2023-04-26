@@ -1,9 +1,9 @@
 {
-	"address": "${PYCHAT_ADDRESS}",
-	"port": ${PYCHAT_PORT},
-	"contact": "${PYCHAT_CONTACT}",
-	"id": "${PYCHAT_ID}",
-	"data_dir": "${PYCHAT_DATA_DIR}",
+	"address": "${FLUXCHAT_ADDRESS}",
+	"port": ${FLUXCHAT_PORT},
+	"contact": "${FLUXCHAT_CONTACT}",
+	"id": "${FLUXCHAT_ID}",
+	"data_dir": "${FLUXCHAT_DATA_DIR}",
 	"challenge": {
 		"min": 15,
 		"max": 20
@@ -30,6 +30,6 @@
 	},
 	"log": {
 		"level": "debug",
-		"file": "${PYCHAT_LOG_FILE}"
+		"file": "${FLUXCHAT_LOG_FILE}"
 	}
 }

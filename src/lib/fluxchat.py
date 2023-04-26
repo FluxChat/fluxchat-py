@@ -8,7 +8,7 @@ from lib.helper import read_json_file
 from lib.server import Server
 from lib.scheduler import Scheduler
 
-class PyChat():
+class FluxChat():
 	_config_file: str
 	_config: dict
 	_server: Server
@@ -53,7 +53,7 @@ class PyChat():
 			logConfig['filemode'] = 'a'
 		logging.basicConfig(**logConfig)
 
-		self._logger = logging.getLogger('pychat')
+		self._logger = logging.getLogger('fluxchat')
 		self._logger.info('start')
 
 		# Server

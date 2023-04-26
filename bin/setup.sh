@@ -7,30 +7,30 @@ which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; e
 which openssl &> /dev/null || { echo 'ERROR: openssl not found in PATH'; exit 1; }
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
 
-export PYCHAT_CONFIG=${PYCHAT_CONFIG:-var/config1.json}
-export PYCHAT_ADDRESS=${PYCHAT_ADDRESS:-0.0.0.0}
-export PYCHAT_PORT=${PYCHAT_PORT:-25001}
-export PYCHAT_DATA_DIR=${PYCHAT_DATA_DIR:-var/data1}
-export PYCHAT_LOG_FILE=${PYCHAT_LOG_FILE:-pychat.log}
+export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-var/config1.json}
+export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-0.0.0.0}
+export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
+export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-var/data1}
+export FLUXCHAT_LOG_FILE=${FLUXCHAT_LOG_FILE:-fluxchat.log}
 
 cd "${SCRIPT_BASEDIR}/.."
 pwd
 
-export PYCHAT_CONTACT=${PYCHAT_CONTACT:-public} # public, private or ip:port
+export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
 
-echo "-> PYCHAT_CONFIG: ${PYCHAT_CONFIG}"
-echo "-> PYCHAT_ADDRESS: ${PYCHAT_ADDRESS}"
-echo "-> PYCHAT_PORT: ${PYCHAT_PORT}"
-echo "-> PYCHAT_CONTACT_IP: ${PYCHAT_CONTACT_IP}"
-echo "-> PYCHAT_CONTACT_PORT: ${PYCHAT_CONTACT_PORT}"
-echo "-> PYCHAT_CONTACT: ${PYCHAT_CONTACT}"
-echo "-> PYCHAT_DATA_DIR: ${PYCHAT_DATA_DIR}"
+echo "-> FLUXCHAT_CONFIG: ${FLUXCHAT_CONFIG}"
+echo "-> FLUXCHAT_ADDRESS: ${FLUXCHAT_ADDRESS}"
+echo "-> FLUXCHAT_PORT: ${FLUXCHAT_PORT}"
+echo "-> FLUXCHAT_CONTACT_IP: ${FLUXCHAT_CONTACT_IP}"
+echo "-> FLUXCHAT_CONTACT_PORT: ${FLUXCHAT_CONTACT_PORT}"
+echo "-> FLUXCHAT_CONTACT: ${FLUXCHAT_CONTACT}"
+echo "-> FLUXCHAT_DATA_DIR: ${FLUXCHAT_DATA_DIR}"
 
-mkdir -p ${PYCHAT_DATA_DIR}
-chmod go-rwx ${PYCHAT_DATA_DIR}
+mkdir -p ${FLUXCHAT_DATA_DIR}
+chmod go-rwx ${FLUXCHAT_DATA_DIR}
 
-rsa_priv_key_file=${PYCHAT_DATA_DIR}/private_key.pem
-rsa_pub_key_file=${PYCHAT_DATA_DIR}/public_key.pem
+rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
+rsa_pub_key_file=${FLUXCHAT_DATA_DIR}/public_key.pem
 if ! test -f ${rsa_priv_key_file} ; then
 	echo '-> generating rsa key'
 	openssl genrsa -out ${rsa_priv_key_file} 4096
@@ -49,14 +49,14 @@ fi
 source ./.venv/bin/activate
 pip3 install -r requirements.txt
 
-if ! test -f ${PYCHAT_CONFIG}; then
+if ! test -f ${FLUXCHAT_CONFIG}; then
 	echo '-> generating id'
-	export PYCHAT_ID=$(./src/gen_id.py -f ${PYCHAT_DATA_DIR}/public_key.pem)
+	export FLUXCHAT_ID=$(./src/gen_id.py -f ${FLUXCHAT_DATA_DIR}/public_key.pem)
 
 	echo '-> generating config'
-	envsubst < ./config-example.json > ${PYCHAT_CONFIG}
+	envsubst < ./config-example.json > ${FLUXCHAT_CONFIG}
 fi
-if ! test -f ${PYCHAT_DATA_DIR}/bootstrap.json; then
+if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json; then
 	echo '-> generating bootstrap'
-	cp ./bootstrap.json ${PYCHAT_DATA_DIR}/bootstrap.json
+	cp ./bootstrap.json ${FLUXCHAT_DATA_DIR}/bootstrap.json
 fi

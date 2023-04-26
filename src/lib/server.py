@@ -69,7 +69,7 @@ class Server(Network):
 		self._client_auth_timeout = dt.timedelta(seconds=self._config['client']['auth_timeout'])
 
 		if 'data_dir' in self._config:
-			self._pid_file_path = os.path.join(self._config['data_dir'], 'pychat.pid')
+			self._pid_file_path = os.path.join(self._config['data_dir'], 'fluxchat.pid')
 			self._write_pid_file()
 
 			if 'public_key_file' not in self._config:
@@ -138,7 +138,7 @@ class Server(Network):
 
 	def _write_pid_file(self):
 		if os.path.isfile(self._pid_file_path):
-			self._logger.error('Another instance of PyChat is already running.')
+			self._logger.error('Another instance of FluxChat is already running.')
 			self._logger.error('If this is not the case, delete the file: %s', self._pid_file_path)
 			exit(1)
 
