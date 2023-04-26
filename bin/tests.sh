@@ -9,8 +9,13 @@ mkdir -p tmp/tests/data_default
 mkdir -p tmp/tests/data_custom
 mkdir -p tmp/tests/keys
 
-. .venv/bin/activate
+if [[ -z "${CI}" ]] ; then
+	. .venv/bin/activate
 
-set -x
-coverage run -m unittest discover -s src
-coverage html -d tmp/coverage
+	set -x
+	coverage run -m unittest discover -s src
+	coverage html -d tmp/coverage
+else
+	set -x
+	python -m unittest discover -s src
+fi

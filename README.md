@@ -50,6 +50,7 @@ python3 -m unittest tests/test_mail.py
 ```
 
 ```bash
+export IS_UNITTEST=true
 export PYTHONPATH=$PWD/src
 coverage run -m unittest tests.test_address_book.AddressBookTestCase.test_save_load
 ```
