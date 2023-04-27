@@ -9,6 +9,10 @@ class Network(): # pragma: no cover
 
 		for item in data:
 			#self._logger.debug('data item: %s %s', type(item), item)
+
+			if isinstance(item, int):
+				continue
+
 			item_content_len = len(item)
 			if item_content_len > 255:
 				flag_lengths_are_4_bytes = True
@@ -18,7 +22,15 @@ class Network(): # pragma: no cover
 		payload_len_i = 0
 		payload_items = []
 		for item in data:
-			item_content_len = len(item)
+			enconded_item = None
+			if isinstance(item, str):
+				enconded_item = item.encode('utf-8')
+			elif isinstance(item, bytes):
+				enconded_item = item
+			elif isinstance(item, int):
+				enconded_item = item.to_bytes(4, 'little')
+
+			item_content_len = len(enconded_item)
 			payload_len_i += item_content_len
 			self._logger.debug('item: l=%d t=%s i=%s', item_content_len, type(item), item)
 
@@ -30,7 +42,7 @@ class Network(): # pragma: no cover
 				payload_items.append(item_content_len.to_bytes(1, 'little'))
 
 			payload_len_i += 1
-			payload_items.append(item.encode('utf-8'))
+			payload_items.append(enconded_item)
 
 		self._logger.debug('payload_len_i: %d', payload_len_i)
 		self._logger.debug('payload_items: %s', payload_items)

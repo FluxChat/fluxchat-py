@@ -20,6 +20,8 @@ from lib.network import Network
 from lib.cash import Cash
 import lib.overlay as overlay
 
+VERSION = 1
+
 class Server(Network):
 	_config: dict
 	_selectors: selectors.DefaultSelector
@@ -524,10 +526,12 @@ class Server(Network):
 						self._logger.debug('skip, already authenticated')
 						continue
 
-					c_id = payload[0]
-					c_cc_proof = payload[1]
-					c_cc_nonce = int(payload[2])
+					c_version = int.from_bytes(payload[0].encode('utf-8'), 'little')
+					c_id = payload[1]
+					c_cc_proof = payload[2]
+					c_cc_nonce = int(payload[3])
 
+					self._logger.debug('c_version: %s', c_version)
 					self._logger.debug('c_id: %s', c_id)
 					self._logger.debug('c_cc_proof: %s', c_cc_proof)
 					self._logger.debug('c_cc_nonce: %s', c_cc_nonce)
@@ -539,6 +543,14 @@ class Server(Network):
 						client.conn_mode = 0
 						client.conn_msg = 'ID is local node'
 						continue
+
+					# Version
+					# if c_version < self._config['version']['min']:
+					# 	self._logger.warning('skip, version is too old: %d < %d', c_version, self._config['version']['min'])
+					# 	self._logger.debug('conn mode 0')
+					# 	client.conn_mode = 0
+					# 	client.conn_msg = 'version is too old'
+					# 	continue
 
 					# Challenge
 					if not client.cash.verify(c_cc_proof, c_cc_nonce):
@@ -901,6 +913,7 @@ class Server(Network):
 	def _client_send_id(self, sock: socket.socket, proof: str, nonce: str): # pragma: no cover
 		self._logger.debug('_client_send_id(%s, %s)', proof, nonce)
 		data = [
+			VERSION,
 			self._config['id'],
 			proof,
 			nonce,
