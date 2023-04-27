@@ -30,7 +30,7 @@ class Node():
 		if self.id[0:3] != 'FC_':
 			return False
 
-		return len(self.decode()) == 20
+		return len(self.decode()) == 32
 
 	def distance(self, other):
 		return Distance(self, other)
