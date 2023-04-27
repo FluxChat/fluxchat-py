@@ -337,6 +337,7 @@ class Server(Network):
 
 		client.conn_mode = 1
 		client.dir_mode = 'o'
+		client.refresh_used_at()
 
 		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		client.sock.settimeout(2)
