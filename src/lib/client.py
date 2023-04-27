@@ -58,6 +58,7 @@ class Client():
 	# 1 = CONNECTED
 	# 2 = AUTHENTICATED (has sent ID command and received ID command)
 	conn_mode: int
+	conn_msg: str
 
 	# Directory Mode
 	# i = incoming
@@ -94,6 +95,7 @@ class Client():
 		self.node = None
 		self.sock = None
 		self.conn_mode = 0
+		self.conn_msg = 'Init'
 		self.dir_mode = None
 		self.auth = 0
 		self.actions = list()

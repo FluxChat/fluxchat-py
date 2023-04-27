@@ -399,6 +399,7 @@ class Server(Network):
 					self._logger.debug('IndexError: %s', e)
 					self._logger.debug('conn mode 0')
 					client.conn_mode = 0
+					client.conn_msg = 'array index out of range'
 					return
 
 				lengths_are_4_bytes = flags_i & 1 != 0
@@ -410,6 +411,7 @@ class Server(Network):
 					self._logger.debug('struct.error: %s', e)
 					self._logger.debug('conn mode 0')
 					client.conn_mode = 0
+					client.conn_msg = 'unpack error'
 					return
 
 				payload_raw = raw[raw_pos:]
@@ -450,6 +452,7 @@ class Server(Network):
 
 			self._logger.debug('conn mode 0')
 			client.conn_mode = 0
+			client.conn_msg = 'no data'
 
 	def _client_commands(self, sock: socket.socket, client: Client, commands: list): # pragma: no cover
 		for command_raw in commands:
@@ -463,6 +466,7 @@ class Server(Network):
 				self._logger.debug('not authenticated: %s', client.auth)
 				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
+				client.conn_msg = 'not authenticated'
 				continue
 
 			if group_i == 0: # Basic
@@ -489,12 +493,14 @@ class Server(Network):
 						self._logger.warning('skip, challenge data too long: %d > 36', c_data_len)
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
+						client.conn_msg = 'challenge data too long'
 						continue
 
 					if client.challenge[0] > self._config['challenge']['max']:
 						self._logger.warning('skip, challenge min is too big: %d > %d', client.challenge[0], self._config['challenge']['max'])
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
+						client.conn_msg = 'challenge min is too big'
 						continue
 
 					cash = Cash(client.challenge[2], client.challenge[0])
@@ -530,6 +536,7 @@ class Server(Network):
 						self._logger.debug('skip, ID is local node')
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
+						client.conn_msg = 'ID is local node'
 						continue
 
 					# Challenge
@@ -537,6 +544,7 @@ class Server(Network):
 						self._logger.warning('skip, challenge not verified')
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
+						client.conn_msg = 'challenge not verified'
 						continue
 					self._logger.debug('cash verifiyed')
 
@@ -874,6 +882,7 @@ class Server(Network):
 				self._logger.debug('unknown group %d, command %d', group_i, command_i)
 				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
+				client.conn_msg = 'unknown group %d, command %d' % (group_i, command_i)
 
 	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
 		self._logger.debug('_client_send_ok()')
@@ -1134,6 +1143,7 @@ class Server(Network):
 			# Remove clients that are not connected
 			if client.conn_mode == 0:
 				self._logger.debug('remove client: %s', client)
+				self._logger.debug('reason: %s', client.conn_msg)
 				self._selectors.unregister(client.sock)
 				client.sock.close()
 				self._clients.remove(client)
@@ -1158,8 +1168,10 @@ class Server(Network):
 					client.conn_mode = 2
 
 				if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
-					self._logger.debug('client timeout')
+					self._logger.debug('client used_at: %s', client.used_at)
+					self._logger.debug('client timeout (%s)', self._client_auth_timeout)
 					client.conn_mode = 0
+					client.conn_msg = 'timeout'
 
 		return True
 
