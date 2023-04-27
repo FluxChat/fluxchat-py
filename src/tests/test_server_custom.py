@@ -15,7 +15,7 @@ class ServerTestCase(unittest.TestCase):
 				'port': 26000,
 			},
 			'mail': {
-				'message_retention_time': 24
+				'retention_time': 24
 			}
 		}
 

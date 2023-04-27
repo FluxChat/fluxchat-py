@@ -7,7 +7,7 @@ import base64
 import lib.overlay as overlay
 from lib.helper import read_json_file, write_json_file
 
-class Message():
+class Mail():
 	uuid: str
 	sender: str
 	receiver: str
@@ -41,7 +41,7 @@ class Message():
 				self.target = None
 
 	def __str__(self):
-		return 'Message({},r={})'.format(self.uuid, self.receiver)
+		return 'Mail({},r={})'.format(self.uuid, self.receiver)
 
 	def __repr__(self):
 		return self.__str__()
@@ -117,18 +117,18 @@ class Queue():
 	_path: str
 	_config: dict
 	_mail_config: dict
-	_messages_by_uuid: dict
+	_mails_by_uuid: dict
 	_changes: bool
-	_message_retention_time: dt.timedelta
+	_retention_time: dt.timedelta
 
 	def __init__(self, path: str, config: dict = None):
 		self._path = path
 		self._config = config
 		self._mail_config = self._config['mail']
-		self._messages_by_uuid = dict()
+		self._mails_by_uuid = dict()
 		self._changes = False
 
-		self._message_retention_time = dt.timedelta(hours=self._mail_config['message_retention_time'])
+		self._retention_time = dt.timedelta(hours=self._mail_config['retention_time'])
 
 		self._logger = logging.getLogger('mail.Queue')
 		self._logger.info('init()')
@@ -137,14 +137,14 @@ class Queue():
 		self._logger.info('load')
 
 		_data = read_json_file(self._path, {})
-		for message_uuid, row in _data.items():
-			message = Message()
-			message.uuid = message_uuid
-			message.from_dict(row)
+		for m_uuid, row in _data.items():
+			mail = Mail()
+			mail.uuid = m_uuid
+			mail.from_dict(row)
 
-			self._logger.debug('load message: %s', message)
+			self._logger.debug('load mail: %s', mail)
 
-			self._messages_by_uuid[message_uuid] = message
+			self._mails_by_uuid[m_uuid] = mail
 
 	def save(self) -> bool:
 		self._logger.info('save() changes=%s', self._changes)
@@ -153,26 +153,26 @@ class Queue():
 			return False
 
 		_data = dict()
-		for message_uuid, message in self._messages_by_uuid.items():
-			_data[message_uuid] = message.as_dict()
+		for mail_uuid, mail in self._mails_by_uuid.items():
+			_data[mail_uuid] = mail.as_dict()
 
 		write_json_file(self._path, _data)
 		self._changes = False
 
 		return True
 
-	def add_message(self, message: Message):
-		self._logger.debug('add_message(%s)', message)
+	def add_mail(self, mail: Mail):
+		self._logger.debug('add_mail(%s)', mail)
 
-		self._messages_by_uuid[message.uuid] = message
+		self._mails_by_uuid[mail.uuid] = mail
 		self._changes = True
 
-	def get_messages(self) -> dict:
-		return self._messages_by_uuid.items()
+	def get_mails(self) -> dict:
+		return self._mails_by_uuid.items()
 
-	def has_message(self, message_uuid: str) -> bool:
-		self._logger.debug('has_message(%s)', message_uuid)
-		return message_uuid in self._messages_by_uuid
+	def has_mail(self, mail_uuid: str) -> bool:
+		self._logger.debug('has_mail(%s)', mail_uuid)
+		return mail_uuid in self._mails_by_uuid
 
 	def changed(self):
 		self._changes = True
@@ -180,26 +180,26 @@ class Queue():
 	def clean_up(self):
 		self._logger.info('clean up')
 
-		remove_messages = []
+		remove_mails = []
 
-		ffunc = lambda _message: dt.datetime.utcnow() - _message[1].created_at >= self._message_retention_time
-		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
-		self._logger.debug('old_messages A: %s', old_messages)
-		remove_messages += old_messages
+		ffunc = lambda _m: dt.datetime.utcnow() - _m[1].created_at >= self._retention_time
+		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
+		self._logger.debug('old_mails A: %s', old_mails)
+		remove_mails += old_mails
 
-		ffunc = lambda _message: _message[1].is_delivered
-		old_messages = list(filter(ffunc, self._messages_by_uuid.items()))
-		self._logger.debug('old_messages B: %s', old_messages)
-		remove_messages += old_messages
+		ffunc = lambda _mail: _mail[1].is_delivered
+		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
+		self._logger.debug('old_mails B: %s', old_mails)
+		remove_mails += old_mails
 
-		for message_uuid, message in remove_messages:
-			self._logger.debug('remove message: %s', message)
-			del self._messages_by_uuid[message_uuid]
+		for mail_uuid, mail in remove_mails:
+			self._logger.debug('remove mail: %s', mail)
+			del self._mails_by_uuid[mail_uuid]
 			self._changes = True
 
 class Database():
 	_path: str
-	_messages: dict
+	_mails: dict
 	_changes: bool
 
 	def __init__(self, path: str) -> None:
@@ -214,11 +214,11 @@ class Database():
 		self._logger.info('load()')
 
 		data = read_json_file(self._path, {})
-		for message_uuid, message_raw in data.items():
-			message = Message()
-			message.from_dict(message_raw)
+		for mail_uuid, mail_raw in data.items():
+			mail = Mail()
+			mail.from_dict(mail_raw)
 
-			self._data[message_uuid] = message
+			self._data[mail_uuid] = mail
 
 	def save(self):
 		self._logger.info('save() changes=%s', self._changes)
@@ -227,18 +227,18 @@ class Database():
 			return
 
 		data = dict()
-		for message_uuid, message in self._data.items():
-			data[message_uuid] = message.as_dict()
+		for mail_uuid, mail in self._data.items():
+			data[mail_uuid] = mail.as_dict()
 
 		write_json_file(self._path, data)
 		self._changes = False
 
-	def add_message(self, message: Message):
-		self._logger.debug('add_message %s', message)
+	def add_mail(self, mail: Mail):
+		self._logger.debug('add_mail %s', mail)
 
-		self._data[message.uuid] = message
+		self._data[mail.uuid] = mail
 		self._changes = True
 
-	def has_message(self, message_uuid: str) -> bool:
-		self._logger.debug('has_message %s', message_uuid)
-		return message_uuid in self._data
+	def has_mail(self, mail_uuid: str) -> bool:
+		self._logger.debug('has_mail %s', mail_uuid)
+		return mail_uuid in self._data

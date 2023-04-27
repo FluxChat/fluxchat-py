@@ -7,7 +7,7 @@ import selectors
 
 from lib.network import Network
 from lib.helper import read_json_file
-from lib.mail import Message
+from lib.mail import Mail
 
 class IpcApp(Network):
 	_config_file: str
@@ -37,22 +37,22 @@ class IpcApp(Network):
 		self._config = read_json_file(self._config_file)
 		self._ipc_config = self._config['ipc']
 
-	def send(self, target: str, subject: str, body: str) -> bool:
-		self._logger.info('send(%s, %s)', target, subject)
+	def send_mail(self, target: str, subject: str, body: str) -> bool:
+		self._logger.info('send_mail(%s, %s)', target, subject)
 
 		sock = self._client_connect()
 		if not sock:
 			return False
 
-		message = Message()
-		message.sender = self._config['id']
-		message.receiver = target
-		message.subject = subject
-		message.body = body
+		mail = Mail()
+		mail.sender = self._config['id']
+		mail.receiver = target
+		mail.subject = subject
+		mail.body = body
 
-		raw = message.encode()
+		raw = mail.encode()
 
-		self._client_send_message(sock, target, raw)
+		self._client_send_mail(sock, target, raw)
 		time.sleep(0.1) # TODO replace with selectors
 		sock.close()
 
@@ -93,8 +93,8 @@ class IpcApp(Network):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_message(self, sock: socket.socket, target: str, raw: str): # pragma: no cover
-		self._logger.debug('_client_send_message()')
+	def _client_send_mail(self, sock: socket.socket, target: str, raw: str): # pragma: no cover
+		self._logger.debug('_client_send_mail()')
 		self._client_write(sock, 1, 0, [target, raw])
 
 	def _client_send_save(self, sock: socket.socket): # pragma: no cover

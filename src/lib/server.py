@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from lib.client import Client, Action
 from lib.address_book import AddressBook
 from lib.helper import resolve_contact, is_valid_uuid
-from lib.mail import Message, Queue as MessageQueue, Database as MessageDatabase
+from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
 from lib.network import Network
 from lib.cash import Cash
 import lib.overlay as overlay
@@ -27,8 +27,8 @@ class Server(Network):
 	_discovery_socket: socket.socket
 	_ipc_server_socket: socket.socket
 	_address_book: AddressBook
-	_message_queue: MessageQueue
-	_message_db: MessageDatabase
+	_mail_queue: MailQueue
+	_mail_db: MailDatabase
 	_hostname: str
 	_lan_ip: str
 	_clients: list
@@ -47,8 +47,8 @@ class Server(Network):
 		self._public_key_b64 = None
 		self._private_key = None
 		self._address_book = None
-		self._message_queue = None
-		self._message_db = None
+		self._mail_queue = None
+		self._mail_db = None
 		self._wrote_pid_file = False
 		self._client_auth_timeout = None
 
@@ -82,12 +82,6 @@ class Server(Network):
 			if not os.path.isdir(self._config['keys_dir']):
 				os.mkdir(self._config['keys_dir'])
 
-			# create messages directory if it doesn't exist
-			# if 'messages_dir' not in self._config:
-			# 	self._config['messages_dir'] = os.path.join(self._config['data_dir'], 'messages')
-			# if not os.path.isdir(self._config['messages_dir']):
-			# 	os.mkdir(self._config['messages_dir'])
-
 			address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
 			self._address_book = AddressBook(address_book_path, self._config)
 			self._address_book.load()
@@ -96,13 +90,13 @@ class Server(Network):
 			if os.path.isfile(bootstrap_path):
 				self._address_book.add_bootstrap(bootstrap_path)
 
-			message_queue_path = os.path.join(self._config['data_dir'], 'message_queue.json')
-			self._message_queue = MessageQueue(message_queue_path, self._config)
-			self._message_queue.load()
+			mail_queue_path = os.path.join(self._config['data_dir'], 'mail_queue.json')
+			self._mail_queue = MailQueue(mail_queue_path, self._config)
+			self._mail_queue.load()
 
-			message_db_path = os.path.join(self._config['data_dir'], 'message_db.json')
-			self._message_db = MessageDatabase(message_db_path)
-			self._message_db.load()
+			mail_db_path = os.path.join(self._config['data_dir'], 'mail_db.json')
+			self._mail_db = MailDatabase(mail_db_path)
+			self._mail_db.load()
 
 		if 'challenge' not in self._config:
 			self._config['challenge'] = {'min': 15, 'max': 20}
@@ -126,11 +120,11 @@ class Server(Network):
 		if self._address_book:
 			self._address_book.save()
 
-		if self._message_queue:
-			self._message_queue.save()
+		if self._mail_queue:
+			self._mail_queue.save()
 
-		if self._message_db:
-			self._message_db.save()
+		if self._mail_db:
+			self._mail_db.save()
 
 		self._remove_pid_file()
 
@@ -835,46 +829,46 @@ class Server(Network):
 						self._logger.debug('client: %s', _client)
 						action.func(_client)
 
-			elif group_i == 3: # Message
+			elif group_i == 3: # Mail
 				if command_i == 1:
-					self._logger.debug('SEND MESSAGE command')
+					self._logger.debug('SEND MAIL command')
 
-					message_uuid, message_target, message_data = payload
+					mail_uuid, mail_target, mail_data = payload
 
-					self._logger.debug('message uuid: %s', message_uuid)
-					if not is_valid_uuid(message_uuid):
-						self._logger.debug('invalid message uuid')
+					self._logger.debug('mail uuid: %s', mail_uuid)
+					if not is_valid_uuid(mail_uuid):
+						self._logger.debug('invalid mail uuid')
 						continue
 
-					if self._message_db.has_message(message_uuid):
-						self._logger.debug('DB, message already exists')
+					if self._mail_db.has_mail(mail_uuid):
+						self._logger.debug('DB, mail already exists')
 						continue
 
-					if self._message_queue.has_message(message_uuid):
-						self._logger.debug('QUEUE, message already exists')
+					if self._mail_queue.has_mail(mail_uuid):
+						self._logger.debug('QUEUE, mail already exists')
 						continue
 
 					try:
-						message_target = overlay.Node.parse(message_target)
-						self._logger.debug('message target: %s', message_target)
+						mail_target = overlay.Node.parse(mail_target)
+						self._logger.debug('mail target: %s', mail_target)
 					except:
-						self._logger.debug('invalid message target')
+						self._logger.debug('invalid mail target')
 						continue
 
-					self._logger.debug('message data: %s', message_data)
+					self._logger.debug('mail data: %s', mail_data)
 
-					message = Message(message_target.id, message_data)
-					message.uuid = message_uuid
-					message.is_encrypted = True
+					mail = Mail(mail_target.id, mail_data)
+					mail.uuid = mail_uuid
+					mail.is_encrypted = True
 
-					if message_target == self._local_node:
-						self._logger.debug('message target is local node')
-						self._decrypt_message(message)
-						self._message_db.add_message(message)
+					if mail_target == self._local_node:
+						self._logger.debug('mail target is local node')
+						self._decrypt_mail(mail)
+						self._mail_db.add_mail(mail)
 					else:
-						self._logger.debug('message target is not local node')
-						message.forwarded_to.append(client.id)
-						self._message_queue.add_message(message)
+						self._logger.debug('mail target is not local node')
+						mail.forwarded_to.append(client.id)
+						self._mail_queue.add_mail(mail)
 
 			else:
 				self._logger.debug('unknown group %d, command %d', group_i, command_i)
@@ -935,18 +929,18 @@ class Server(Network):
 
 		self._client_write(sock, 2, 4, [id, public_key])
 
-	def _client_send_message(self, sock: socket.socket, message: Message): # pragma: no cover
-		self._logger.debug('_client_send_message()')
-		if not message.is_encrypted:
-			self._logger.debug('message not encrypted')
+	def _client_send_mail(self, sock: socket.socket, mail: Mail): # pragma: no cover
+		self._logger.debug('_client_send_mail()')
+		if not mail.is_encrypted:
+			self._logger.debug('mail not encrypted')
 			return
 
-		self._logger.debug('message: %s', type(message.body))
+		self._logger.debug('mail: %s', type(mail.body))
 
 		self._client_write(sock, 3, 1, [
-			message.uuid,
-			message.target.id,
-			message.body,
+			mail.uuid,
+			mail.target.id,
+			mail.body,
 		])
 
 	def _ipc_client_read(self, sock: socket.socket): # pragma: no cover
@@ -1049,16 +1043,16 @@ class Server(Network):
 
 			elif group_i == 1:
 				if command_i == 0:
-					self._logger.debug('SEND MESSAGE command')
+					self._logger.debug('SEND MAIL command')
 
-					target, message = payload
+					target, mail = payload
 					self._logger.debug('target: %s', target)
-					self._logger.debug('message: %s', message)
+					self._logger.debug('mail: %s', mail)
 
-					message = Message(target, message)
-					self._message_queue.add_message(message)
+					mail = Mail(target, mail)
+					self._mail_queue.add_mail(mail)
 
-					self._logger.debug('uuid: %s', message.uuid)
+					self._logger.debug('uuid: %s', mail.uuid)
 
 					self._client_send_ok(sock)
 
@@ -1181,8 +1175,8 @@ class Server(Network):
 		self._logger.debug('save()')
 
 		self._address_book.save()
-		self._message_queue.save()
-		self._message_db.save()
+		self._mail_queue.save()
+		self._mail_db.save()
 
 		return True
 
@@ -1192,7 +1186,7 @@ class Server(Network):
 		# self._address_book.hard_clean_up(self._local_node.id)
 		self._address_book.soft_clean_up(self._local_node.id)
 
-		self._message_queue.clean_up()
+		self._mail_queue.clean_up()
 
 		return True
 
@@ -1226,16 +1220,16 @@ class Server(Network):
 						action.data['step'] += 1
 						self._client_request_public_key_for_node(client.sock, action.data['target'].id)
 
-				elif action.id == 'message':
-					message = action.data
-					self._logger.debug('message %s', message)
+				elif action.id == 'mail':
+					mail = action.data
+					self._logger.debug('mail %s', mail)
 
-					self._client_send_message(client.sock, message)
+					self._client_send_mail(client.sock, mail)
 
-					message.forwarded_to.append(client.id)
-					message.is_delivered = client.id == message.target
+					mail.forwarded_to.append(client.id)
+					mail.is_delivered = client.id == mail.target
 
-					self._message_queue.changed()
+					self._mail_queue.changed()
 
 				elif action.id == 'test':
 					had_actions = True
@@ -1250,25 +1244,25 @@ class Server(Network):
 
 		return bool(self._config['bootstrap'])
 
-	def handle_message_queue(self) -> bool:
-		self._logger.debug('handle_message_queue()')
+	def handle_mail_queue(self) -> bool:
+		self._logger.debug('handle_mail_queue()')
 
-		for message_uuid, message in self._message_queue.get_messages():
-			self._logger.debug('message %s', message)
+		for mail_uuid, mail in self._mail_queue.get_mails():
+			self._logger.debug('mail %s', mail)
 
-			if message.is_delivered:
-				self._logger.debug('message is delivered')
+			if mail.is_delivered:
+				self._logger.debug('mail is delivered')
 				continue
 
-			if message.target == None:
-				self._logger.debug('message has no target')
+			if mail.target == None:
+				self._logger.debug('mail has no target')
 				continue
 
-			if message.target == self._local_node.id:
-				self._logger.debug('message is for me')
+			if mail.target == self._local_node.id:
+				self._logger.debug('mail is for me')
 				continue
 
-			clients = self._address_book.get_nearest_to(message.target, with_contact_infos=True)
+			clients = self._address_book.get_nearest_to(mail.target, with_contact_infos=True)
 			self._logger.debug('clients %s', clients)
 
 			for client in clients:
@@ -1279,66 +1273,66 @@ class Server(Network):
 					self._logger.debug('client is not connected C')
 					self._client_connect(client)
 
-			if message.is_encrypted:
-				self._logger.debug('message is encrypted')
+			if mail.is_encrypted:
+				self._logger.debug('mail is encrypted')
 
 				for client in clients:
 					self._logger.debug('client %s', client)
-					self._logger.debug('forwarded_to %s', message.forwarded_to)
+					self._logger.debug('forwarded_to %s', mail.forwarded_to)
 
 					if not self._client_is_connected(client):
 						self._logger.debug('client is not connected D')
 						continue
 
-					if client.id in message.forwarded_to:
-						self._logger.debug('client already received message')
+					if client.id in mail.forwarded_to:
+						self._logger.debug('client already received mail')
 						continue
 
-					if client.has_action('message', message.uuid):
+					if client.has_action('mail', mail.uuid):
 						self._logger.debug('client already has action')
 						continue
 
-					self._logger.debug('add action for message')
-					action = Action('message', message.uuid, data=message)
+					self._logger.debug('add action for mail')
+					action = Action('mail', mail.uuid, data=mail)
 					client.add_action(action)
 			else:
-				self._logger.debug('message is not encrypted yet')
+				self._logger.debug('mail is not encrypted yet')
 
-				client = self._address_book.get_client_by_id(message.target.id)
+				client = self._address_book.get_client_by_id(mail.target.id)
 				if client == None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
 						self._logger.debug('client %s', client)
 
-						if not client.has_action('request_public_key_for_node', message.target.id):
+						if not client.has_action('request_public_key_for_node', mail.target.id):
 							action_data = {
-								'target': message.target,
+								'target': mail.target,
 								'level': 0, # 0 = original sender, 1 = relay
 								'step': 0, # 0 = request created, 1 = send request to client
 							}
-							action = Action('request_public_key_for_node', message.target.id, data=action_data)
+							action = Action('request_public_key_for_node', mail.target.id, data=action_data)
 							action.is_strong = True
-							action.func = lambda _client: self._encrypt_message(message, _client)
+							action.func = lambda _client: self._encrypt_mail(mail, _client)
 
 							client.add_action(action)
 
-						# self._create_request_public_key_for_node(client, message.target, level=0, message=message)
+						# self._create_request_public_key_for_node(client, mail.target, level=0, mail=mail)
 				else:
-					self._encrypt_message(message, client)
+					self._encrypt_mail(mail, client)
 
 		return True
 
-	def _encrypt_message(self, message: Message, client: Client):
-		self._logger.debug('_encrypt_message() -> {}'.format(message.is_encrypted))
-		self._logger.debug('message %s', message)
+	def _encrypt_mail(self, mail: Mail, client: Client):
+		self._logger.debug('_encrypt_mail() -> {}'.format(mail.is_encrypted))
+		self._logger.debug('mail %s', mail)
 		self._logger.debug('client %s', client)
 
-		if message.is_encrypted:
-			self._logger.debug('message is already encrypted')
+		if mail.is_encrypted:
+			self._logger.debug('mail is already encrypted')
 			return
 
 		# base64 decode body
-		body = base64.b64decode(message.body)
+		body = base64.b64decode(mail.body)
 		self._logger.debug('body %s', body)
 
 		encrypted = client.encrypt(body)
@@ -1350,25 +1344,25 @@ class Server(Network):
 		decoded = encoded.decode('utf-8')
 		# self._logger.debug('b64 decoded: %s', decoded)
 
-		message.body = decoded
-		message.is_encrypted = True
+		mail.body = decoded
+		mail.is_encrypted = True
 
-		self._message_queue.changed()
+		self._mail_queue.changed()
 
 		client.refresh_used_at()
 		self._address_book.changed()
 
-	def _decrypt_message(self, message: Message):
-		self._logger.debug('_decrypt_message()')
+	def _decrypt_mail(self, mail: Mail):
+		self._logger.debug('_decrypt_mail()')
 
-		if not message.is_encrypted:
-			self._logger.debug('message already decrypted')
+		if not mail.is_encrypted:
+			self._logger.debug('mail already decrypted')
 			return
 
-		self._logger.debug('body %s', message.body)
+		self._logger.debug('body %s', mail.body)
 
 		# base64 decode body
-		decoded = base64.b64decode(message.body)
+		decoded = base64.b64decode(mail.body)
 		self._logger.debug('decoded: %s', decoded)
 
 		decrypted_b = self._private_key.decrypt(
@@ -1387,5 +1381,5 @@ class Server(Network):
 		decoded = encoded.decode('utf-8')
 		self._logger.debug('decoded: %s', decoded)
 
-		message.body = decoded
-		message.is_encrypted = False
+		mail.body = decoded
+		mail.is_encrypted = False

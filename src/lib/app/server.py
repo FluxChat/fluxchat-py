@@ -65,7 +65,7 @@ class ServerApp():
 
 		self._scheduler.add_task(self._server.handle_clients, dt.timedelta(milliseconds=100))
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
-		self._scheduler.add_task(self._server.handle_message_queue, dt.timedelta(seconds=10))
+		self._scheduler.add_task(self._server.handle_mail_queue, dt.timedelta(seconds=10))
 
 		if self._is_dev:
 			self._scheduler.add_task(self._server.contact_address_book, dt.timedelta(seconds=5), one_shot=True)

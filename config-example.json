@@ -26,7 +26,7 @@
 		"port": 26001
 	},
 	"mail": {
-		"message_retention_time": 24
+		"retention_time": 24
 	},
 	"log": {
 		"level": "debug",
