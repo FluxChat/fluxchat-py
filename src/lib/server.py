@@ -547,7 +547,7 @@ class Server(Network):
 						client.conn_mode = 0
 						client.conn_msg = 'challenge not verified'
 						continue
-					self._logger.debug('cash verifiyed')
+					self._logger.debug('cash verified')
 
 					c_switch = False
 					c_has_contact_info = False
@@ -1100,7 +1100,7 @@ class Server(Network):
 		return data_processed # will be returned to the Scheduler
 
 	def contact_address_book(self) -> bool:
-		# self._logger.debug('Server.contact_address_book()')
+		self._logger.debug('contact_address_book()')
 
 		_clients = list(self._address_book.get_clients().values())
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
