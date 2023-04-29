@@ -32,6 +32,9 @@ class Mail():
 		self.is_encrypted = False
 		self.is_delivered = None
 
+		self._logger = logging.getLogger('mail')
+		self._logger.info('init()')
+
 		if self.receiver == None:
 			self.target = None
 		else:
@@ -47,6 +50,8 @@ class Mail():
 		return self.__str__()
 
 	def as_dict(self) -> dict:
+		self._logger.debug('as_dict()')
+
 		data = dict()
 		if self.sender != None:
 			data['sender'] = self.sender
@@ -69,6 +74,8 @@ class Mail():
 		return data
 
 	def from_dict(self, data: dict):
+		self._logger.debug('from_dict()')
+
 		if 'to' in data: # deprecated # TODO remove
 			self.receiver = data['to']
 			try:
@@ -98,20 +105,78 @@ class Mail():
 		if 'is_delivered' in data:
 			self.is_delivered = data['is_delivered']
 
+	def received_now(self):
+		self._logger.debug('received_now()')
+
+		self.received_at = dt.datetime.utcnow()
+
 	def encode(self) -> str:
-		sender_len = len(self.sender)
-		receiver_len = len(self.receiver)
-		subject_len = len(self.subject)
-		body_len = len(self.body)
+		self._logger.debug('encode()')
+
+		sender_len = len(self.sender).to_bytes(1, 'little')
+		receiver_len = len(self.receiver).to_bytes(1, 'little')
+		subject_len = len(self.subject).to_bytes(1, 'little')
+		body_len = len(self.body).to_bytes(4, 'little')
 		items = [
-			b'\x00\x13', dt.datetime.utcnow().strftime('%F %T').encode('utf-8'),
-			b'\x10', sender_len.to_bytes(1, 'little'), self.sender.encode('utf-8'),
-			b'\x11', receiver_len.to_bytes(1, 'little'), self.receiver.encode('utf-8'),
-			b'\x21', subject_len.to_bytes(1, 'little'), self.subject.encode('utf-8'),
-			b'\x22', body_len.to_bytes(4, 'little'), self.body.encode('utf-8'),
+			b'\x00\x13', dt.datetime.utcnow().strftime('%FT%T').encode('utf-8'),
+			b'\x01', sender_len, self.sender.encode('utf-8'),
+			b'\x02', receiver_len, self.receiver.encode('utf-8'),
+			b'\x03', subject_len, self.subject.encode('utf-8'),
+			b'\x04', body_len, self.body.encode('utf-8'),
 		]
 		raw = b''.join(items)
 		return base64.b64encode(raw).decode('utf-8')
+
+	def decode(self, data: bytes):
+		self._logger.debug('decode(%s)', data)
+
+		data_len = len(data)
+
+		pos = 0
+		while pos < data_len:
+			item_t = int.from_bytes(data[pos:pos+1], 'little')
+			pos += 1
+
+			if item_t == 0:
+				item_l = int.from_bytes(data[pos:pos+1], 'little')
+				pos += 1
+				val = data[pos:pos+item_l].decode('utf-8')
+				self.created_at = dt.datetime.fromisoformat(val)
+
+			elif item_t == 1:
+				item_l = int.from_bytes(data[pos:pos+1], 'little')
+				pos += 1
+				val = data[pos:pos+item_l].decode('utf-8')
+				self.sender = val
+
+			elif item_t == 2:
+				item_l = int.from_bytes(data[pos:pos+1], 'little')
+				pos += 1
+				val = data[pos:pos+item_l].decode('utf-8')
+				self.receiver = val
+
+			elif item_t == 3:
+				item_l = int.from_bytes(data[pos:pos+1], 'little')
+				pos += 1
+				val = data[pos:pos+item_l].decode('utf-8')
+				self.subject = val
+
+			elif item_t == 4:
+				item_l = int.from_bytes(data[pos:pos+4], 'little')
+				pos += 4
+				self._logger.debug('body length: %d', item_l)
+
+				val = data[pos:pos+item_l].decode('utf-8')
+				self._logger.debug('body: "%s"', val)
+
+				self.body = val
+
+			else:
+				self._logger.warning('unknown type: %s', item_t)
+
+			pos += item_l
+
+			self._logger.debug('type=%s(%s), length=%d(%s), value=%s(%s)', item_t, type(item_t), item_l, type(item_l), val, type(val))
 
 class Queue():
 	_path: str

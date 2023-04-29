@@ -58,5 +58,5 @@ if ! test -f ${FLUXCHAT_CONFIG}; then
 fi
 if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json; then
 	echo '-> generating bootstrap'
-	cp ./bootstrap.json ${FLUXCHAT_DATA_DIR}/bootstrap.json
+	echo '[]' > ${FLUXCHAT_DATA_DIR}/bootstrap.json
 fi
