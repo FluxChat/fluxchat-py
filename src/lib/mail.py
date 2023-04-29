@@ -19,6 +19,7 @@ class Mail():
 	forwarded_to: list
 	is_encrypted: bool
 	is_delivered: bool
+	is_new: bool
 
 	def __init__(self, receiver: str = None, body: str = None):
 		self.uuid = str(uuid.uuid4())
@@ -31,6 +32,7 @@ class Mail():
 		self.forwarded_to = []
 		self.is_encrypted = False
 		self.is_delivered = None
+		self.is_new = None
 
 		self._logger = logging.getLogger('mail')
 		self._logger.info('init()')
@@ -71,6 +73,8 @@ class Mail():
 			data['is_encrypted'] = self.is_encrypted
 		if self.is_delivered != None:
 			data['is_delivered'] = self.is_delivered
+		if self.is_new != None:
+			data['is_new'] = self.is_new
 		return data
 
 	def from_dict(self, data: dict):
@@ -104,6 +108,8 @@ class Mail():
 			self.is_encrypted = data['is_encrypted']
 		if 'is_delivered' in data:
 			self.is_delivered = data['is_delivered']
+		if 'is_new' in data:
+			self.is_new = bool(data['is_new'])
 
 	def received_now(self):
 		self._logger.debug('received_now()')

@@ -1404,4 +1404,5 @@ class Server(Network):
 		self._logger.debug('decrypted: %s', decrypted_b)
 
 		mail.is_encrypted = False
+		mail.is_new = True
 		mail.decode(decrypted_b)
