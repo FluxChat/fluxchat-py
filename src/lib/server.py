@@ -1403,12 +1403,5 @@ class Server(Network):
 		)
 		self._logger.debug('decrypted: %s', decrypted_b)
 
-		# encoded = base64.b64encode(decrypted_b)
-		# self._logger.debug('encoded: %s', encoded)
-
-		# decoded = encoded.decode('utf-8')
-		# self._logger.debug('decoded: %s', decoded)
-
-		# mail.body = decoded
 		mail.is_encrypted = False
 		mail.decode(decrypted_b)
