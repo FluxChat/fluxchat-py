@@ -125,10 +125,10 @@ class Mail():
 		body_len = len(self.body).to_bytes(4, 'little')
 		items = [
 			b'\x00\x13', dt.datetime.utcnow().strftime('%FT%T').encode('utf-8'),
-			b'\x01', sender_len, self.sender.encode('utf-8'),
-			b'\x02', receiver_len, self.receiver.encode('utf-8'),
-			b'\x03', subject_len, self.subject.encode('utf-8'),
-			b'\x04', body_len, self.body.encode('utf-8'),
+			b'\x10', sender_len, self.sender.encode('utf-8'),
+			b'\x11', receiver_len, self.receiver.encode('utf-8'),
+			b'\x20', subject_len, self.subject.encode('utf-8'),
+			b'\x21', body_len, self.body.encode('utf-8'),
 		]
 		raw = b''.join(items)
 		return base64.b64encode(raw).decode('utf-8')
@@ -143,31 +143,31 @@ class Mail():
 			item_t = int.from_bytes(data[pos:pos+1], 'little')
 			pos += 1
 
-			if item_t == 0:
+			if item_t == 0x00:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
 				self.created_at = dt.datetime.fromisoformat(val)
 
-			elif item_t == 1:
+			elif item_t == 0x10:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
 				self.sender = val
 
-			elif item_t == 2:
+			elif item_t == 0x11:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
 				self.receiver = val
 
-			elif item_t == 3:
+			elif item_t == 0x20:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
 				self.subject = val
 
-			elif item_t == 4:
+			elif item_t == 0x21:
 				item_l = int.from_bytes(data[pos:pos+4], 'little')
 				pos += 4
 				self._logger.debug('body length: %d', item_l)
