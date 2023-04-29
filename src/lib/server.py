@@ -561,14 +561,15 @@ class Server(Network):
 						continue
 					self._logger.debug('cash verified')
 
-					c_switch = False
+					# Contact info
 					c_has_contact_info = False
-					if payload_len >= 2:
+					if payload_len >= 5:
 						addr = sock.getpeername()
 
 						# Client sent contact info
-						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[3], addr[0])
+						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[4], addr[0])
 
+					c_switch = False
 					if client.dir_mode == 'i':
 						# Client is incoming
 						self._logger.debug('client is incoming')
