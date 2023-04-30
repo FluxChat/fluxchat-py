@@ -39,6 +39,7 @@ class Server(Network):
 	_pid_file_path: str
 	_wrote_pid_file: bool
 	_client_auth_timeout: dt.timedelta
+	_client_action_retention_time: dt.timedelta
 
 	def __init__(self, config: dict = {}):
 		self._host_name = socket.gethostname()
@@ -53,6 +54,7 @@ class Server(Network):
 		self._mail_db = None
 		self._wrote_pid_file = False
 		self._client_auth_timeout = None
+		self._client_action_retention_time = None
 
 		self._logger = logging.getLogger('server')
 		self._logger.info('init()')
@@ -67,8 +69,10 @@ class Server(Network):
 		if 'client' not in self._config:
 			self._config['client'] = {
 				'auth_timeout': 2,
+				'action_retention_time': 5,
 			}
 		self._client_auth_timeout = dt.timedelta(seconds=self._config['client']['auth_timeout'])
+		self._client_action_retention_time = dt.timedelta(minutes=self._config['client']['action_retention_time'])
 
 		if 'data_dir' in self._config:
 			self._pid_file_path = os.path.join(self._config['data_dir'], 'server.pid')
@@ -783,14 +787,13 @@ class Server(Network):
 
 							self._logger.debug('client: %s', _client)
 
-							if not _client.has_action('request_public_key_for_node', target.id):
-								action_data = {
-									'target': target,
-									'level': 1, # 0 = original sender, 1 = relay
-									'step': 0, # 0 = request created, 1 = send request to client
-								}
-								action = Action('request_public_key_for_node', target.id, data=action_data)
-								action.is_strong = True
+							if _client.has_action('request_public_key_for_node', target.id):
+								self._logger.debug('client already has action request_public_key_for_node/%s', target.id)
+							else:
+								self._logger.debug('create action request_public_key_for_node/%s', target.id)
+
+								action = self._create_action_request_public_key_for_node(target, 'r')
+
 								action.func = lambda _arg_client: self._client_response_public_key_for_node(sock, target.id, _arg_client.get_der_base64_public_key())
 
 								_client.add_action(action)
@@ -821,6 +824,7 @@ class Server(Network):
 						self._logger.debug('client not found')
 
 						_client = Client()
+						_client.debug_add = 'public key response'
 						_client.set_id(node.id)
 						_client.load_public_key_from_base64_der(public_key_raw)
 
@@ -1242,11 +1246,18 @@ class Server(Network):
 					client.add_action(Action('nearest_response', data=action.data))
 
 				elif action.id == 'request_public_key_for_node':
-					self._logger.debug('request_public_key_for_node %s', action)
+					self._logger.debug('request_public_key_for_node (tries: %d)', action.data['tries'])
 
 					if action.data['step'] == 0:
-						action.data['step'] += 1
+						self._logger.debug('request_public_key_for_node step 0')
+
+						action.data['step'] = 1
 						self._client_request_public_key_for_node(client.sock, action.data['target'].id)
+
+					elif action.data['step'] == 1:
+						self._logger.debug('request_public_key_for_node step 1')
+
+						self._client_send_public_key_for_node(client.sock, action.data['target'].id)
 
 				elif action.id == 'mail':
 					mail = action.data
@@ -1262,7 +1273,26 @@ class Server(Network):
 				elif action.id == 'test':
 					had_actions = True
 
+				if dt.datetime.utcnow() >= action.valid_until:
+					self._logger.debug('action is invalid: %s', action)
+					client.remove_action(action)
+
 		return had_actions
+
+	def _create_action_request_public_key_for_node(self, target: overlay.Node, mode: str) -> Action:
+		self._logger.debug('create_action_request_public_key_for_node()')
+
+		action_data = {
+			'target': target,
+			'mode': mode, # (o)riginal sender, (r)elay
+			'step': 0, # 0 = request created, 1 = send request to client
+			'try': 0, # 0 = first try, 1 = second try, etc
+		}
+		action = Action('request_public_key_for_node', target.id, data=action_data)
+		action.valid_until = dt.datetime.utcnow() + self._client_action_retention_time
+		action.is_strong = True
+
+		return action
 
 	def is_bootstrap_phase(self) -> bool:
 		if self._config['bootstrap'] == 'default':
@@ -1294,7 +1324,7 @@ class Server(Network):
 			self._logger.debug('clients %s', clients)
 
 			for client in clients:
-				self._logger.debug('client %s', client)
+				self._logger.debug('client for mail: %s', client)
 				if self._client_is_connected(client):
 					self._logger.debug('client is connected')
 				else:
@@ -1322,6 +1352,7 @@ class Server(Network):
 
 					self._logger.debug('add action for mail')
 					action = Action('mail', mail.uuid, data=mail)
+					action.valid_until = dt.datetime.utcnow() + self._client_action_retention_time
 					client.add_action(action)
 			else:
 				self._logger.debug('mail is not encrypted yet')
@@ -1330,21 +1361,17 @@ class Server(Network):
 				if client == None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
-						self._logger.debug('client %s', client)
 
-						if not client.has_action('request_public_key_for_node', mail.target.id):
-							action_data = {
-								'target': mail.target,
-								'level': 0, # 0 = original sender, 1 = relay
-								'step': 0, # 0 = request created, 1 = send request to client
-							}
-							action = Action('request_public_key_for_node', mail.target.id, data=action_data)
-							action.is_strong = True
+						if client.has_action('request_public_key_for_node', mail.target.id):
+							self._logger.debug('client already has action request_public_key_for_node/%s', mail.target.id)
+						else:
+							self._logger.debug('create action request_public_key_for_node from client: %s', client)
+
+							action = self._create_action_request_public_key_for_node(mail.target, 'o')
+
 							action.func = lambda _client: self._encrypt_mail(mail, _client)
 
 							client.add_action(action)
-
-						# self._create_request_public_key_for_node(client, mail.target, level=0, mail=mail)
 				else:
 					self._encrypt_mail(mail, client)
 

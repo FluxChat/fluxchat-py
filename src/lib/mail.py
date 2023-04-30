@@ -16,6 +16,7 @@ class Mail():
 	body: str
 	created_at: dt.datetime
 	received_at: dt.datetime
+	valid_until: dt.datetime
 	forwarded_to: list
 	is_encrypted: bool
 	is_delivered: bool
@@ -29,6 +30,7 @@ class Mail():
 		self.body = body
 		self.created_at = dt.datetime.utcnow()
 		self.received_at = None
+		self.valid_until = None
 		self.forwarded_to = []
 		self.is_encrypted = False
 		self.is_delivered = None
@@ -102,6 +104,8 @@ class Mail():
 			self.created_at = dt.datetime.fromisoformat(data['created_at'])
 		if 'received_at' in data:
 			self.received_at = dt.datetime.fromisoformat(data['received_at'])
+		if 'valid_until' in data:
+			self.valid_until = dt.datetime.fromisoformat(data['valid_until'])
 		if 'forwarded_to' in data:
 			self.forwarded_to = data['forwarded_to']
 		if 'is_encrypted' in data:
@@ -235,6 +239,8 @@ class Queue():
 	def add_mail(self, mail: Mail):
 		self._logger.debug('add_mail(%s)', mail)
 
+		mail.valid_until = dt.datetime.utcnow() + self._retention_time
+
 		self._mails_by_uuid[mail.uuid] = mail
 		self._changes = True
 
@@ -253,18 +259,14 @@ class Queue():
 
 		remove_mails = []
 
-		ffunc = lambda _m: dt.datetime.utcnow() - _m[1].created_at >= self._retention_time
+		ffunc = lambda _mail: _mail[1].valid_until != None and dt.datetime.utcnow() >= _mail[1].valid_until
 		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
-		self._logger.debug('old_mails A: %s', old_mails)
-		remove_mails += old_mails
-
-		ffunc = lambda _mail: _mail[1].is_delivered
-		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
-		self._logger.debug('old_mails B: %s', old_mails)
+		self._logger.debug('old mails A: %s', old_mails)
 		remove_mails += old_mails
 
 		for mail_uuid, mail in remove_mails:
 			self._logger.debug('remove mail: %s', mail)
+
 			del self._mails_by_uuid[mail_uuid]
 			self._changes = True
 

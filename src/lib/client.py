@@ -15,6 +15,7 @@ class Action():
 	id: str
 	subid: str
 	is_strong: bool # Strong actions are not removed from the queue on soft_reset_actions()
+	valid_until: dt.datetime
 
 	def __init__(self, id: str, subid: str = None, data = None):
 		self.id = id
@@ -229,6 +230,9 @@ class Client():
 				self.actions.remove(found[0])
 			return found[0]
 		return None
+
+	def remove_action(self, action: Action):
+		self.actions.remove(action)
 
 	def has_contact(self) -> bool:
 		return self.address != None and self.port != None

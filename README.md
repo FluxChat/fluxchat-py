@@ -47,7 +47,7 @@ source ./.venv/bin/activate
 cd src
 python3 -m unittest tests/test_mail.py
 
-./src/ipc_app.py mail -c var/config1.json -t XYZ -s Test1 -b 'Hello World'
+./src/ipc_app.py mail -c var/config1.json-s Test -b 'Hello World' -t XYZ
 ```
 
 ```bash
