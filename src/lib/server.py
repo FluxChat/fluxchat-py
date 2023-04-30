@@ -166,7 +166,7 @@ class Server(Network):
 			self._main_server_socket.bind((self._config['address'], self._config['port']))
 		except OSError as e:
 			self._logger.error('OSError: %s', e)
-			exit(1)
+			raise e
 
 		self._logger.debug('listen')
 		self._main_server_socket.listen()
@@ -184,6 +184,7 @@ class Server(Network):
 				self._discovery_socket.bind(('', self._config['discovery']['port']))
 			except OSError as e:
 				self._logger.error('OSError: %s', e)
+				raise e
 
 			self._discovery_socket.setblocking(False)
 
