@@ -13,6 +13,7 @@ class IpcApp(Network):
 	_config_file: str
 	_config: dict
 	_ipc_config: dict
+	_selectors: selectors.DefaultSelector
 
 	def __init__(self, config_file: str = None):
 		self._config_file = config_file

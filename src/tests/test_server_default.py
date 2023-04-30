@@ -24,8 +24,8 @@ class ServerTestCase(unittest.TestCase):
 	def test_get_contact(self):
 		self.assertEqual(self.server.get_contact(), 'N/A')
 
-	def test_run(self):
-		self.assertFalse(self.server.run())
+	def test_handle_sockets(self):
+		self.assertFalse(self.server.handle_sockets())
 
 	def test_contact_address_book(self):
 		self.assertTrue(self.server.contact_address_book())

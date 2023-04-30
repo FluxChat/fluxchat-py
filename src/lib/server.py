@@ -8,7 +8,6 @@ import base64
 import uuid
 import datetime as dt
 
-# from sty import fg
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -1090,8 +1089,8 @@ class Server(Network):
 					self._logger.debug('SAVE command')
 					self.save()
 
-	def run(self) -> bool:
-		# self._logger.debug('run()')
+	def handle_sockets(self) -> bool:
+		# self._logger.debug('handle_sockets()')
 
 		data_processed = False
 

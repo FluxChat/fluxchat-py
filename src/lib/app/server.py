@@ -61,8 +61,7 @@ class ServerApp():
 		self._server.start()
 
 		self._scheduler = Scheduler()
-		self._scheduler.add_task(self._server.run, dt.timedelta(milliseconds=100))
-
+		self._scheduler.add_task(self._server.handle_sockets, dt.timedelta(milliseconds=100))
 		self._scheduler.add_task(self._server.handle_clients, dt.timedelta(milliseconds=100))
 		self._scheduler.add_task(self._server.client_actions, dt.timedelta(seconds=15))
 		self._scheduler.add_task(self._server.handle_mail_queue, dt.timedelta(seconds=10))
