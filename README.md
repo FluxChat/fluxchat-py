@@ -23,6 +23,7 @@ To setup another node, use environment variables.
 export FLUXCHAT_CONFIG=var/config2.json
 export FLUXCHAT_PORT=25002
 export FLUXCHAT_DATA_DIR=var/data2
+export FLUXCHAT_IPC_PORT=26002
 ./bin/setup.sh
 ```
 

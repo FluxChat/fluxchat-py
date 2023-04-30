@@ -23,7 +23,7 @@
 	"ipc": {
 		"enabled": true,
 		"address": "127.0.0.1",
-		"port": 26001
+		"port": ${FLUXCHAT_IPC_PORT}
 	},
 	"mail": {
 		"retention_time": 24
