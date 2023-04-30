@@ -2,7 +2,6 @@
 import socket
 import uuid
 import datetime as dt
-import hashlib
 import base58
 import base64
 
@@ -288,10 +287,11 @@ class Client():
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		hash_obj = hashlib.new('sha256')
-		hash_obj.update(public_bytes)
+		hasher = hashes.Hash(hashes.SHA256())
+		hasher.update(public_bytes)
+		digest = hasher.finalize()
 
-		base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
+		base58_hash = base58.b58encode(digest).decode('utf-8')
 		return f'FC_{base58_hash}' == self.id
 
 	def encrypt(self, data: bytes) -> bytes:

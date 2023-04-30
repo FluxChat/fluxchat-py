@@ -1,6 +1,5 @@
 
 import secrets
-import hashlib
 import base58
 import ipaddress
 import socket
@@ -8,7 +7,7 @@ import json
 import os
 import uuid
 
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import serialization, hashes
 
 # Generate ID from Public Key
 def generate_id_from_public_key_file(file_path: str) -> str:
@@ -25,19 +24,21 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 		encoding=serialization.Encoding.DER,
 		format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
-	hash_obj = hashlib.new('sha256')
-	hash_obj.update(public_bytes)
+	hasher = hashes.Hash(hashes.SHA256())
+	hasher.update(public_bytes)
+	digest = hasher.finalize()
 
-	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
+	base58_hash = base58.b58encode(digest).decode('utf-8')
 	return f'FC_{base58_hash}'
 
 def generate_test_id() -> str: # pragma: no cover
 	public_bytes = secrets.token_bytes(20)
 
-	hash_obj = hashlib.new('sha256')
-	hash_obj.update(public_bytes)
+	hasher = hashes.Hash(hashes.SHA256())
+	hasher.update(public_bytes)
+	digest = hasher.finalize()
 
-	base58_hash = base58.b58encode(hash_obj.digest()).decode('utf-8')
+	base58_hash = base58.b58encode(digest).decode('utf-8')
 	return f'FC_{base58_hash}'
 
 def resolve_contact(contact: str, raddr: str = None) -> list:

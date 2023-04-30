@@ -1,6 +1,6 @@
 
-import hashlib
 import random
+from cryptography.hazmat.primitives import hashes
 
 class Cash():
 	data: str
@@ -29,11 +29,12 @@ class Cash():
 
 			input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(self.nonce).encode('utf-8')
 
-			hashobj = hashlib.sha256(input_data)
-			hash_output = hashobj.digest()
+			hasher = hashes.Hash(hashes.SHA256())
+			hasher.update(input_data)
+			digest = hasher.finalize()
 
 			found_bits = 0
-			for c in hash_output:
+			for c in digest:
 				if c & 0b10000000:
 					break
 				if c & 0b01000000:
@@ -64,7 +65,7 @@ class Cash():
 					break
 
 			if found_bits >= self.bits:
-				self.proof = hashobj.hexdigest()
+				self.proof = digest.hex()
 				break
 
 			self.nonce += 1
@@ -98,4 +99,9 @@ class Cash():
 				return False
 
 		input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(nonce).encode()
-		return hashlib.sha256(input_data).hexdigest() == proof
+
+		hasher = hashes.Hash(hashes.SHA256())
+		hasher.update(input_data)
+		digest = hasher.finalize()
+
+		return digest.hex() == proof
