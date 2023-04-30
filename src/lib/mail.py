@@ -21,6 +21,7 @@ class Mail():
 	is_encrypted: bool
 	is_delivered: bool
 	is_new: bool
+	sign: str
 
 	def __init__(self, receiver: str = None, body: str = None):
 		self.uuid = str(uuid.uuid4())
@@ -35,6 +36,7 @@ class Mail():
 		self.is_encrypted = False
 		self.is_delivered = None
 		self.is_new = None
+		self.sign = None
 
 		self._logger = logging.getLogger('mail')
 		self._logger.info('init()')
@@ -79,6 +81,8 @@ class Mail():
 			data['is_delivered'] = self.is_delivered
 		if self.is_new != None:
 			data['is_new'] = self.is_new
+		if self.sign != None:
+			data['sign'] = self.sign
 		return data
 
 	def from_dict(self, data: dict):
@@ -116,6 +120,8 @@ class Mail():
 			self.is_delivered = data['is_delivered']
 		if 'is_new' in data:
 			self.is_new = bool(data['is_new'])
+		if 'sign' in data:
+			self.sign = data['sign']
 
 	def received_now(self):
 		self._logger.debug('received_now()')
@@ -135,6 +141,7 @@ class Mail():
 			b'\x11', receiver_len, self.receiver.encode('utf-8'),
 			b'\x20', subject_len, self.subject.encode('utf-8'),
 			b'\x21', body_len, self.body.encode('utf-8'),
+			# \x30 sign in server._encrypt_mail()
 		]
 		raw = b''.join(items)
 		return base64.b64encode(raw).decode('utf-8')
@@ -182,6 +189,18 @@ class Mail():
 				self._logger.debug('body: "%s"', val)
 
 				self.body = val
+
+			elif item_t == 0x30:
+				self._logger.debug('decode sign')
+				item_l = int.from_bytes(data[pos:pos+2], 'little')
+				pos += 2
+				self._logger.debug('sign length: %d', item_l)
+
+				val = data[pos:pos+item_l]
+				self._logger.debug('sign bytes: "%s"', val)
+
+				self.sign = base64.b64encode(val).decode('utf-8')
+				self._logger.debug('sign base64: "%s"', self.sign)
 
 			else:
 				self._logger.warning('unknown type: %s', item_t)

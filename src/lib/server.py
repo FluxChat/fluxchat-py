@@ -1379,7 +1379,22 @@ class Server(Network):
 
 		# base64 decode body
 		body = base64.b64decode(mail.body)
-		self._logger.debug('body %s', body)
+		self._logger.debug('body raw "%s"', body)
+
+		# Sign-than-encrypt
+		# https://crypto.stackexchange.com/questions/5458/should-we-sign-then-encrypt-or-encrypt-then-sign
+		signature = self._private_key.sign(
+			body,
+			padding.PSS(
+				mgf=padding.MGF1(hashes.SHA256()),
+				salt_length=padding.PSS.MAX_LENGTH
+			),
+			hashes.SHA256()
+		)
+		sig_len = len(signature).to_bytes(2, 'little')
+		self._logger.debug('sign len: %d', sig_len)
+		body += b'\x30' + sig_len + signature
+		self._logger.debug('body+sign "%s"', body)
 
 		encrypted = client.encrypt(body)
 		# self._logger.debug('encrypted: %s', encrypted)
