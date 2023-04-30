@@ -69,6 +69,8 @@ class Mail():
 			data['created_at'] = self.created_at.isoformat()
 		if self.received_at != None:
 			data['received_at'] = self.received_at.isoformat()
+		if self.valid_until != None:
+			data['valid_until'] = self.valid_until.isoformat()
 		if self.forwarded_to != None and len(self.forwarded_to) > 0:
 			data['forwarded_to'] = self.forwarded_to
 		if self.is_encrypted != None:

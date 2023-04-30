@@ -23,6 +23,7 @@ class Action():
 		self.data = data
 		self.is_strong = False
 		self.func = None
+		self.valid_until = None
 
 	def __str__(self):
 		return 'Action({}/{},d={},s={})'.format(self.id, self.subid, self.data, self.is_strong)

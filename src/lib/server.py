@@ -1246,18 +1246,10 @@ class Server(Network):
 					client.add_action(Action('nearest_response', data=action.data))
 
 				elif action.id == 'request_public_key_for_node':
-					self._logger.debug('request_public_key_for_node (tries: %d)', action.data['tries'])
+					self._logger.debug('request_public_key_for_node (try: %d)', action.data['try'])
 
-					if action.data['step'] == 0:
-						self._logger.debug('request_public_key_for_node step 0')
-
-						action.data['step'] = 1
-						self._client_request_public_key_for_node(client.sock, action.data['target'].id)
-
-					elif action.data['step'] == 1:
-						self._logger.debug('request_public_key_for_node step 1')
-
-						self._client_send_public_key_for_node(client.sock, action.data['target'].id)
+					self._client_request_public_key_for_node(client.sock, action.data['target'].id)
+					action.data['try'] += 1
 
 				elif action.id == 'mail':
 					mail = action.data
@@ -1285,7 +1277,7 @@ class Server(Network):
 		action_data = {
 			'target': target,
 			'mode': mode, # (o)riginal sender, (r)elay
-			'step': 0, # 0 = request created, 1 = send request to client
+			# 'step': 0, # 0 = request created, 1 = send request to client
 			'try': 0, # 0 = first try, 1 = second try, etc
 		}
 		action = Action('request_public_key_for_node', target.id, data=action_data)
