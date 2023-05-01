@@ -1383,7 +1383,7 @@ class Server(Network):
 				elif action.id == 'test':
 					had_actions = True
 
-				if dt.datetime.utcnow() >= action.valid_until:
+				if action.valid_until != None and dt.datetime.utcnow() >= action.valid_until:
 					self._logger.debug('action is invalid: %s', action)
 					client.remove_action(action)
 
