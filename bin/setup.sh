@@ -34,12 +34,16 @@ chmod go-rwx ${FLUXCHAT_DATA_DIR}
 
 rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
 rsa_pub_key_file=${FLUXCHAT_DATA_DIR}/public_key.pem
+rsa_crt_key_file=${FLUXCHAT_DATA_DIR}/certificate.pem
 if ! test -f ${rsa_priv_key_file} ; then
 	echo '-> generating rsa key'
 	openssl genrsa -out ${rsa_priv_key_file} -aes256 -passout env:FLUXCHAT_KEY_PASSWORD 4096
 
 	echo '-> generating rsa public key'
 	openssl rsa -in ${rsa_priv_key_file} -outform PEM -pubout -out ${rsa_pub_key_file} -passin env:FLUXCHAT_KEY_PASSWORD
+
+	echo '-> generating rsa certificate'
+	openssl req -new -x509 -sha256 -key ${rsa_priv_key_file} -out ${rsa_crt_key_file} -days 3650 -subj '/C=XX/ST=StateName/L=CityName/O=CompanyName/OU=CompanySectionName/CN=CommonNameOrHostname' -passin env:FLUXCHAT_KEY_PASSWORD
 fi
 
 if [[ ! -d ./.venv ]]; then
@@ -50,6 +54,8 @@ if [[ ! -d ./.venv ]]; then
 fi
 
 source ./.venv/bin/activate
+
+echo '-> installing requirements'
 pip3 install -r requirements.txt
 
 if ! test -f ${FLUXCHAT_CONFIG}; then

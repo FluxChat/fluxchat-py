@@ -2,7 +2,9 @@
 import logging
 import os
 import socket
+import ssl
 import selectors
+import select
 import struct
 import base64
 import uuid
@@ -23,6 +25,12 @@ import lib.overlay as overlay
 
 VERSION = 1
 CLIENT_READ_SIZE = 2048
+SSL_HANDSHAKE_WAIT = 0.3
+SSL_HANDSHAKE_TIMEOUT = 5
+SSL_MINIMUM_VERSION = ssl.TLSVersion.TLSv1_2
+
+class SslHandshakeError(Exception):
+	pass
 
 class Server(Network):
 	_config: dict
@@ -57,6 +65,7 @@ class Server(Network):
 		self._wrote_pid_file = False
 		self._client_auth_timeout = None
 		self._client_action_retention_time = None
+		self._ssl_handshake_timeout = dt.timedelta(seconds=SSL_HANDSHAKE_TIMEOUT)
 
 		self._logger = logging.getLogger('server')
 		self._logger.info('init()')
@@ -84,6 +93,8 @@ class Server(Network):
 				self._config['public_key_file'] = os.path.join(self._config['data_dir'], 'public_key.pem')
 			if 'private_key_file' not in self._config:
 				self._config['private_key_file'] = os.path.join(self._config['data_dir'], 'private_key.pem')
+
+			self._certificate_file = os.path.join(self._config['data_dir'], 'certificate.pem')
 
 			if 'keys_dir' not in self._config:
 				self._config['keys_dir'] = os.path.join(self._config['data_dir'], 'keys')
@@ -160,6 +171,10 @@ class Server(Network):
 
 		self._load_public_key_from_pem_file()
 		self._load_private_key_from_pem_file()
+
+		self._main_server_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
+		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password'))
 
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -266,23 +281,61 @@ class Server(Network):
 
 		return len(clients) > 0
 
+	def _ssl_handshake(self, socket_ssl: ssl.SSLObject) -> None: # pragma: no cover
+		self._logger.debug('_ssl_handshake(%s)', socket_ssl)
+
+		start = dt.datetime.now()
+		tries = 0
+		while True:
+			try:
+				self._logger.debug('ssl handshake: %d', tries)
+				socket_ssl.do_handshake()
+				break
+			except ssl.SSLWantReadError as e:
+				pass
+				# self._logger.debug('ssl.SSLWantReadError: %s', e)
+				select.select([socket_ssl], [], [], 0.3)
+			except ssl.SSLWantWriteError as e:
+				pass
+				# self._logger.debug('ssl.SSLWantWriteError: %s', e)
+				select.select([], [socket_ssl], [], 0.3)
+			except ssl.SSLError as e:
+				self._logger.error('ssl.SSLError: %s', e)
+				raise SslHandshakeError(e)
+
+			now = dt.datetime.now()
+			if now - start >= self._ssl_handshake_timeout:
+				raise SslHandshakeError('ssl handshake timeout')
+
+			tries += 1
+
+		self._logger.debug('ssl handshake done: %d', tries)
+
 	def _accept_main_server(self, server_sock: socket.socket): # pragma: no cover
 		self._logger.debug('_accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
 
-		# self._logger.debug('client_sock: %s', client_sock)
-		# self._logger.debug('addr: %s', addr)
-		# self._logger.debug('accepted: %s:%d', addr[0], addr[1])
+		client_ssl = self._main_server_ssl.wrap_socket(client_sock, server_side=True, do_handshake_on_connect=False)
+
+		try:
+			self._ssl_handshake(client_ssl)
+		except SslHandshakeError as e:
+			self._logger.error('ssl handshake error: %s', e)
+			return
+
+		self._logger.debug('client_sock: %s', client_sock)
+		self._logger.debug('client_ssl: %s', client_ssl)
+		self._logger.debug('accepted: %s', addr)
 
 		client = Client()
-		client.sock = client_sock
+		client.sock = client_ssl
 		client.conn_mode = 1
 		client.dir_mode = 'i'
 		client.debug_add = 'accept'
 
-		self._selectors.register(client_sock, selectors.EVENT_READ, data={
+		self._selectors.register(client_ssl, selectors.EVENT_READ, data={
 			'type': 'main_client',
 			'client': client,
 		})
@@ -348,12 +401,17 @@ class Server(Network):
 		client.dir_mode = 'o'
 		client.refresh_used_at()
 
-		client.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		client.sock.settimeout(2)
+		client_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+		client_ssl.minimum_version = SSL_MINIMUM_VERSION
+		client_ssl.check_hostname = False
+		client_ssl.verify_mode = ssl.CERT_NONE
+
+		client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		client_sock.settimeout(2)
 		try:
-			self._logger.error('client.sock.connect to %s:%s', client.address, client.port)
-			client.sock.connect((client.address, client.port))
-			self._logger.error('client.sock.connect done')
+			self._logger.debug('client sock connect to %s:%s', client.address, client.port)
+			client_sock.connect((client.address, client.port))
+			self._logger.debug('client sock connect done')
 		except ConnectionRefusedError as e:
 			self._logger.error('ConnectionRefusedError: %s', e)
 			return False
@@ -364,15 +422,25 @@ class Server(Network):
 			self._logger.error('socket.timeout: %s', e)
 			return False
 
-		client.sock.settimeout(None)
-		client.sock.setblocking(False)
+		client_sock.settimeout(None)
+		client_sock.setblocking(False)
 
-		self._selectors.register(client.sock, selectors.EVENT_READ, data={
+		client_ssl = client_ssl.wrap_socket(client_sock, do_handshake_on_connect=False)
+		# client.sock = client_sock
+		client.sock = client_ssl
+
+		self._selectors.register(client_ssl, selectors.EVENT_READ, data={
 			'type': 'main_client',
 			'client': client,
 		})
 
 		self._clients.append(client)
+
+		try:
+			self._ssl_handshake(client_ssl)
+		except SslHandshakeError as e:
+			self._logger.error('ssl handshake error: %s', e)
+			return False
 
 		self._logger.debug('_client_connect done')
 		return True
@@ -399,6 +467,10 @@ class Server(Network):
 				reading = False
 			except ConnectionResetError as e:
 				self._logger.debug('ConnectionResetError: %s', e)
+				disconnect = True
+				reading = False
+			except ssl.SSLWantReadError as e:
+				self._logger.debug('SSLWantReadError: %s', e)
 				disconnect = True
 				reading = False
 			else:
