@@ -60,6 +60,6 @@ class Network(): # pragma: no cover
 
 		raw = flags_b + group_b + command_b + payload_len_b + payload + b'\x00'
 
-		self._logger.debug('send raw: %s', raw)
+		self._logger.debug('send raw: %d %s', len(raw), raw)
 
 		sock.sendall(raw)

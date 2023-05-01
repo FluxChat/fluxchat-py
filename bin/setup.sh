@@ -56,6 +56,8 @@ if ! test -f ${FLUXCHAT_CONFIG}; then
 	export FLUXCHAT_ID=$(./src/gen_id.py -f ${FLUXCHAT_DATA_DIR}/public_key.pem)
 
 	echo '-> generating config'
+	touch ${FLUXCHAT_CONFIG}
+	chmod go-rwx ${FLUXCHAT_CONFIG}
 	envsubst < ./config-example.json > ${FLUXCHAT_CONFIG}
 fi
 if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json; then

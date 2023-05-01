@@ -36,7 +36,16 @@ export FLUXCHAT_IPC_PORT=26002
 ## External Documentation
 
 - https://en.wikipedia.org/wiki/Kademlia
+- https://en.wikipedia.org/wiki/X.509
+- https://en.wikipedia.org/wiki/ASN.1
+- https://en.wikipedia.org/wiki/Symmetric-key_algorithm
+- https://en.wikipedia.org/wiki/Hybrid_cryptosystem
 - https://medium.com/coinmonks/a-brief-overview-of-kademlia-and-its-use-in-various-decentralized-platforms-da08a7f72b8f
+- [StackExchange: Should we sign-then-encrypt, or encrypt-then-sign?](https://crypto.stackexchange.com/questions/5458/should-we-sign-then-encrypt-or-encrypt-then-sign)
+- [Don Davis: Defective Sign & Encrypt in S/MIME, PKCS#7, MOSS, PEM, PGP, and XML](https://theworld.com/~dtd/sign_encrypt/sign_encrypt7.html)
+- [pyca/cryptography](https://cryptography.io/en/latest/)
+- [Lifetimes of cryptographic hash functions](https://valerieaurora.org/hash.html)
+- [Announcing the first SHA1 collision](https://security.googleblog.com/2017/02/announcing-first-sha1-collision.html)
 
 ## Dev
 

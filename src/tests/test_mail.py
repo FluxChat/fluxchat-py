@@ -9,7 +9,7 @@ class MailTestCase(unittest.TestCase):
 		mail.uuid = '123'
 		mail.receiver = 'receiver'
 
-		self.assertEqual(str(mail), 'Mail(123,r=receiver)')
+		self.assertEqual(str(mail), 'Mail(123)')
 
 	def test_mail1(self):
 		mail1 = Mail()
@@ -32,9 +32,3 @@ class MailTestCase(unittest.TestCase):
 			'body': 'test body',
 			'forwarded_to': ['test3', 'test4'],
 		})
-
-	def test_mail2(self):
-		mail1 = Mail('to', 'body')
-
-		self.assertEqual(mail1.receiver, 'to')
-		self.assertEqual(mail1.body, 'body')

@@ -11,6 +11,7 @@ class Mail():
 	uuid: str
 	sender: str
 	receiver: str
+	origin: overlay.Node
 	target: overlay.Node
 	subject: str
 	body: str
@@ -21,14 +22,18 @@ class Mail():
 	is_encrypted: bool
 	is_delivered: bool
 	is_new: bool
+	verified: str
+	sign_hash: str
 	sign: str
 
-	def __init__(self, receiver: str = None, body: str = None):
+	def __init__(self):
 		self.uuid = str(uuid.uuid4())
 		self.sender = None
-		self.receiver = receiver
+		self.receiver = None
+		self.origin = None
+		self.target = None
 		self.subject = None
-		self.body = body
+		self.body = None
 		self.created_at = dt.datetime.utcnow()
 		self.received_at = None
 		self.valid_until = None
@@ -36,21 +41,15 @@ class Mail():
 		self.is_encrypted = False
 		self.is_delivered = None
 		self.is_new = None
+		self.verified = None
+		self.sign_hash = None
 		self.sign = None
 
 		self._logger = logging.getLogger('mail')
 		self._logger.info('init()')
 
-		if self.receiver == None:
-			self.target = None
-		else:
-			try:
-				self.target = overlay.Node.parse(self.receiver)
-			except:
-				self.target = None
-
 	def __str__(self):
-		return 'Mail({},r={})'.format(self.uuid, self.receiver)
+		return 'Mail({})'.format(self.uuid)
 
 	def __repr__(self):
 		return self.__str__()
@@ -81,27 +80,22 @@ class Mail():
 			data['is_delivered'] = self.is_delivered
 		if self.is_new != None:
 			data['is_new'] = self.is_new
+		if self.verified != None:
+			data['verified'] = self.verified
+		if self.sign_hash != None:
+			data['sign_hash'] = self.sign_hash
 		if self.sign != None:
 			data['sign'] = self.sign
 		return data
 
 	def from_dict(self, data: dict):
-		self._logger.debug('from_dict()')
+		self._logger.debug('from_dict() -> %s', data)
 
-		if 'to' in data: # deprecated # TODO remove
-			self.receiver = data['to']
-			try:
-				self.target = overlay.Node.parse(self.receiver)
-			except:
-				self.target = None
-		if 'receiver' in data:
-			self.receiver = data['receiver']
-			try:
-				self.target = overlay.Node.parse(self.receiver)
-			except:
-				self.target = None
 		if 'sender' in data:
-			self.sender = data['sender']
+			self.set_sender(data['sender'])
+		if 'receiver' in data:
+			self.set_receiver(data['receiver'])
+
 		if 'subject' in data:
 			self.subject = data['subject']
 		if 'body' in data:
@@ -120,6 +114,10 @@ class Mail():
 			self.is_delivered = data['is_delivered']
 		if 'is_new' in data:
 			self.is_new = bool(data['is_new'])
+		if 'verified' in data:
+			self.verified = data['verified']
+		if 'sign_hash' in data:
+			self.sign_hash = data['sign_hash']
 		if 'sign' in data:
 			self.sign = data['sign']
 
@@ -127,6 +125,28 @@ class Mail():
 		self._logger.debug('received_now()')
 
 		self.received_at = dt.datetime.utcnow()
+
+	def set_sender(self, sender: str):
+		self._logger.debug('set_sender(%s)', sender)
+
+		try:
+			self.origin = overlay.Node.parse(sender)
+		except:
+			self.origin = None
+			self.sender = None
+		else:
+			self.sender = sender
+
+	def set_receiver(self, receiver: str):
+		self._logger.debug('set_receiver(%s)', receiver)
+
+		try:
+			self.target = overlay.Node.parse(receiver)
+		except:
+			self.target = None
+			self.receiver = None
+		else:
+			self.receiver = receiver
 
 	def encode(self) -> str:
 		self._logger.debug('encode()')
@@ -141,7 +161,6 @@ class Mail():
 			b'\x11', receiver_len, self.receiver.encode('utf-8'),
 			b'\x20', subject_len, self.subject.encode('utf-8'),
 			b'\x21', body_len, self.body.encode('utf-8'),
-			# \x30 sign in server._encrypt_mail()
 		]
 		raw = b''.join(items)
 		return base64.b64encode(raw).decode('utf-8')
@@ -166,13 +185,13 @@ class Mail():
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
-				self.sender = val
+				self.set_sender(val)
 
 			elif item_t == 0x11:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
-				self.receiver = val
+				self.set_receiver(val)
 
 			elif item_t == 0x20:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
@@ -192,6 +211,7 @@ class Mail():
 
 			elif item_t == 0x30:
 				self._logger.debug('decode sign')
+
 				item_l = int.from_bytes(data[pos:pos+2], 'little')
 				pos += 2
 				self._logger.debug('sign length: %d', item_l)
@@ -293,7 +313,7 @@ class Queue():
 
 class Database():
 	_path: str
-	_mails: dict
+	_data: dict
 	_changes: bool
 
 	def __init__(self, path: str) -> None:
@@ -312,6 +332,8 @@ class Database():
 			mail = Mail()
 			mail.from_dict(mail_raw)
 
+			self._logger.debug('load mail: %s', mail)
+
 			self._data[mail_uuid] = mail
 
 	def save(self):
@@ -327,6 +349,9 @@ class Database():
 		write_json_file(self._path, data)
 		self._changes = False
 
+	def changed(self):
+		self._changes = True
+
 	def add_mail(self, mail: Mail):
 		self._logger.debug('add_mail %s', mail)
 
@@ -336,3 +361,6 @@ class Database():
 	def has_mail(self, mail_uuid: str) -> bool:
 		self._logger.debug('has_mail %s', mail_uuid)
 		return mail_uuid in self._data
+
+	def get_mails(self) -> dict:
+		return self._data.items()

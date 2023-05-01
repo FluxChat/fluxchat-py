@@ -53,6 +53,7 @@ class Client():
 	# Unmapped
 	node: overlay.Node
 	sock: socket.socket
+	# buf: bytes
 
 	# Connection Mode
 	# 0 = DISCONNECTED

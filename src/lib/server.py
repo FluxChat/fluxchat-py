@@ -10,16 +10,19 @@ import datetime as dt
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.fernet import Fernet
+from cryptography.exceptions import InvalidSignature
 
 from lib.client import Client, Action
 from lib.address_book import AddressBook
-from lib.helper import resolve_contact, is_valid_uuid
+from lib.helper import resolve_contact, is_valid_uuid, binary_encode, binary_decode
 from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
 from lib.network import Network
 from lib.cash import Cash
 import lib.overlay as overlay
 
 VERSION = 1
+CLIENT_READ_SIZE = 2048
 
 class Server(Network):
 	_config: dict
@@ -377,30 +380,53 @@ class Server(Network):
 	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
 		self._logger.debug('_client_read(%s)', client)
 
-		try:
-			raw = sock.recv(2048)
-		except TimeoutError as e:
-			self._logger.debug('TimeoutError: %s', e)
-			return
-		except ConnectionResetError as e:
-			self._logger.debug('ConnectionResetError: %s', e)
-			raw = False
+		commands = []
+		raw_total = b''
+		disconnect = False
 
-		if raw:
-			raw_len = len(raw)
-			self._logger.debug('recv raw %d %s', raw_len, raw)
+		reading = True
+		while reading:
+			raw_len = 0
+			try:
+				raw = sock.recv(CLIENT_READ_SIZE)
+				raw_len = len(raw)
+				self._logger.debug('recv raw A: %d %s', raw_len, raw)
+
+				raw_total += raw
+			except TimeoutError as e:
+				self._logger.debug('TimeoutError: %s', e)
+				disconnect = True
+				reading = False
+			except ConnectionResetError as e:
+				self._logger.debug('ConnectionResetError: %s', e)
+				disconnect = True
+				reading = False
+			else:
+				if raw_len >= CLIENT_READ_SIZE:
+					self._logger.debug('raw_len(%d) >= CLIENT_READ_SIZE(%d)', raw_len, CLIENT_READ_SIZE)
+					reading = True
+				elif raw_len > 0:
+					self._logger.debug('raw_len(%d) > 0', raw_len)
+					reading = False
+				else:
+					self._logger.debug('raw_len(%d) < CLIENT_READ_SIZE(%d)', raw_len, CLIENT_READ_SIZE)
+					reading = False
+					disconnect = True
+
+		raw_total_len = len(raw_total)
+		if raw_total_len > 0:
+			self._logger.debug('recv raw B: %d %s', raw_total_len, raw_total)
 
 			raw_pos = 0
-			commands = []
-			while raw_pos < raw_len:
+			while raw_pos < raw_total_len:
 				try:
-					flags_i = raw[raw_pos]
+					flags_i = raw_total[raw_pos]
 					raw_pos += 1
 
-					group = raw[raw_pos]
+					group = raw_total[raw_pos]
 					raw_pos += 1
 
-					command = raw[raw_pos]
+					command = raw_total[raw_pos]
 					raw_pos += 1
 				except IndexError as e:
 					self._logger.debug('IndexError: %s', e)
@@ -412,7 +438,8 @@ class Server(Network):
 				lengths_are_4_bytes = flags_i & 1 != 0
 
 				try:
-					length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
+					# length = struct.unpack('<I', raw_total[raw_pos:raw_pos + 4])[0]
+					length = int.from_bytes(raw_total[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
 				except struct.error as e:
 					self._logger.debug('struct.error: %s', e)
@@ -421,21 +448,22 @@ class Server(Network):
 					client.conn_msg = 'unpack error'
 					return
 
-				payload_raw = raw[raw_pos:]
+				payload_raw = raw_total[raw_pos:]
 				payload_items = []
 
 				self._logger.debug('group: %d', group)
 				self._logger.debug('command: %d', command)
 				self._logger.debug('length: %d %s', length, type(length))
 
-				if length >= 2048:
-					self._logger.error('length too big: %d', length)
-					return
+				# if length >= 2048:
+				# 	self._logger.error('length too big: %d', length)
+				# 	return
 
 				pos = 0
 				while pos < length:
 					if lengths_are_4_bytes:
-						item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						# item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						item_len = int.from_bytes(payload_raw[pos:pos + 4], 'little')
 						pos += 3
 					else:
 						item_len = payload_raw[pos]
@@ -453,15 +481,18 @@ class Server(Network):
 				raw_pos += length + 1
 				# self._logger.debug('raw_pos: %d', raw_pos)
 
-			self._client_commands(sock, client, commands)
-		else:
-			self._logger.debug('no data')
+		if disconnect:
+			self._logger.debug('disconnect')
 
 			self._logger.debug('conn mode 0')
 			client.conn_mode = 0
 			client.conn_msg = 'no data'
 
+		self._client_commands(sock, client, commands)
+
 	def _client_commands(self, sock: socket.socket, client: Client, commands: list): # pragma: no cover
+		self._logger.debug('_client_commands(%s)', client)
+
 		for command_raw in commands:
 			group_i, command_i, payload = command_raw
 			payload_len = len(payload)
@@ -478,11 +509,11 @@ class Server(Network):
 
 			if group_i == 0: # Basic
 				if command_i == 0:
-					self._logger.debug('OK command')
+					self._logger.info('OK command')
 
 			elif group_i == 1: # Connection, Authentication, etc
 				if command_i == 1:
-					self._logger.debug('CHALLENGE command')
+					self._logger.info('CHALLENGE command')
 
 					if client.auth & 2 != 0:
 						self._logger.debug('skip, already got CHALLENGE')
@@ -520,7 +551,7 @@ class Server(Network):
 					self._logger.debug('challenge: %s', client.challenge)
 
 				elif command_i == 2:
-					self._logger.debug('ID command')
+					self._logger.info('ID command')
 
 					if client.auth & 2 == 0:
 						self._logger.warning('skip, client has first to send CHALLENGE')
@@ -663,19 +694,19 @@ class Server(Network):
 
 					self._logger.debug('Client Z: %s', _client)
 				elif command_i == 3:
-					self._logger.debug('PING command')
+					self._logger.info('PING command')
 					self._client_send_pong(sock)
 				elif command_i == 4:
-					self._logger.debug('PONG command')
+					self._logger.info('PONG command')
 
 			elif group_i == 2: # Overlay, Address Book, Routing, etc
 				if command_i == 1:
-					self._logger.debug('GET_NEAREST_TO command')
+					self._logger.info('GET_NEAREST_TO command')
 
 					try:
 						node = overlay.Node(payload[0])
 					except:
-						self._logger.debug('invalid node')
+						self._logger.warning('skip, invalid node')
 						continue
 
 					client_ids = []
@@ -690,11 +721,11 @@ class Server(Network):
 					self._client_send_get_nearest_response(sock, client_ids)
 
 				elif command_i == 2:
-					self._logger.debug('GET_NEAREST_TO RESPONSE command')
+					self._logger.info('GET_NEAREST_TO RESPONSE command')
 
 					action = client.resolve_action('nearest_response')
 					if action == None:
-						self._logger.debug('not requested')
+						self._logger.warning('skip, not requested')
 						continue
 
 					self._logger.debug('action: %s', action)
@@ -740,7 +771,7 @@ class Server(Network):
 							nearest_client.add_action('bootstrap', bootstrap_count)
 
 				elif command_i == 3:
-					self._logger.debug('REQUEST PUBLIC KEY FOR NODE command')
+					self._logger.info('REQUEST PUBLIC KEY FOR NODE command')
 
 					is_relay = False
 					fwd_clients = []
@@ -750,7 +781,7 @@ class Server(Network):
 					try:
 						target = overlay.Node.parse(node_id)
 					except:
-						self._logger.debug('invalid node')
+						self._logger.debug('skip, invalid node')
 						continue
 
 					if target == self._local_node:
@@ -799,7 +830,7 @@ class Server(Network):
 								_client.add_action(action)
 
 				elif command_i == 4:
-					self._logger.debug('RESPONSE PUBLIC KEY FOR NODE command')
+					self._logger.info('RESPONSE PUBLIC KEY FOR NODE command')
 
 					node_id, public_key_raw = payload
 					self._logger.debug('node id: %s', node_id)
@@ -809,12 +840,16 @@ class Server(Network):
 						node = overlay.Node.parse(node_id)
 						self._logger.debug('node: %s', node)
 					except:
-						self._logger.debug('invalid node')
+						self._logger.debug('skip, invalid node')
 						continue
 
 					action = client.resolve_action('request_public_key_for_node', node.id, force_remove=True)
 					if action == None:
-						self._logger.debug('not requested')
+						self._logger.warning('skip, not requested')
+						continue
+
+					if node == self._local_node:
+						self._logger.warning('skip, local node')
 						continue
 
 					self._logger.debug('action: %s', action)
@@ -853,7 +888,11 @@ class Server(Network):
 					if _client != None and _client.has_public_key():
 						self._logger.debug('client is set and has public key')
 						self._logger.debug('client: %s', _client)
-						action.func(_client)
+
+						if action.func != None:
+							self._logger.debug('action has func')
+							self._logger.debug('call func')
+							action.func(_client)
 
 			elif group_i == 3: # Mail
 				if command_i == 1:
@@ -883,8 +922,11 @@ class Server(Network):
 
 					self._logger.debug('mail data: %s', mail_data)
 
-					mail = Mail(mail_target.id, mail_data)
+					mail = Mail()
+					mail.receiver = mail_target.id
+					mail.target = mail_target
 					mail.uuid = mail_uuid
+					mail.body = mail_data
 					mail.is_encrypted = True
 					mail.received_now()
 
@@ -1008,7 +1050,8 @@ class Server(Network):
 				lengths_are_4_bytes = flags_i & 1 != 0
 
 				try:
-					length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
+					# length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
+					length = int.from_bytes(raw[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
 				except struct.error as e:
 					self._logger.error('IPC struct.error: %s', e)
@@ -1023,15 +1066,16 @@ class Server(Network):
 				self._logger.debug('IPC command: %d', command)
 				self._logger.debug('IPC length: %d %s', length, type(length))
 
-				if length >= 2048:
-					self._logger.error('IPC length too big: %d', length)
-					return
+				# if length >= 2048:
+				# 	self._logger.error('IPC length too big: %d', length)
+				# 	return
 
 				pos = 0
 				while pos < length:
 					self._logger.debug('IPC pos: %d', pos)
 					if lengths_are_4_bytes:
-						item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						# item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						item_len = int.from_bytes(payload_raw[pos:pos + 4], 'little')
 						pos += 3
 					else:
 						item_len = payload_raw[pos]
@@ -1097,6 +1141,8 @@ class Server(Network):
 
 		events = self._selectors.select(timeout=0)
 		for key, mask in events:
+			self._logger.debug('handle_sockets mask: %d', mask)
+
 			if key.data != None:
 				if key.data['type'] == 'main_server':
 					self._accept_main_server(key.fileobj)
@@ -1272,7 +1318,7 @@ class Server(Network):
 		return had_actions
 
 	def _create_action_request_public_key_for_node(self, target: overlay.Node, mode: str) -> Action:
-		self._logger.debug('create_action_request_public_key_for_node()')
+		self._logger.debug('_create_action_request_public_key_for_node(%s, %s)', target, mode)
 
 		action_data = {
 			'target': target,
@@ -1369,6 +1415,61 @@ class Server(Network):
 
 		return True
 
+	def handle_mail_db(self) -> bool:
+		self._logger.debug('handle_mail_db()')
+
+		for mail_uuid, mail in self._mail_db.get_mails():
+			self._logger.debug('mail %s', mail)
+
+			# print('mail', mail)
+			# print('mail.sender', mail.sender)
+			# print('mail.receiver', mail.receiver)
+			# print('mail.origin', mail.origin)
+			# print('mail.target', mail.target)
+			# print('mail.sign_hash', mail.sign_hash)
+			# print('mail.sign', mail.sign)
+
+			clients = self._address_book.get_nearest_to(mail.origin, with_contact_infos=True)
+			self._logger.debug('clients %s', clients)
+
+			for client in clients:
+				self._logger.debug('client for mail: %s', client)
+				if self._client_is_connected(client):
+					self._logger.debug('client is connected')
+				else:
+					self._logger.debug('client is not connected C')
+					self._client_connect(client)
+
+			if mail.verified == 'n':
+				self._logger.debug('mail is not verified')
+
+				_client = self._address_book.get_client_by_id(mail.origin.id)
+
+				request_public_key_for_node_action = False
+				if _client == None:
+					self._logger.debug('client not found by id: %s', mail.origin.id)
+					request_public_key_for_node_action = True
+				else:
+					self._logger.debug('client found by id: %s', mail.origin.id)
+					if _client.has_public_key():
+						self._logger.debug('client has public key')
+						self._verify_mail(mail, _client)
+					else:
+						self._logger.debug('client has no public key')
+						request_public_key_for_node_action = True
+
+				if request_public_key_for_node_action:
+					for client in clients:
+						if client.has_action('request_public_key_for_node', mail.origin.id):
+							self._logger.debug('client already has action request_public_key_for_node/%s', mail.origin.id)
+						else:
+							self._logger.debug('create action request_public_key_for_node from client: %s', client)
+							action = self._create_action_request_public_key_for_node(mail.origin, 'o')
+							action.func = lambda client: self._verify_mail(mail, client)
+							client.add_action(action)
+
+	# Use public key to encrypt symmetric key.
+	# Use symmetric key to encrypt mail body.
 	def _encrypt_mail(self, mail: Mail, client: Client):
 		self._logger.debug('_encrypt_mail() -> {}'.format(mail.is_encrypted))
 		self._logger.debug('mail %s', mail)
@@ -1378,14 +1479,29 @@ class Server(Network):
 			self._logger.debug('mail is already encrypted')
 			return
 
-		# base64 decode body
-		body = base64.b64decode(mail.body)
-		self._logger.debug('body raw "%s"', body)
+		# Raw Body
+		raw_body = base64.b64decode(mail.body)
+		raw_body_len = len(raw_body).to_bytes(2, 'little')
+		self._logger.debug('raw body "%s"', raw_body)
+		self._logger.debug('raw body len %s', raw_body_len)
 
-		# Sign-than-encrypt
-		# https://crypto.stackexchange.com/questions/5458/should-we-sign-then-encrypt-or-encrypt-then-sign
+		# Symmetric Key
+		sym_key = Fernet.generate_key()
+		self._logger.debug('sym_key: %s', sym_key)
+		self._logger.debug('sym_key hex: %s', sym_key.hex())
+
+		# Signature Data
+		hasher = hashes.Hash(hashes.SHA256())
+		hasher.update(sym_key)
+		hasher.update(raw_body)
+		sign_hash = hasher.finalize()
+
+		sign_hash_b64 = base64.b64encode(sign_hash).decode('utf-8')
+		self._logger.debug('sign_hash: %s', sign_hash_b64)
+
+		# Signature
 		signature = self._private_key.sign(
-			body,
+			sign_hash,
 			padding.PSS(
 				mgf=padding.MGF1(hashes.SHA256()),
 				salt_length=padding.PSS.MAX_LENGTH
@@ -1393,20 +1509,41 @@ class Server(Network):
 			hashes.SHA256()
 		)
 		sig_len = len(signature).to_bytes(2, 'little')
-		self._logger.debug('sign len: %d', sig_len)
-		body += b'\x30' + sig_len + signature
-		self._logger.debug('body+sign "%s"', body)
+		self._logger.debug('sign len: %d %s', len(signature), sig_len)
+		self._logger.debug('signature: %s', signature)
 
-		encrypted = client.encrypt(body)
-		# self._logger.debug('encrypted: %s', encrypted)
+		# Symmetric Data
+		sym_items = {
+			0x00: signature,
+			0x01: raw_body,
+		}
+		sym_data = binary_encode(sym_items, 2)
 
-		encoded = base64.b64encode(encrypted)
-		# self._logger.debug('b64 encoded: %s', encoded)
+		# Symmetric Key encrypted
+		f = Fernet(sym_key)
+		token = f.encrypt(sym_data)
+		token_len = len(token).to_bytes(4, 'little')
+		self._logger.debug('token_len "%s"', token_len)
+		self._logger.debug('token "%s"', token)
 
-		decoded = encoded.decode('utf-8')
-		# self._logger.debug('b64 decoded: %s', decoded)
+		# Encrypted Symmetric Key using Public Key
+		enc_sym_key = client.encrypt(sym_key)
+		enc_sym_key_len = len(enc_sym_key).to_bytes(2, 'little')
+		self._logger.debug('enc_sym_key_len "%s"', enc_sym_key_len)
+		self._logger.debug('enc_sym_key "%s"', enc_sym_key)
 
-		mail.body = decoded
+		# Public Data
+		pub_items = {
+			0x00: enc_sym_key,
+			0x01: token,
+		}
+		# 4 bytes for length = 4 * 8 bits = 32 bits = 2^32 = 4.294.967.296 bytes
+		pub_data = binary_encode(pub_items, 4)
+
+		encoded = base64.b64encode(pub_data).decode('utf-8')
+		self._logger.debug('pub data b64 "%s"', encoded)
+
+		mail.body = encoded
 		mail.is_encrypted = True
 
 		self._mail_queue.changed()
@@ -1424,19 +1561,84 @@ class Server(Network):
 		self._logger.debug('body %s', mail.body)
 
 		# base64 decode body
-		decoded = base64.b64decode(mail.body)
-		self._logger.debug('decoded: %s', decoded)
+		pub_data = base64.b64decode(mail.body)
+		self._logger.debug('pub_data: %s', pub_data)
 
-		decrypted_b = self._private_key.decrypt(
-			decoded,
+		pub_items = binary_decode(pub_data, 4)
+		self._logger.debug('pub_items: %s', pub_items)
+		enc_sym_key = pub_items[0x00]
+		token = pub_items[0x01]
+
+		# Private key decryption
+		sym_key = self._private_key.decrypt(
+			enc_sym_key,
 			padding.OAEP(
 				mgf=padding.MGF1(algorithm=hashes.SHA256()),
 				algorithm=hashes.SHA256(),
 				label=None
 			)
 		)
-		self._logger.debug('decrypted: %s', decrypted_b)
+		self._logger.debug('sym_key: %s', sym_key)
+
+		# Decrypt token
+		f = Fernet(sym_key)
+		sym_data = f.decrypt(token)
+		# self._logger.debug('sym_data:', sym_data)
+
+		sym_items = binary_decode(sym_data, 2)
+		# self._logger.debug('sym_items:', sym_items)
+
+		signature = sym_items[0x00]
+		raw_body = sym_items[0x01]
+		self._logger.debug('signature: %s', signature)
+		self._logger.debug('raw_body: %s', raw_body)
+
+		# Signature Data
+		hasher = hashes.Hash(hashes.SHA256())
+		hasher.update(sym_key)
+		hasher.update(raw_body)
+		sign_token = hasher.finalize()
+		self._logger.debug('sign_token: %s', sign_token.hex())
 
 		mail.is_encrypted = False
 		mail.is_new = True
-		mail.decode(decrypted_b)
+		mail.verified = 'n'
+		mail.sign_hash = base64.b64encode(sign_token).decode('utf-8')
+		mail.sign = base64.b64encode(signature).decode('utf-8')
+		mail.decode(raw_body)
+
+		self._mail_db.changed()
+
+	def _verify_mail(self, mail: Mail, client: Client):
+		self._logger.debug('_verify_mail()')
+		self._logger.debug('mail: %s', mail)
+		self._logger.debug('client: %s', client)
+
+		self._logger.debug('sign_hash A: %s', mail.sign_hash)
+		sign_hash = base64.b64decode(mail.sign_hash)
+		self._logger.debug('sign_hash B: %s', sign_hash)
+
+		self._logger.debug('sign A: %s', mail.sign)
+		sign = base64.b64decode(mail.sign)
+		self._logger.debug('sign B: %s', sign)
+
+		try:
+			client.public_key.verify(
+				sign,
+				sign_hash,
+				padding.PSS(
+					mgf=padding.MGF1(hashes.SHA256()),
+					salt_length=padding.PSS.MAX_LENGTH
+				),
+				hashes.SHA256()
+			)
+		except InvalidSignature:
+			self._logger.error('InvalidSignature')
+			mail.verified = 'e'
+		else:
+			self._logger.debug('mail signature OK')
+			mail.verified = 'y'
+			mail.sign_hash = None
+			mail.sign = None
+
+		self._mail_db.changed()
