@@ -98,3 +98,39 @@ def is_valid_uuid(id: str):
 	except ValueError:
 		return False
 	return str(obj) == id
+
+# key: data
+def binary_encode(data: dict, max_len: int = 4) -> bytes:
+	items = []
+	for key, value in data.items():
+		d_len = len(value)
+
+		items.append(key.to_bytes(1, 'little'))
+		items.append(d_len.to_bytes(max_len, 'little'))
+
+		if isinstance(value, bytes):
+			items.append(value)
+		elif isinstance(value, str):
+			items.append(value.encode('utf-8'))
+
+	return b''.join(items)
+
+def binary_decode(data: bytes, max_len: int = 4) -> dict:
+	data_len = len(data)
+	pos = 0
+	items = {}
+	while pos < data_len:
+		item_t = int.from_bytes(data[pos:pos+1], 'little')
+		pos += 1
+		# print('item_t:', item_t)
+
+		item_l = int.from_bytes(data[pos:pos+max_len], 'little')
+		pos += max_len
+		# print('item_l:', item_l)
+
+		items[item_t] = data[pos:pos+item_l]
+		# print('item:', items[item_t])
+
+		pos += item_l
+
+	return items
