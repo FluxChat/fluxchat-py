@@ -151,12 +151,14 @@ class Mail():
 	def encode(self) -> str:
 		self._logger.debug('encode()')
 
+		# uuid_len = len(self.uuid).to_bytes(1, 'little')
 		sender_len = len(self.sender).to_bytes(1, 'little')
 		receiver_len = len(self.receiver).to_bytes(1, 'little')
 		subject_len = len(self.subject).to_bytes(1, 'little')
 		body_len = len(self.body).to_bytes(4, 'little')
 		items = [
-			b'\x00\x13', dt.datetime.utcnow().strftime('%FT%T').encode('utf-8'),
+			# b'\x00', uuid_len, self.uuid.encode('utf-8'),
+			b'\x01\x13', self.created_at.strftime('%FT%T').encode('utf-8'),
 			b'\x10', sender_len, self.sender.encode('utf-8'),
 			b'\x11', receiver_len, self.receiver.encode('utf-8'),
 			b'\x20', subject_len, self.subject.encode('utf-8'),
@@ -167,6 +169,7 @@ class Mail():
 
 	def decode(self, data: bytes):
 		self._logger.debug('decode(%s)', data)
+		# print('data', data)
 
 		data_len = len(data)
 
@@ -175,7 +178,8 @@ class Mail():
 			item_t = int.from_bytes(data[pos:pos+1], 'little')
 			pos += 1
 
-			if item_t == 0x00:
+			# if item_t == 0x00:
+			if item_t == 0x01:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode('utf-8')
@@ -209,21 +213,23 @@ class Mail():
 
 				self.body = val
 
-			elif item_t == 0x30:
-				self._logger.debug('decode sign')
+			# elif item_t == 0x30:
+			# 	self._logger.debug('decode sign')
 
-				item_l = int.from_bytes(data[pos:pos+2], 'little')
-				pos += 2
-				self._logger.debug('sign length: %d', item_l)
+			# 	item_l = int.from_bytes(data[pos:pos+2], 'little')
+			# 	pos += 2
+			# 	self._logger.debug('sign length: %d', item_l)
 
-				val = data[pos:pos+item_l]
-				self._logger.debug('sign bytes: "%s"', val)
+			# 	val = data[pos:pos+item_l]
+			# 	self._logger.debug('sign bytes: "%s"', val)
 
-				self.sign = base64.b64encode(val).decode('utf-8')
-				self._logger.debug('sign base64: "%s"', self.sign)
+			# 	self.sign = base64.b64encode(val).decode('utf-8')
+			# 	self._logger.debug('sign base64: "%s"', self.sign)
 
 			else:
 				self._logger.warning('unknown type: %s', item_t)
+				val = None
+				item_l = 0
 
 			pos += item_l
 
