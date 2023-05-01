@@ -217,7 +217,7 @@ class Server(Network):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
 
 		with open(self._config['private_key_file'], 'rb') as f:
-			self._private_key = serialization.load_pem_private_key(f.read(), password=None)
+			self._private_key = serialization.load_pem_private_key(f.read(), password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode('utf-8'))
 
 	def _load_public_key_from_pem_file(self) -> None:
 		self._logger.debug('load public key from pem file')

@@ -13,6 +13,7 @@ export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
 export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-var/data1}
 export FLUXCHAT_LOG_FILE=${FLUXCHAT_LOG_FILE:-fluxchat.log}
 export FLUXCHAT_IPC_PORT=${FLUXCHAT_IPC_PORT:-26001}
+export FLUXCHAT_KEY_PASSWORD=${FLUXCHAT_KEY_PASSWORD:-password}
 
 cd "${SCRIPT_BASEDIR}/.."
 pwd
@@ -35,10 +36,10 @@ rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
 rsa_pub_key_file=${FLUXCHAT_DATA_DIR}/public_key.pem
 if ! test -f ${rsa_priv_key_file} ; then
 	echo '-> generating rsa key'
-	openssl genrsa -out ${rsa_priv_key_file} 4096
+	openssl genrsa -out ${rsa_priv_key_file} -aes256 -passout env:FLUXCHAT_KEY_PASSWORD 4096
 
 	echo '-> generating rsa public key'
-	openssl rsa -in ${rsa_priv_key_file} -outform PEM -pubout -out ${rsa_pub_key_file}
+	openssl rsa -in ${rsa_priv_key_file} -outform PEM -pubout -out ${rsa_pub_key_file} -passin env:FLUXCHAT_KEY_PASSWORD
 fi
 
 if [[ ! -d ./.venv ]]; then

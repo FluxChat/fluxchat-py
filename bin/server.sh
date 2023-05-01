@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 export PYTHONUNBUFFERED=1
+export FLUXCHAT_KEY_PASSWORD=${FLUXCHAT_KEY_PASSWORD:-password}
+
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
