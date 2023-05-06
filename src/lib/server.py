@@ -16,10 +16,11 @@ from cryptography.exceptions import InvalidSignature
 
 from lib.client import Client, Action
 from lib.address_book import AddressBook
-from lib.helper import resolve_contact, is_valid_uuid, binary_encode, binary_decode, password_key_derivation
+from lib.helper import is_valid_uuid, binary_encode, binary_decode, password_key_derivation
 from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
 from lib.network import Network, SslHandshakeError
 from lib.cash import Cash
+from lib.contact import Contact
 import lib.overlay as overlay
 
 VERSION = 1
@@ -320,7 +321,7 @@ class Server(Network):
 		self._logger.debug('_read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
-		c_contact = data.decode()
+		c_contact_raw = data.decode()
 
 		self._logger.debug('data: %s', data)
 		self._logger.debug('addr: %s', addr)
@@ -329,15 +330,15 @@ class Server(Network):
 			self._logger.debug('skip self')
 			return
 
-		c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(c_contact, addr[0])
+		c_contact = Contact.resolve(c_contact_raw, addr[0])
 
-		if not c_has_contact_info:
+		if not c_contact.is_valid:
 			return
 
-		client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+		client = self._address_book.get_client_by_addr_port(c_contact.addr, c_contact.port)
 		if client == None:
-			client = self._address_book.add_client(addr=c_contact_addr, port=c_contact_port)
-			client.debug_add = 'discovery, contact: {}'.format(c_contact)
+			client = self._address_book.add_client(addr=c_contact.addr, port=c_contact.port)
+			client.debug_add = 'discovery, contact: {}'.format(c_contact_raw)
 		else:
 			self._logger.debug('client: %s', client)
 
@@ -529,7 +530,10 @@ class Server(Network):
 						addr = sock.getpeername()
 
 						# Client sent contact info
-						c_contact_addr, c_contact_port, c_has_contact_info = resolve_contact(payload[4], addr[0])
+						c_contact = Contact.resolve(payload[4], addr[0])
+						c_contact_addr = c_contact.addr
+						c_contact_port = c_contact.port
+						c_has_contact_info = c_contact.is_valid
 
 					c_switch = False
 					if client.dir_mode == 'i':
@@ -662,11 +666,11 @@ class Server(Network):
 					for c_contact in payload:
 						self._logger.debug('client contact A: %s', c_contact)
 
-						c_id, c_contact = c_contact.split(':', 1)
-						self._logger.debug('client contact B: %s %s', c_id, c_contact)
+						c_id, c_contact_raw = c_contact.split(':', 1)
+						self._logger.debug('client contact B: %s %s', c_id, c_contact_raw)
 
-						c_addr, c_port, c_has_contact_info = resolve_contact(c_contact)
-						self._logger.debug('client contact C: %s %s %s', c_addr, c_port, c_has_contact_info)
+						c_contact = Contact.resolve(c_contact_raw)
+						self._logger.debug('client contact C: %s %s %s', c_contact.addr, c_contact.port, c_contact.is_valid)
 
 						if c_id == self._local_node.id:
 							continue
@@ -674,7 +678,7 @@ class Server(Network):
 						_client = self._address_book.get_client_by_id(c_id)
 						if _client == None:
 							self._logger.debug('client not found')
-							_client = self._address_book.add_client(c_id, c_addr, c_port)
+							_client = self._address_book.add_client(c_id, c_contact.addr, c_contact.port)
 							_client.debug_add = 'nearest response, not found by id'
 
 							_c_distance = _client.distance(self._local_node)

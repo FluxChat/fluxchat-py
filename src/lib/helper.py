@@ -2,8 +2,6 @@
 import secrets
 import base58
 import base64
-import ipaddress
-import socket
 import json
 import os
 import uuid
@@ -70,46 +68,6 @@ def password_key_derivation(key_password: bytes) -> str:
 	kdf_b64 = base64.b64encode(kdf_b).decode()
 
 	return kdf_b64
-
-def resolve_contact(contact: str, raddr: str = None) -> list:
-	items = contact.split(':')
-	items_len = len(items)
-
-	if items_len == 1:
-		c_addr = items[0]
-		c_port = None
-	elif items_len == 2:
-		c_addr = items[0]
-		if items[1] == '':
-			c_port = None
-		else:
-			c_port = int(items[1])
-
-	if c_addr == '':
-		c_addr = 'private'
-
-	if c_addr == 'public':
-		c_addr = raddr
-	elif c_addr == 'private':
-		c_addr = None
-		c_port = None
-	else:
-		try:
-			ipaddress.ip_address(c_addr)
-		except ValueError:
-			# Contact is hostname
-			try:
-				results = socket.getaddrinfo(c_addr, None)
-				for result in results:
-					ip_address = result[4][0]
-					if ip_address[0:4] == '127.':
-						# Localhost is invalid.
-						c_addr = None
-						break
-			except socket.gaierror:
-				c_addr = None
-
-	return [c_addr, c_port, c_addr != None and c_port != None]
 
 def write_json_file(path: str, data):
 	with open(path, 'w') as write_file:
