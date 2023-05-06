@@ -10,6 +10,7 @@ which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 
 export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-var/config1.json}
 export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-0.0.0.0}
 export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
+export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
 export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-var/data1}
 export FLUXCHAT_LOG_FILE=${FLUXCHAT_LOG_FILE:-fluxchat.log}
 export FLUXCHAT_IPC_PORT=${FLUXCHAT_IPC_PORT:-26001}
@@ -18,13 +19,9 @@ export FLUXCHAT_KEY_PASSWORD=${FLUXCHAT_KEY_PASSWORD:-password}
 cd "${SCRIPT_BASEDIR}/.."
 pwd
 
-export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
-
 echo "-> FLUXCHAT_CONFIG: ${FLUXCHAT_CONFIG}"
 echo "-> FLUXCHAT_ADDRESS: ${FLUXCHAT_ADDRESS}"
 echo "-> FLUXCHAT_PORT: ${FLUXCHAT_PORT}"
-echo "-> FLUXCHAT_CONTACT_IP: ${FLUXCHAT_CONTACT_IP}"
-echo "-> FLUXCHAT_CONTACT_PORT: ${FLUXCHAT_CONTACT_PORT}"
 echo "-> FLUXCHAT_CONTACT: ${FLUXCHAT_CONTACT}"
 echo "-> FLUXCHAT_DATA_DIR: ${FLUXCHAT_DATA_DIR}"
 echo "-> FLUXCHAT_LOG_FILE: ${FLUXCHAT_LOG_FILE}"
@@ -37,6 +34,8 @@ rsa_pub_key_file=${FLUXCHAT_DATA_DIR}/public_key.pem
 rsa_crt_key_file=${FLUXCHAT_DATA_DIR}/certificate.pem
 if ! test -f ${rsa_priv_key_file} ; then
 	echo '-> generating rsa key'
+	touch ${rsa_priv_key_file}
+	chmod u=rw,go-rwx ${rsa_priv_key_file}
 	openssl genrsa -out ${rsa_priv_key_file} -aes256 -passout env:FLUXCHAT_KEY_PASSWORD 4096
 
 	echo '-> generating rsa public key'
