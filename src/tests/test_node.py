@@ -28,6 +28,8 @@ class NodeTestCase(unittest.TestCase):
 		self.assertFalse(Node('XYZ').has_valid_id())
 
 	def test_distance(self):
-		node2 = Node('FC_d7vkj3XKCF8JNpt3MMacwhcMfz75tJHEF2Zou4m4pih')
+		node2 = Node('FC_d7vkj3XKCF8JNpt3MMacwhcMfz75tJHEF2Zou4m4pii')
 		distance = self.node1.distance(node2)
 		self.assertEqual(type(distance), Distance)
+		self.assertEqual(str(distance), 'Distance(1)')
+		self.assertTrue(distance == 1)

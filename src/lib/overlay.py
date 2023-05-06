@@ -8,10 +8,10 @@ class Node():
 	def __init__(self, id: str):
 		self.id = id
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Node({})'.format(self.id)
 
-	def __repr__(self):
+	def __repr__(self): # pragma: no cover
 		return 'Node({})'.format(self.id)
 
 	def __eq__(self, other):
@@ -47,7 +47,7 @@ class Distance():
 	_distance: int
 
 	def __init__(self, node1: Node = None, node2: Node = None):
-		self._distance = 160
+		self._distance = 256
 
 		if node1 != None and node2 != None:
 			id1 = node1.decode()
@@ -59,8 +59,9 @@ class Distance():
 					self._distance -= 8
 				else:
 					self._distance -= bin(x)[2:].zfill(8).find('1')
+					break
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Distance({})'.format(self._distance)
 
 	def __lt__(self, other):

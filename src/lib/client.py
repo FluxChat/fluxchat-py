@@ -24,7 +24,7 @@ class Action():
 		self.func = None
 		self.valid_until = None
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Action({}/{},d={},s={})'.format(self.id, self.subid, self.data, self.is_strong)
 
 	def __repr__(self): # pragma: no cover

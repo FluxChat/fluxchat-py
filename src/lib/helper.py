@@ -105,7 +105,13 @@ def binary_encode(data: dict, max_len: int = 4) -> bytes:
 	for key, value in data.items():
 		d_len = len(value)
 
-		items.append(key.to_bytes(1, 'little'))
+		try:
+			items.append(key.to_bytes(1, 'little'))
+		except AttributeError as e:
+			# print('type:', type(key))
+			# print('key:', key)
+			raise e
+
 		items.append(d_len.to_bytes(max_len, 'little'))
 
 		if isinstance(value, bytes):

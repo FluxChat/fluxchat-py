@@ -14,10 +14,10 @@ class Cash():
 		self.proof = None
 		self.nonce = None
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Cash(b={})'.format(self.bits)
 
-	def __repr__(self):
+	def __repr__(self): # pragma: no cover
 		return self.__str__()
 
 	def mine(self) -> int:

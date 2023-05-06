@@ -16,10 +16,10 @@ class Task():
 		if self._interval != None and one_shot:
 			self._last_run = dt.datetime.utcnow()
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Task({})'.format(self._execfunc)
 
-	def __repr__(self):
+	def __repr__(self): # pragma: no cover
 		return self.__str__()
 
 	def run(self) -> bool:

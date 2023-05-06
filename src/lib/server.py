@@ -166,7 +166,7 @@ class Server(Network):
 		if os.path.isfile(self._pid_file_path):
 			os.remove(self._pid_file_path)
 
-	def start(self): # pragma: no cover
+	def start(self):
 		self._logger.info('start')
 
 		self._load_public_key_from_pem_file()
@@ -273,8 +273,8 @@ class Server(Network):
 
 		return 'N/A'
 
-	def _client_is_connected(self, client: Client) -> bool: # pragma: no cover
-		self._logger.debug('_client_is_connected()')
+	def _client_is_connected(self, client: Client) -> bool:
+		# self._logger.debug('_client_is_connected()')
 
 		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
 		clients = list(filter(ffunc, self._clients))
@@ -344,7 +344,7 @@ class Server(Network):
 
 		self._logger.debug('_accept_main_server() client: %s', client)
 
-	def _read_discovery(self, server_sock: socket.socket): # pragma: no cover
+	def _read_discovery(self, server_sock: socket.socket):
 		self._logger.debug('_read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
@@ -373,7 +373,7 @@ class Server(Network):
 
 		self._client_connect(client)
 
-	def _accept_ipc_server(self, server_sock: socket.socket): # pragma: no cover
+	def _accept_ipc_server(self, server_sock: socket.socket):
 		self._logger.debug('_accept_ipc_server()')
 
 		client_sock, addr = server_sock.accept()
@@ -383,7 +383,7 @@ class Server(Network):
 			'type': 'ipc_client',
 		})
 
-	def _client_connect(self, client: Client) -> bool: # pragma: no cover
+	def _client_connect(self, client: Client) -> bool:
 		self._logger.debug('_client_connect(%s)', client)
 
 		# TODO: activate for production
@@ -1017,11 +1017,11 @@ class Server(Network):
 				client.conn_mode = 0
 				client.conn_msg = 'unknown group %d, command %d' % (group_i, command_i)
 
-	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
+	def _client_send_ok(self, sock: socket.socket):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_challenge(self, sock: socket.socket, challenge: str): # pragma: no cover
+	def _client_send_challenge(self, sock: socket.socket, challenge: str):
 		self._logger.debug('_client_send_challenge(%s)', challenge)
 
 		self._client_write(sock, 1, 1, [
@@ -1030,7 +1030,7 @@ class Server(Network):
 			challenge,
 		])
 
-	def _client_send_id(self, sock: socket.socket, proof: str, nonce: str): # pragma: no cover
+	def _client_send_id(self, sock: socket.socket, proof: str, nonce: str):
 		self._logger.debug('_client_send_id(%s, %s)', proof, nonce)
 		data = [
 			VERSION,
@@ -1044,27 +1044,27 @@ class Server(Network):
 		# self._logger.debug('data: %s', data)
 		self._client_write(sock, 1, 2, data)
 
-	def _client_send_ping(self, sock: socket.socket): # pragma: no cover
+	def _client_send_ping(self, sock: socket.socket):
 		self._logger.debug('_client_send_ping()')
 		self._client_write(sock, 1, 3)
 
-	def _client_send_pong(self, sock: socket.socket): # pragma: no cover
+	def _client_send_pong(self, sock: socket.socket):
 		self._logger.debug('_client_send_pong()')
 		self._client_write(sock, 1, 4)
 
-	def _client_send_get_nearest_to(self, sock: socket.socket, id: str): # pragma: no cover
+	def _client_send_get_nearest_to(self, sock: socket.socket, id: str):
 		self._logger.debug('_client_send_get_nearest_to()')
 		self._client_write(sock, 2, 1, [id])
 
-	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list): # pragma: no cover
+	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list):
 		self._logger.debug('_client_send_get_nearest_response()')
 		self._client_write(sock, 2, 2, client_ids)
 
-	def _client_request_public_key_for_node(self, sock: socket.socket, id: str): # pragma: no cover
+	def _client_request_public_key_for_node(self, sock: socket.socket, id: str):
 		self._logger.debug('_client_request_public_key_for_node(%s)', id)
 		self._client_write(sock, 2, 3, [id])
 
-	def _client_response_public_key_for_node(self, sock: socket.socket, id: str, public_key: str): # pragma: no cover
+	def _client_response_public_key_for_node(self, sock: socket.socket, id: str, public_key: str):
 		self._logger.debug('_client_response_public_key_for_node()')
 		# self._logger.debug('type: %s', type(id))
 		# self._logger.debug('type: %s', type(public_key))
@@ -1072,7 +1072,7 @@ class Server(Network):
 
 		self._client_write(sock, 2, 4, [id, public_key])
 
-	def _client_send_mail(self, sock: socket.socket, mail: Mail): # pragma: no cover
+	def _client_send_mail(self, sock: socket.socket, mail: Mail):
 		self._logger.debug('_client_send_mail()')
 		if not mail.is_encrypted:
 			self._logger.debug('mail not encrypted')
@@ -1086,7 +1086,7 @@ class Server(Network):
 			mail.body,
 		])
 
-	def _ipc_client_read(self, sock: socket.socket): # pragma: no cover
+	def _ipc_client_read(self, sock: socket.socket):
 		self._logger.debug('_ipc_client_read()')
 
 		try:
@@ -1171,7 +1171,7 @@ class Server(Network):
 			self._logger.debug('IPC unregister socket')
 			self._selectors.unregister(sock)
 
-	def _ipc_client_commands(self, sock: socket.socket, commands: list): # pragma: no cover
+	def _ipc_client_commands(self, sock: socket.socket, commands: list):
 		self._logger.debug('_ipc_client_commands()')
 		self._logger.debug('commands: %s', commands)
 
@@ -1340,7 +1340,7 @@ class Server(Network):
 
 		return True
 
-	def debug_clients(self) -> bool: # pragma: no cover
+	def debug_clients(self) -> bool:
 		self._logger.debug('debug_clients() -> %d', len(self._clients))
 
 		for client in self._clients:

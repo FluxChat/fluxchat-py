@@ -37,13 +37,17 @@ class ClientTestCase(unittest.TestCase):
 	def test_distance1(self):
 		node = Node('FC_test1')
 		client = Client()
-		self.assertEqual(client.distance(node), 160)
+		distance = client.distance(node)
+		self.assertEqual(str(distance), 'Distance(256)')
+		self.assertEqual(client.distance(node), 256)
 
 	def test_distance2(self):
 		node = Node('FC_test1')
 		client = Client()
 		client.set_id('FC_test2')
-		self.assertTrue(client.distance(node) == 129)
+		distance = client.distance(node)
+		self.assertEqual(str(distance), 'Distance(225)')
+		self.assertTrue(client.distance(node) == 225)
 
 	def test_eq1(self):
 		client1 = Client()

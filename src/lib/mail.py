@@ -48,10 +48,10 @@ class Mail():
 		self._logger = logging.getLogger('mail')
 		self._logger.info('init()')
 
-	def __str__(self):
+	def __str__(self): # pragma: no cover
 		return 'Mail({})'.format(self.uuid)
 
-	def __repr__(self):
+	def __repr__(self): # pragma: no cover
 		return self.__str__()
 
 	def as_dict(self) -> dict:
