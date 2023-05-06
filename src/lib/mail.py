@@ -5,7 +5,7 @@ import uuid
 import base64
 
 import lib.overlay as overlay
-from lib.helper import read_json_file, write_json_file
+from lib.helper import read_json_file, write_json_file, binary_encode, binary_decode
 
 class Mail():
 	uuid: str
@@ -46,7 +46,7 @@ class Mail():
 		self.sign = None
 
 		self._logger = logging.getLogger('mail')
-		self._logger.info('init()')
+		# self._logger.info('init()')
 
 	def __str__(self): # pragma: no cover
 		return 'Mail({})'.format(self.uuid)
@@ -55,7 +55,7 @@ class Mail():
 		return self.__str__()
 
 	def as_dict(self) -> dict:
-		self._logger.debug('as_dict()')
+		# self._logger.debug('as_dict()')
 
 		data = dict()
 		if self.sender != None:
@@ -89,7 +89,7 @@ class Mail():
 		return data
 
 	def from_dict(self, data: dict):
-		self._logger.debug('from_dict() -> %s', data)
+		# self._logger.debug('from_dict() -> %s', data)
 
 		if 'sender' in data:
 			self.set_sender(data['sender'])
@@ -122,12 +122,12 @@ class Mail():
 			self.sign = data['sign']
 
 	def received_now(self):
-		self._logger.debug('received_now()')
+		# self._logger.debug('received_now()')
 
 		self.received_at = dt.datetime.utcnow()
 
 	def set_sender(self, sender: str):
-		self._logger.debug('set_sender(%s)', sender)
+		# self._logger.debug('set_sender(%s)', sender)
 
 		try:
 			self.origin = overlay.Node.parse(sender)
@@ -138,7 +138,7 @@ class Mail():
 			self.sender = sender
 
 	def set_receiver(self, receiver: str):
-		self._logger.debug('set_receiver(%s)', receiver)
+		# self._logger.debug('set_receiver(%s)', receiver)
 
 		try:
 			self.target = overlay.Node.parse(receiver)
@@ -213,19 +213,6 @@ class Mail():
 
 				self.body = val
 
-			# elif item_t == 0x30:
-			# 	self._logger.debug('decode sign')
-
-			# 	item_l = int.from_bytes(data[pos:pos+2], 'little')
-			# 	pos += 2
-			# 	self._logger.debug('sign length: %d', item_l)
-
-			# 	val = data[pos:pos+item_l]
-			# 	self._logger.debug('sign bytes: "%s"', val)
-
-			# 	self.sign = base64.b64encode(val).decode('utf-8')
-			# 	self._logger.debug('sign base64: "%s"', self.sign)
-
 			else:
 				self._logger.warning('unknown type: %s', item_t)
 				val = None
@@ -234,6 +221,41 @@ class Mail():
 			pos += item_l
 
 			self._logger.debug('type=%s(%s), length=%d(%s), value=%s(%s)', item_t, type(item_t), item_l, type(item_l), val, type(val))
+
+	def ipc_encode(self) -> bytes:
+		self._logger.debug('ipc_encode()')
+
+		data = {}
+		if self.uuid != None:
+			data[0x00] = self.uuid
+		if self.created_at != None:
+			data[0x01] = self.created_at.strftime('%FT%T')
+		if self.received_at != None:
+			data[0x02] = self.received_at.strftime('%FT%T')
+		if self.valid_until != None:
+			data[0x03] = self.valid_until.strftime('%FT%T')
+		if self.verified != None:
+			data[0x10] = self.verified
+		if self.sender != None:
+			data[0x20] = self.sender
+		if self.receiver != None:
+			data[0x21] = self.receiver
+		if self.subject != None:
+			data[0x30] = self.subject
+		if self.body != None:
+			data[0x31] = self.body
+
+		self._logger.debug('data: %s', data)
+
+		return binary_encode(data)
+
+	def ipc_decode(self, raw):
+		self._logger.debug('ipc_decode()')
+		self._logger.debug('raw: %s "%s"', type(raw), raw)
+
+		data = binary_decode(raw)
+
+		self._logger.debug('data: %s %s', type(data), data)
 
 class Queue():
 	_path: str

@@ -53,7 +53,7 @@ class ServerApp():
 			logConfig['filemode'] = 'a'
 		logging.basicConfig(**logConfig)
 
-		self._logger = logging.getLogger('fluxchat')
+		self._logger = logging.getLogger('server.app')
 		self._logger.info('start')
 
 		# Server

@@ -4,7 +4,6 @@ import os
 import socket
 import ssl
 import selectors
-import select
 import struct
 import base64
 import uuid
@@ -19,18 +18,14 @@ from lib.client import Client, Action
 from lib.address_book import AddressBook
 from lib.helper import resolve_contact, is_valid_uuid, binary_encode, binary_decode
 from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
-from lib.network import Network
+from lib.network import Network, SslHandshakeError
 from lib.cash import Cash
 import lib.overlay as overlay
 
 VERSION = 1
-CLIENT_READ_SIZE = 2048
 SSL_HANDSHAKE_WAIT = 0.3
 SSL_HANDSHAKE_TIMEOUT = 5
 SSL_MINIMUM_VERSION = ssl.TLSVersion.TLSv1_2
-
-class SslHandshakeError(Exception):
-	pass
 
 class Server(Network):
 	_config: dict
@@ -219,6 +214,7 @@ class Server(Network):
 			self._logger.debug('ipc %s', ipc_addr)
 
 			self._ipc_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self._ipc_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self._ipc_server_socket.bind(ipc_addr)
 			self._ipc_server_socket.listen()
 			self._ipc_server_socket.setblocking(False)
@@ -281,37 +277,7 @@ class Server(Network):
 
 		return len(clients) > 0
 
-	def _ssl_handshake(self, socket_ssl: ssl.SSLObject) -> None: # pragma: no cover
-		self._logger.debug('_ssl_handshake(%s)', socket_ssl)
-
-		start = dt.datetime.now()
-		tries = 0
-		while True:
-			try:
-				self._logger.debug('ssl handshake: %d', tries)
-				socket_ssl.do_handshake()
-				break
-			except ssl.SSLWantReadError as e:
-				pass
-				# self._logger.debug('ssl.SSLWantReadError: %s', e)
-				select.select([socket_ssl], [], [], 0.3)
-			except ssl.SSLWantWriteError as e:
-				pass
-				# self._logger.debug('ssl.SSLWantWriteError: %s', e)
-				select.select([], [socket_ssl], [], 0.3)
-			except ssl.SSLError as e:
-				self._logger.error('ssl.SSLError: %s', e)
-				raise SslHandshakeError(e)
-
-			now = dt.datetime.now()
-			if now - start >= self._ssl_handshake_timeout:
-				raise SslHandshakeError('ssl handshake timeout')
-
-			tries += 1
-
-		self._logger.debug('ssl handshake done: %d', tries)
-
-	def _accept_main_server(self, server_sock: socket.socket): # pragma: no cover
+	def _accept_main_server(self, server_sock: socket.socket):
 		self._logger.debug('_accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
@@ -445,124 +411,7 @@ class Server(Network):
 		self._logger.debug('_client_connect done')
 		return True
 
-	def _client_read(self, sock: socket.socket, client: Client): # pragma: no cover
-		self._logger.debug('_client_read(%s)', client)
-
-		commands = []
-		raw_total = b''
-		disconnect = False
-
-		reading = True
-		while reading:
-			raw_len = 0
-			try:
-				raw = sock.recv(CLIENT_READ_SIZE)
-				raw_len = len(raw)
-				self._logger.debug('recv raw A: %d %s', raw_len, raw)
-
-				raw_total += raw
-			except TimeoutError as e:
-				self._logger.debug('TimeoutError: %s', e)
-				disconnect = True
-				reading = False
-			except ConnectionResetError as e:
-				self._logger.debug('ConnectionResetError: %s', e)
-				disconnect = True
-				reading = False
-			except ssl.SSLWantReadError as e:
-				self._logger.debug('SSLWantReadError: %s', e)
-				disconnect = True
-				reading = False
-			else:
-				if raw_len >= CLIENT_READ_SIZE:
-					self._logger.debug('raw_len(%d) >= CLIENT_READ_SIZE(%d)', raw_len, CLIENT_READ_SIZE)
-					reading = True
-				elif raw_len > 0:
-					self._logger.debug('raw_len(%d) > 0', raw_len)
-					reading = False
-				else:
-					self._logger.debug('raw_len(%d) < CLIENT_READ_SIZE(%d)', raw_len, CLIENT_READ_SIZE)
-					reading = False
-					disconnect = True
-
-		raw_total_len = len(raw_total)
-		if raw_total_len > 0:
-			self._logger.debug('recv raw B: %d %s', raw_total_len, raw_total)
-
-			raw_pos = 0
-			while raw_pos < raw_total_len:
-				try:
-					flags_i = raw_total[raw_pos]
-					raw_pos += 1
-
-					group = raw_total[raw_pos]
-					raw_pos += 1
-
-					command = raw_total[raw_pos]
-					raw_pos += 1
-				except IndexError as e:
-					self._logger.debug('IndexError: %s', e)
-					self._logger.debug('conn mode 0')
-					client.conn_mode = 0
-					client.conn_msg = 'array index out of range'
-					return
-
-				lengths_are_4_bytes = flags_i & 1 != 0
-
-				try:
-					# length = struct.unpack('<I', raw_total[raw_pos:raw_pos + 4])[0]
-					length = int.from_bytes(raw_total[raw_pos:raw_pos + 4], 'little')
-					raw_pos += 4
-				except struct.error as e:
-					self._logger.debug('struct.error: %s', e)
-					self._logger.debug('conn mode 0')
-					client.conn_mode = 0
-					client.conn_msg = 'unpack error'
-					return
-
-				payload_raw = raw_total[raw_pos:]
-				payload_items = []
-
-				self._logger.debug('group: %d', group)
-				self._logger.debug('command: %d', command)
-				self._logger.debug('length: %d %s', length, type(length))
-
-				# if length >= 2048:
-				# 	self._logger.error('length too big: %d', length)
-				# 	return
-
-				pos = 0
-				while pos < length:
-					if lengths_are_4_bytes:
-						# item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
-						item_len = int.from_bytes(payload_raw[pos:pos + 4], 'little')
-						pos += 3
-					else:
-						item_len = payload_raw[pos]
-					pos += 1
-
-					# self._logger.debug('item len: %d %s', item_len, type(item_len))
-
-					item = payload_raw[pos:pos + item_len]
-					# self._logger.debug('item content: %s', item)
-
-					payload_items.append(item.decode('utf-8'))
-					pos += item_len
-
-				commands.append([group, command, payload_items])
-				raw_pos += length + 1
-				# self._logger.debug('raw_pos: %d', raw_pos)
-
-		if disconnect:
-			self._logger.debug('disconnect')
-
-			self._logger.debug('conn mode 0')
-			client.conn_mode = 0
-			client.conn_msg = 'no data'
-
-		self._client_commands(sock, client, commands)
-
-	def _client_commands(self, sock: socket.socket, client: Client, commands: list): # pragma: no cover
+	def _client_commands(self, sock: socket.socket, client: Client, commands: list):
 		self._logger.debug('_client_commands(%s)', client)
 
 		for command_raw in commands:
@@ -1138,10 +987,6 @@ class Server(Network):
 				self._logger.debug('IPC command: %d', command)
 				self._logger.debug('IPC length: %d %s', length, type(length))
 
-				# if length >= 2048:
-				# 	self._logger.error('IPC length too big: %d', length)
-				# 	return
-
 				pos = 0
 				while pos < length:
 					self._logger.debug('IPC pos: %d', pos)
@@ -1180,31 +1025,75 @@ class Server(Network):
 			payload_len = len(payload)
 
 			self._logger.debug('group %d, command %d', group_i, command_i)
+			self._logger.debug('payload_len: %d', payload_len)
 			self._logger.debug('payload: %s', payload)
 
 			if group_i == 0: # Basic
 				if command_i == 0:
-					self._logger.debug('OK command')
+					self._logger.info('OK command')
 
 			elif group_i == 1:
 				if command_i == 0:
-					self._logger.debug('SEND MAIL command')
+					self._logger.info('SEND MAIL command')
 
-					target, mail = payload
+					target, body = payload
 					self._logger.debug('target: %s', target)
-					self._logger.debug('mail: %s', mail)
+					self._logger.debug('body: %s', body)
 
-					mail = Mail(target, mail)
+					mail = Mail()
+					mail.set_receiver(target)
+					mail.body = body
 					self._mail_queue.add_mail(mail)
 
 					self._logger.debug('uuid: %s', mail.uuid)
 
 					self._client_send_ok(sock)
 
+				elif command_i == 1:
+					self._logger.info('LIST MAILS command')
+
+					flags_i = int.from_bytes(payload[0].encode(), 'little')
+					only_new = flags_i & 1 != 0
+					self._logger.debug('flags_i: %d', flags_i)
+					self._logger.debug('only_new: %s', only_new)
+
+					mails = self._mail_db.get_mails()
+
+					if only_new:
+						mails = list(filter(lambda _mail: _mail[1].is_new, mails))
+						# mails = dict(filter(lambda _mail: _mail[1].is_new, mails))
+
+					print('mails: %s' % mails)
+
+					chunks = []
+					for n in range(0, len(mails), 5):
+						encoded_mails = list(map(lambda _mail: _mail[1].ipc_encode(), mails[n:n + 5]))
+						chunks.append(encoded_mails)
+
+					chunks_len = len(chunks)
+					self._logger.debug('chunks_len: %d', chunks_len)
+
+					for n in range(chunks_len):
+						self._logger.debug('chunk n: %d', n)
+						self._ipc_client_send_list_mail(sock, chunks_len, n, chunks[n])
+
+				elif command_i == 2:
+					self._logger.info('READ MAIL command')
+
 			elif group_i == 2:
 				if command_i == 0:
 					self._logger.debug('SAVE command')
 					self.save()
+
+				if command_i == 1:
+					self._logger.debug('STOP command')
+					self._scheduler.shutdown('STOP command')
+
+	def _ipc_client_send_list_mail(self, sock: socket.socket, chunks_len: int, chunk_num: int, mails: list):
+		self._logger.debug('_ipc_client_send_list_mail()')
+		self._logger.debug('mails: %s', mails)
+
+		self._client_write(sock, 1, 0, [chunks_len, chunk_num] + mails)
 
 	def handle_sockets(self) -> bool:
 		# self._logger.debug('handle_sockets()')
@@ -1220,7 +1109,14 @@ class Server(Network):
 					self._accept_main_server(key.fileobj)
 
 				elif key.data['type'] == 'main_client':
-					self._client_read(key.fileobj, key.data['client'])
+					status = self._client_read(key.fileobj)
+
+					if status.disconnect:
+						self._logger.debug('client disconnect: %s', status.msg)
+						key.data['client'].conn_mode = 0
+						key.data['client'].conn_msg = status.msg
+
+					self._client_commands(key.fileobj, key.data['client'], status.commands)
 
 				elif key.data['type'] == 'discovery':
 					self._logger.debug('discovery')
@@ -1436,7 +1332,8 @@ class Server(Network):
 			for client in clients:
 				self._logger.debug('client for mail: %s', client)
 				if self._client_is_connected(client):
-					self._logger.debug('client is connected')
+					# self._logger.debug('client is connected')
+					pass
 				else:
 					self._logger.debug('client is not connected C')
 					self._client_connect(client)
@@ -1488,28 +1385,21 @@ class Server(Network):
 		return True
 
 	def handle_mail_db(self) -> bool:
-		self._logger.debug('handle_mail_db()')
+		# self._logger.debug('handle_mail_db()')
 
 		for mail_uuid, mail in self._mail_db.get_mails():
-			self._logger.debug('mail %s', mail)
-
-			# print('mail', mail)
-			# print('mail.sender', mail.sender)
-			# print('mail.receiver', mail.receiver)
-			# print('mail.origin', mail.origin)
-			# print('mail.target', mail.target)
-			# print('mail.sign_hash', mail.sign_hash)
-			# print('mail.sign', mail.sign)
+			# self._logger.debug('mail %s', mail)
 
 			clients = self._address_book.get_nearest_to(mail.origin, with_contact_infos=True)
-			self._logger.debug('clients %s', clients)
+			# self._logger.debug('clients %s', clients)
 
 			for client in clients:
-				self._logger.debug('client for mail: %s', client)
+				# self._logger.debug('client for mail: %s', client)
 				if self._client_is_connected(client):
-					self._logger.debug('client is connected')
+					pass
+					# self._logger.debug('client is connected')
 				else:
-					self._logger.debug('client is not connected C')
+					# self._logger.debug('client is not connected C')
 					self._client_connect(client)
 
 			if mail.verified == 'n':

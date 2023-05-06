@@ -11,6 +11,7 @@ def main():
 	parser.add_argument('-t', '--target', type=str, nargs='?', required=False, help='Target to send mail to')
 	parser.add_argument('-s', '--subject', type=str, nargs='?', required=False, help='Subject')
 	parser.add_argument('-b', '--body', type=str, nargs='?', required=False, help='Text')
+	parser.add_argument('-n', '--new', action='store_true', required=False, help='List only new mails')
 	parser.add_argument('command')
 
 	args = parser.parse_args()
@@ -19,12 +20,31 @@ def main():
 	app.start()
 
 	if args.command == 'mail':
-		if app.send_mail(args.target, args.subject, args.body):
-			print('-> Mail sent')
-		else:
-			print('-> Mail not sent')
+		print('-> Mail command')
+		app.send_mail_command(args.target, args.subject, args.body)
+		app.stop()
+
+	elif args.command == 'list':
+		print('-> List command')
+		print(args)
+		print(args.new)
+		app.list_mails_command(args.new)
+		#app.stop()
+
+	elif args.command == 'read':
+		print('-> Read command')
+		app.read_mail_command()
+		app.stop()
+
 	elif args.command == 'save':
-		app.save()
+		print('-> Save command')
+		app.save_command()
+		app.stop()
+
+	try:
+		app.run()
+	except KeyboardInterrupt:
+		app.shutdown('KeyboardInterrupt')
 
 if __name__ == '__main__':
 	main()
