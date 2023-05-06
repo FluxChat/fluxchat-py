@@ -19,7 +19,6 @@ data_dir = os.getenv('FLUXCHAT_DATA_DIR', 'var/data')
 
 print('-> Password Key Derivation', file=sys.stderr)
 pkd = password_key_derivation(key_password)
-print('-> Password Derivation:', pkd, file=sys.stderr)
 
 # Private Key
 print('-> Generating RSA Key Pair', file=sys.stderr)
