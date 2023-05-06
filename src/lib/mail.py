@@ -157,15 +157,15 @@ class Mail():
 		subject_len = len(self.subject).to_bytes(1, 'little')
 		body_len = len(self.body).to_bytes(4, 'little')
 		items = [
-			# b'\x00', uuid_len, self.uuid.encode('utf-8'),
-			b'\x01\x13', self.created_at.strftime('%FT%T').encode('utf-8'),
-			b'\x10', sender_len, self.sender.encode('utf-8'),
-			b'\x11', receiver_len, self.receiver.encode('utf-8'),
-			b'\x20', subject_len, self.subject.encode('utf-8'),
-			b'\x21', body_len, self.body.encode('utf-8'),
+			# b'\x00', uuid_len, self.uuid.encode(),
+			b'\x01\x13', self.created_at.strftime('%FT%T').encode(),
+			b'\x10', sender_len, self.sender.encode(),
+			b'\x11', receiver_len, self.receiver.encode(),
+			b'\x20', subject_len, self.subject.encode(),
+			b'\x21', body_len, self.body.encode(),
 		]
 		raw = b''.join(items)
-		return base64.b64encode(raw).decode('utf-8')
+		return base64.b64encode(raw).decode()
 
 	def decode(self, data: bytes):
 		self._logger.debug('decode(%s)', data)
@@ -182,25 +182,25 @@ class Mail():
 			if item_t == 0x01:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
-				val = data[pos:pos+item_l].decode('utf-8')
+				val = data[pos:pos+item_l].decode()
 				self.created_at = dt.datetime.fromisoformat(val)
 
 			elif item_t == 0x10:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
-				val = data[pos:pos+item_l].decode('utf-8')
+				val = data[pos:pos+item_l].decode()
 				self.set_sender(val)
 
 			elif item_t == 0x11:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
-				val = data[pos:pos+item_l].decode('utf-8')
+				val = data[pos:pos+item_l].decode()
 				self.set_receiver(val)
 
 			elif item_t == 0x20:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
-				val = data[pos:pos+item_l].decode('utf-8')
+				val = data[pos:pos+item_l].decode()
 				self.subject = val
 
 			elif item_t == 0x21:
@@ -208,7 +208,7 @@ class Mail():
 				pos += 4
 				self._logger.debug('body length: %d', item_l)
 
-				val = data[pos:pos+item_l].decode('utf-8')
+				val = data[pos:pos+item_l].decode()
 				self._logger.debug('body: "%s"', val)
 
 				self.body = val

@@ -9,7 +9,7 @@ class Cash():
 	nonce: int
 
 	def __init__(self, data: str, bits: int):
-		self.data = data.encode('utf-8')
+		self.data = data.encode()
 		self.bits = bits
 		self.proof = None
 		self.nonce = None
@@ -27,7 +27,7 @@ class Cash():
 		while True:
 			cycle += 1
 
-			input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(self.nonce).encode('utf-8')
+			input_data = b'FC:' + str(self.bits).encode() + b':' + self.data + b':' + str(self.nonce).encode()
 
 			hasher = hashes.Hash(hashes.SHA256())
 			hasher.update(input_data)
@@ -98,7 +98,7 @@ class Cash():
 				# print('verify, found_bits wrong')
 				return False
 
-		input_data = b'FC:' + str(self.bits).encode('utf-8') + b':' + self.data + b':' + str(nonce).encode()
+		input_data = b'FC:' + str(self.bits).encode() + b':' + self.data + b':' + str(nonce).encode()
 
 		hasher = hashes.Hash(hashes.SHA256())
 		hasher.update(input_data)

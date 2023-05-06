@@ -209,7 +209,7 @@ class Server(Network):
 			if self.has_contact():
 				self._logger.debug('send broadcast')
 				# TODO for production: set port to self._config['discovery']['port'] instead of hard-coded 26000
-				res = self._discovery_socket.sendto(self.get_contact().encode('utf-8'), ('<broadcast>', 26000))
+				res = self._discovery_socket.sendto(self.get_contact().encode(), ('<broadcast>', 26000))
 				self._logger.debug('res %s', res)
 
 			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
@@ -232,7 +232,7 @@ class Server(Network):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
 
 		with open(self._config['private_key_file'], 'rb') as f:
-			self._private_key = serialization.load_pem_private_key(f.read(), password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode('utf-8'))
+			self._private_key = serialization.load_pem_private_key(f.read(), password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
 
 	def _load_public_key_from_pem_file(self) -> None:
 		self._logger.debug('load public key from pem file')
@@ -248,7 +248,7 @@ class Server(Network):
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		self._public_key_b64 = base64.b64encode(public_bytes).decode('utf-8')
+		self._public_key_b64 = base64.b64encode(public_bytes).decode()
 
 	def has_contact(self) -> bool:
 		if 'contact' in self._config:
@@ -348,7 +348,7 @@ class Server(Network):
 		self._logger.debug('_read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
-		c_contact = data.decode('utf-8')
+		c_contact = data.decode()
 
 		self._logger.debug('data: %s', data)
 		self._logger.debug('addr: %s', addr)
@@ -633,7 +633,7 @@ class Server(Network):
 						self._logger.debug('skip, already authenticated')
 						continue
 
-					c_version = int.from_bytes(payload[0].encode('utf-8'), 'little')
+					c_version = int.from_bytes(payload[0].encode(), 'little')
 					c_id = payload[1]
 					c_cc_proof = payload[2]
 					c_cc_nonce = int(payload[3])
@@ -1158,7 +1158,7 @@ class Server(Network):
 					item = payload_raw[pos:pos + item_len]
 					self._logger.debug('IPC item: %s', item)
 
-					payload_items.append(item.decode('utf-8'))
+					payload_items.append(item.decode())
 					pos += item_len
 
 				commands.append([group, command, payload_items])
@@ -1568,7 +1568,7 @@ class Server(Network):
 		hasher.update(raw_body)
 		sign_hash = hasher.finalize()
 
-		sign_hash_b64 = base64.b64encode(sign_hash).decode('utf-8')
+		sign_hash_b64 = base64.b64encode(sign_hash).decode()
 		self._logger.debug('sign_hash: %s', sign_hash_b64)
 
 		# Signature
@@ -1612,7 +1612,7 @@ class Server(Network):
 		# 4 bytes for length = 4 * 8 bits = 32 bits = 2^32 = 4.294.967.296 bytes
 		pub_data = binary_encode(pub_items, 4)
 
-		encoded = base64.b64encode(pub_data).decode('utf-8')
+		encoded = base64.b64encode(pub_data).decode()
 		self._logger.debug('pub data b64 "%s"', encoded)
 
 		mail.body = encoded
@@ -1675,8 +1675,8 @@ class Server(Network):
 		mail.is_encrypted = False
 		mail.is_new = True
 		mail.verified = 'n'
-		mail.sign_hash = base64.b64encode(sign_token).decode('utf-8')
-		mail.sign = base64.b64encode(signature).decode('utf-8')
+		mail.sign_hash = base64.b64encode(sign_token).decode()
+		mail.sign = base64.b64encode(signature).decode()
 		mail.decode(raw_body)
 
 		self._mail_db.changed()

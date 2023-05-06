@@ -271,7 +271,7 @@ class Client():
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		return base64.b64encode(public_bytes).decode('utf-8')
+		return base64.b64encode(public_bytes).decode()
 
 	def reset_public_key(self):
 		self.public_key = None
@@ -292,7 +292,7 @@ class Client():
 		hasher.update(public_bytes)
 		digest = hasher.finalize()
 
-		base58_hash = base58.b58encode(digest).decode('utf-8')
+		base58_hash = base58.b58encode(digest).decode()
 		return f'FC_{base58_hash}' == self.id
 
 	def encrypt(self, data: bytes) -> bytes:

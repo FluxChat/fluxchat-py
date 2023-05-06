@@ -24,7 +24,7 @@ class Network(): # pragma: no cover
 		for item in data:
 			enconded_item = None
 			if isinstance(item, str):
-				enconded_item = item.encode('utf-8')
+				enconded_item = item.encode()
 			elif isinstance(item, bytes):
 				enconded_item = item
 			elif isinstance(item, int):

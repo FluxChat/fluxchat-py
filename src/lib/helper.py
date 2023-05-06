@@ -28,7 +28,7 @@ def generate_id_from_public_key_data(key_data: bytes) -> str:
 	hasher.update(public_bytes)
 	digest = hasher.finalize()
 
-	base58_hash = base58.b58encode(digest).decode('utf-8')
+	base58_hash = base58.b58encode(digest).decode()
 	return f'FC_{base58_hash}'
 
 def generate_test_id() -> str: # pragma: no cover
@@ -38,7 +38,7 @@ def generate_test_id() -> str: # pragma: no cover
 	hasher.update(public_bytes)
 	digest = hasher.finalize()
 
-	base58_hash = base58.b58encode(digest).decode('utf-8')
+	base58_hash = base58.b58encode(digest).decode()
 	return f'FC_{base58_hash}'
 
 def resolve_contact(contact: str, raddr: str = None) -> list:
@@ -111,7 +111,7 @@ def binary_encode(data: dict, max_len: int = 4) -> bytes:
 		if isinstance(value, bytes):
 			items.append(value)
 		elif isinstance(value, str):
-			items.append(value.encode('utf-8'))
+			items.append(value.encode())
 
 	return b''.join(items)
 
