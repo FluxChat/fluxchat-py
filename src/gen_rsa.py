@@ -48,9 +48,6 @@ with open(public_key_path, 'wb') as f:
 # Certificate
 print('-> Generating Certificate', file=sys.stderr)
 subject = issuer = x509.Name([
-	x509.NameAttribute(NameOID.COUNTRY_NAME, u'XX'),
-	x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, u'StateName'),
-	x509.NameAttribute(NameOID.LOCALITY_NAME, u'CityName'),
 	x509.NameAttribute(NameOID.ORGANIZATION_NAME, u'FluxChat'),
 	x509.NameAttribute(NameOID.COMMON_NAME, u'fluxchat.dev'),
 ])
