@@ -16,7 +16,7 @@ from cryptography.exceptions import InvalidSignature
 
 from lib.client import Client, Action
 from lib.address_book import AddressBook
-from lib.helper import resolve_contact, is_valid_uuid, binary_encode, binary_decode
+from lib.helper import resolve_contact, is_valid_uuid, binary_encode, binary_decode, password_key_derivation
 from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
 from lib.network import Network, SslHandshakeError
 from lib.cash import Cash
@@ -61,6 +61,7 @@ class Server(Network):
 		self._client_auth_timeout = None
 		self._client_action_retention_time = None
 		self._ssl_handshake_timeout = dt.timedelta(seconds=SSL_HANDSHAKE_TIMEOUT)
+
 
 		self._logger = logging.getLogger('server')
 		self._logger.info('init()')
@@ -164,12 +165,15 @@ class Server(Network):
 	def start(self):
 		self._logger.info('start')
 
+		self._logger.info('password_key_derivation')
+		self._pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
+
 		self._load_public_key_from_pem_file()
 		self._load_private_key_from_pem_file()
 
 		self._main_server_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
-		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password'))
+		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=self._pkd)
 
 		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -227,8 +231,10 @@ class Server(Network):
 		if not os.path.isfile(self._config['private_key_file']):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
 
+		_pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
+
 		with open(self._config['private_key_file'], 'rb') as f:
-			self._private_key = serialization.load_pem_private_key(f.read(), password=os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
+			self._private_key = serialization.load_pem_private_key(f.read(), password=_pkd)
 
 	def _load_public_key_from_pem_file(self) -> None:
 		self._logger.debug('load public key from pem file')
@@ -240,7 +246,7 @@ class Server(Network):
 			self._public_key = serialization.load_pem_public_key(f.read())
 
 		public_bytes = self._public_key.public_bytes(
-			encoding=serialization.Encoding.DER,
+			encoding=serialization.Encoding.PEM,
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
@@ -723,7 +729,7 @@ class Server(Network):
 							if _client.has_public_key():
 								self._logger.debug('client has public key')
 
-								self._client_response_public_key_for_node(sock, target.id, _client.get_der_base64_public_key())
+								self._client_response_public_key_for_node(sock, target.id, _client.get_base64_public_key())
 							else:
 								self._logger.debug('client does not have public key')
 
@@ -746,7 +752,7 @@ class Server(Network):
 
 								action = self._create_action_request_public_key_for_node(target, 'r')
 
-								action.func = lambda _arg_client: self._client_response_public_key_for_node(sock, target.id, _arg_client.get_der_base64_public_key())
+								action.func = lambda _arg_client: self._client_response_public_key_for_node(sock, target.id, _arg_client.get_base64_public_key())
 
 								_client.add_action(action)
 
@@ -782,7 +788,7 @@ class Server(Network):
 						_client = Client()
 						_client.debug_add = 'public key response'
 						_client.set_id(node.id)
-						_client.load_public_key_from_base64_der(public_key_raw)
+						_client.load_public_key_from_pem(public_key_raw)
 
 						if _client.verify_public_key():
 							self._logger.debug('public key verified')
@@ -798,7 +804,7 @@ class Server(Network):
 						if _client.has_public_key():
 							self._logger.debug('client has public key')
 						else:
-							_client.load_public_key_from_base64_der(public_key_raw)
+							_client.load_public_key_from_pem(public_key_raw)
 							if _client.verify_public_key():
 								self._logger.debug('public key verified')
 								self._address_book.changed()

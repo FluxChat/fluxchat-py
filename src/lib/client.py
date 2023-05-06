@@ -248,26 +248,26 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		public_key_pkcs1 = self.public_key.public_bytes(
+		public_key_pem = self.public_key.public_bytes(
 			encoding=serialization.Encoding.PEM,
 			format=serialization.PublicFormat. SubjectPublicKeyInfo
 		)
 
 		with open(path, 'wb') as f:
-			f.write(public_key_pkcs1)
+			f.write(public_key_pem)
 
 		return True
 
-	def load_public_key_from_base64_der(self, raw: str):
+	def load_public_key_from_pem(self, raw: str):
 		raw = base64.b64decode(raw)
-		self.public_key = serialization.load_der_public_key(raw)
+		self.public_key = serialization.load_pem_public_key(raw)
 
-	def get_der_base64_public_key(self) -> str:
+	def get_base64_public_key(self) -> str:
 		if not self.has_public_key():
 			return None
 
 		public_bytes = self.public_key.public_bytes(
-			encoding=serialization.Encoding.DER,
+			encoding=serialization.Encoding.PEM,
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
@@ -284,7 +284,7 @@ class Client():
 			return False
 
 		public_bytes = self.public_key.public_bytes(
-			encoding=serialization.Encoding.DER,
+			encoding=serialization.Encoding.PEM,
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
