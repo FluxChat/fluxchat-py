@@ -1,6 +1,7 @@
 
 import secrets
 import base58
+import base64
 import ipaddress
 import socket
 import json
@@ -53,7 +54,7 @@ def generate_test_id() -> str: # pragma: no cover
 	base58_hash = base58.b58encode(digest).decode()
 	return f'FC_{base58_hash}'
 
-def password_key_derivation(key_password: bytes) -> bytes:
+def password_key_derivation(key_password: bytes) -> str:
 	iterations = int(os.environ.get('FLUXCHAT_KEY_DERIVATION_ITERATIONS', 600000))
 
 	salt = b'FluxChat_Static_Salt'
@@ -63,7 +64,12 @@ def password_key_derivation(key_password: bytes) -> bytes:
 		salt=salt,
 		iterations=iterations,
 	)
-	return kdf.derive(key_password)
+	kdf_b = kdf.derive(key_password)
+
+	# base64
+	kdf_b64 = base64.b64encode(kdf_b).decode()
+
+	return kdf_b64
 
 def resolve_contact(contact: str, raddr: str = None) -> list:
 	items = contact.split(':')

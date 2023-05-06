@@ -18,7 +18,7 @@ key_password = os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()
 data_dir = os.getenv('FLUXCHAT_DATA_DIR', 'var/data')
 
 print('-> Password Key Derivation', file=sys.stderr)
-pkd = password_key_derivation(key_password)
+pkd = password_key_derivation(key_password).encode()
 
 # Private Key
 print('-> Generating RSA Key Pair', file=sys.stderr)

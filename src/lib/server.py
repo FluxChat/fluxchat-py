@@ -166,7 +166,7 @@ class Server(Network):
 		self._logger.info('start')
 
 		self._logger.info('password_key_derivation')
-		self._pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
+		self._pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
 
 		self._load_public_key_from_pem_file()
 		self._load_private_key_from_pem_file()
@@ -231,7 +231,7 @@ class Server(Network):
 		if not os.path.isfile(self._config['private_key_file']):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
 
-		_pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode())
+		_pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
 
 		with open(self._config['private_key_file'], 'rb') as f:
 			self._private_key = serialization.load_pem_private_key(f.read(), password=_pkd)
