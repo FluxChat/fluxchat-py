@@ -12,13 +12,12 @@ from lib.mail import Mail
 from lib.scheduler import Scheduler
 
 class IpcCommand():
-	_logger: logging.Logger
 	type: str
-	def __init__(self):
-		self._logger = logging.getLogger('ipc_command')
-		self._logger.info('init()')
-
-		self.data = None
+	waiting: bool
+	def __init__(self, type: str = None, data = None):
+		self.type = type
+		self.data = data
+		self.waiting = False
 
 class IpcApp(Network):
 	_config_file: str
@@ -30,21 +29,42 @@ class IpcApp(Network):
 	_scheduler: Scheduler
 	_client_socket: socket.socket
 
-	def __init__(self, config_file: str = None):
+	def __init__(self, config_file: str = None, loglevel: str = None):
 		self._config_file = config_file
+		self._loglevel = loglevel
 		self._selectors = selectors.DefaultSelector()
 		self._commands = []
 		self._scheduler = None
 		self._client_socket = None
 
-		self._logger = logging.getLogger('ipc.app')
+		logConfig = {
+			'level': self._loglevel,
+			'format': '%(asctime)s %(process)d %(levelname)-8s %(name)-13s %(message)s',
+		}
+		logging.basicConfig(**logConfig)
+
+		self._logger = logging.getLogger('ipc_app')
 		self._logger.info('init()')
 
 	def __del__(self):
 		self._logger.info('__del__()')
 		self._selectors.close()
 
-	def start(self): # pragma: no cover
+	def add_command(self, command: IpcCommand):
+		self._logger.info('add_command(%s)', command.type)
+		self._commands.append(command)
+
+	def append_to_command(self, type: str, data):
+		self._logger.info('append_to_command()')
+
+	def get_command_by_type(self, type: str) -> IpcCommand:
+		self._logger.info('get_command_by_type(%s)', type)
+		for command in self._commands:
+			if command.type == type:
+				return command
+		return None
+
+	def start(self):
 		self._load_config()
 
 		if not self._ipc_config['enabled']:
@@ -56,9 +76,7 @@ class IpcApp(Network):
 		}
 		logging.basicConfig(**logConfig)
 
-		command = IpcCommand()
-		command.type = '_client_connect'
-		self._commands.append(command)
+		self.add_command(IpcCommand('_client_connect'))
 
 		self._scheduler = Scheduler()
 		self._scheduler.add_task(self.handle_sockets, dt.timedelta(milliseconds=100))
@@ -76,9 +94,7 @@ class IpcApp(Network):
 	def stop(self):
 		self._logger.info('stop()')
 
-		command = IpcCommand()
-		command.type = '_stop'
-		self._commands.append(command)
+		self.add_command(IpcCommand('_stop'))
 
 	def _load_config(self):
 		self._config = read_json_file(self._config_file)
@@ -95,6 +111,9 @@ class IpcApp(Network):
 
 			if command.type == '_client_connect':
 				self._client_socket = self._client_connect()
+				if not self._client_socket:
+					self._logger.error('failed to connect to client')
+					self.stop()
 
 			elif command.type == '_client_disconnect':
 				self._client_disconnect(self._client_socket)
@@ -102,18 +121,42 @@ class IpcApp(Network):
 			elif command.type == '_stop':
 				self._scheduler.shutdown('stop')
 
-			elif command.type == 'send_mail':
+			elif command.type == '_list_mails':
 				self._logger.info('command data: %s', command.data)
-				self._client_send_send_mail(self._client_socket, command.data['target'], command.data['raw'])
 
-			elif command.type == 'list_mails':
-				self._client_send_list_mails(self._client_socket, command.data['only_new'])
+				print('-> list_mails')
+				print('ID                                    RECEIVED_AT          FROM                                             SUBJECT')
+				row_f = '{uuid}  {received_at}  {sender}  {subject}'
 
-			elif command.type == 'read_mail':
-				self._client_send_read_mail(self._client_socket)
+				for mail in command.data:
+					self._logger.info('mail: %s', mail)
 
-			elif command.type == 'save':
-				self._client_send_save(self._client_socket)
+					mail_d = mail.as_dict()
+					mail_d['uuid'] = mail.uuid
+					# print(mail_d)
+
+					row = row_f.format(**mail_d)
+					print(row)
+
+				print('<- list_mails')
+				self.stop()
+
+			if self._client_socket:
+				if command.type == 'send_mail':
+					self._logger.info('command data: %s', command.data)
+					self._client_send_send_mail(self._client_socket, command.data['target'], command.data['raw'])
+
+				elif command.type == 'list_mails':
+					self._client_send_list_mails(self._client_socket, command.data['only_new'])
+
+				elif command.type == 'read_mail':
+					self._client_send_read_mail(self._client_socket)
+
+				elif command.type == 'save':
+					self._client_send_save(self._client_socket)
+
+			if command.waiting:
+				self._commands.append(command)
 
 	def send_mail_command(self, target: str, subject: str, body: str) -> bool:
 		self._logger.info('send_mail_command(%s, %s)', target, subject)
@@ -126,23 +169,21 @@ class IpcApp(Network):
 
 		raw = mail.encode()
 
-		command = IpcCommand()
-		command.type = 'send_mail'
+		command = IpcCommand('send_mail')
 		command.data = {
 			'target': target,
 			'raw': raw,
 		}
-		self._commands.append(command)
+		self.add_command(command)
 
 	def list_mails_command(self, only_new: bool = False) -> bool:
 		self._logger.info('list_mails_command(%s)', only_new)
 
-		command = IpcCommand()
-		command.type = 'list_mails'
+		command = IpcCommand('list_mails')
 		command.data = {
 			'only_new': only_new,
 		}
-		self._commands.append(command)
+		self.add_command(command)
 
 	def read_mail_command(self, m_uuid: str) -> bool:
 		self._logger.info('read_mail_command(%s)', m_uuid)
@@ -150,10 +191,7 @@ class IpcApp(Network):
 	def save_command(self):
 		self._logger.info('save_command()')
 
-		command = IpcCommand()
-		command.type = 'save'
-
-		self._commands.append(command)
+		self.add_command(IpcCommand('save'))
 
 	def handle_sockets(self):
 		self._logger.debug('handle_sockets()')
@@ -167,8 +205,7 @@ class IpcApp(Network):
 
 				if status.disconnect:
 					self._logger.debug('client disconnect')
-					# TODO
-					raise Exception('client disconnect not implemented')
+					self.stop()
 
 				self._client_commands(key.fileobj, status.commands)
 
@@ -185,17 +222,28 @@ class IpcApp(Network):
 
 			if group_i == 1:
 				if command_i == 0:
+					print('-> receive mails from server')
+
 					chunks_len, chunk_num = payload[0:2]
 					chunks_len_i = int.from_bytes(chunks_len.encode(), 'little')
 					chunk_num_i = int.from_bytes(chunk_num.encode(), 'little')
 
-					self._logger.debug('chunks_len: %s', chunks_len)
-					self._logger.debug('chunk_num: %s', chunk_num)
 					self._logger.debug('chunks_len_i: %s', chunks_len_i)
 					self._logger.debug('chunk_num_i: %s', chunk_num_i)
 
 					mails_encoded = payload[2:]
 					self._logger.debug('mails_encoded: %s', mails_encoded)
+
+					_command = self.get_command_by_type('_list_mails')
+					if _command == None:
+						self._logger.debug('command not found')
+						_command = IpcCommand('_list_mails', [])
+						_command.waiting = True
+						self.add_command(_command)
+
+					if chunk_num_i + 1 >= chunks_len_i:
+						self._logger.debug('chunk_num_i >= chunks_len_i')
+						_command.waiting = False
 
 					for mail_encoded in mails_encoded:
 						self._logger.debug('mail_encoded: "%s"', mail_encoded)
@@ -205,7 +253,9 @@ class IpcApp(Network):
 
 						self._logger.debug('mail: %s', mail)
 
-	def _client_connect(self): # pragma: no cover
+						_command.data.append(mail)
+
+	def _client_connect(self):
 		self._logger.info('_client_connect()')
 
 		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -230,11 +280,11 @@ class IpcApp(Network):
 
 		return sock
 
-	def _client_send_ok(self, sock: socket.socket): # pragma: no cover
+	def _client_send_ok(self, sock: socket.socket):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_send_mail(self, sock: socket.socket, target: str, raw: str): # pragma: no cover
+	def _client_send_send_mail(self, sock: socket.socket, target: str, raw: str):
 		self._logger.debug('_client_send_send_mail()')
 		self._logger.debug('sock: %s', sock)
 		self._logger.debug('target: %s', target)
@@ -242,7 +292,7 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 0, [target, raw])
 
-	def _client_send_list_mails(self, sock: socket.socket, only_new: bool = False): # pragma: no cover
+	def _client_send_list_mails(self, sock: socket.socket, only_new: bool = False):
 		self._logger.debug('_client_send_list_mails()')
 		self._logger.debug('sock: %s', sock)
 		self._logger.debug('only_new: %s', only_new)
@@ -257,7 +307,7 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 1, data)
 
-	def _client_send_read_mail(self, sock: socket.socket): # pragma: no cover
+	def _client_send_read_mail(self, sock: socket.socket):
 		self._logger.debug('_client_send_read_mail()')
 		self._logger.debug('sock: %s', sock)
 
@@ -266,11 +316,11 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 2, data)
 
-	def _client_send_save(self, sock: socket.socket): # pragma: no cover
+	def _client_send_save(self, sock: socket.socket):
 		self._logger.debug('_client_send_save()')
 		self._client_write(sock, 2, 0)
 
-	def _client_disconnect(self, sock: socket.socket): # pragma: no cover
+	def _client_disconnect(self, sock: socket.socket):
 		self._logger.info('_client_disconnect()')
 		self._client_send_ok(sock)
 		sock.close()

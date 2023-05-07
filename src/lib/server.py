@@ -1067,7 +1067,7 @@ class Server(Network):
 					self._logger.debug('flags_i: %d', flags_i)
 					self._logger.debug('only_new: %s', only_new)
 
-					mails = self._mail_db.get_mails()
+					mails = list(self._mail_db.get_mails())
 
 					if only_new:
 						mails = list(filter(lambda _mail: _mail[1].is_new, mails))

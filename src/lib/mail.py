@@ -257,6 +257,28 @@ class Mail():
 
 		self._logger.debug('data: %s %s', type(data), data)
 
+		if 0x00 in data:
+			self.uuid = data[0x00].decode()
+		if 0x01 in data:
+			item = data[0x01].decode()
+			self.created_at = dt.datetime.fromisoformat(item)
+		if 0x02 in data:
+			item = data[0x02].decode()
+			self.received_at = dt.datetime.fromisoformat(item)
+		if 0x03 in data:
+			item = data[0x03].decode()
+			self.valid_until = dt.datetime.fromisoformat(item)
+		if 0x10 in data:
+			self.verified = data[0x10].decode()
+		if 0x20 in data:
+			self.sender = data[0x20].decode()
+		if 0x21 in data:
+			self.receiver = data[0x21].decode()
+		if 0x30 in data:
+			self.subject = data[0x30].decode()
+		if 0x31 in data:
+			self.body = data[0x31].decode()
+
 class Queue():
 	_path: str
 	_config: dict
