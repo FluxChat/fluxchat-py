@@ -3,6 +3,7 @@ import socket
 import ssl
 import datetime as dt
 import select
+import struct
 
 CLIENT_READ_SIZE = 2048
 
@@ -13,7 +14,7 @@ class SocketReadStatus(): # pragma: no cover
 	def __init__(self) -> None:
 		self.disconnect = False
 		self.commands = []
-		self.msg = None
+		self.msg = 'Init'
 
 class Network():
 	def _client_read(self, sock: socket.socket) -> SocketReadStatus:
@@ -36,16 +37,19 @@ class Network():
 				self._logger.debug('TimeoutError: %s', e)
 
 				status.disconnect = True
+				status.msg = 'TimeoutError'
 				reading = False
 			except ConnectionResetError as e:
 				self._logger.debug('ConnectionResetError: %s', e)
 
 				status.disconnect = True
+				status.msg = 'ConnectionResetError'
 				reading = False
 			except ssl.SSLWantReadError as e:
 				self._logger.debug('SSLWantReadError: %s', e)
 
 				status.disconnect = True
+				status.msg = 'SSLWantReadError'
 				reading = False
 			else:
 				if raw_len >= CLIENT_READ_SIZE:
@@ -61,6 +65,7 @@ class Network():
 
 					reading = False
 					status.disconnect = True
+					status.msg = 'raw_len < CLIENT_READ_SIZE'
 
 		raw_total_len = len(raw_total)
 		if raw_total_len > 0:

@@ -141,6 +141,37 @@ class IpcApp(Network):
 				print('<- list_mails')
 				self.stop()
 
+			elif command.type == '_read_mail_found':
+				self._logger.info('command data: %s', command.data)
+
+				mail: Mail = command.data
+				# print(mail)
+
+				print('-> read_mail')
+				print()
+
+				print('ID: %s' % mail.uuid)
+				print('CREATED AT:  %s' % mail.created_at)
+				print('RECEIVED AT: %s' % mail.received_at)
+				# print('VALID UNTIL: %s' % mail.valid_until)
+				print('IS ENCRYPTED: %s' % mail.is_encrypted)
+				print('VERIFY STATUS: %s' % mail.verified)
+				print('FROM: %s' % mail.sender)
+				print('TO:   %s' % mail.receiver)
+				print('SUBJECT: %s' % mail.subject)
+				print()
+				print('----- BEGIN BODY -----\n%s\n----- END BODY -----' % mail.body)
+				print()
+
+				print('<- read_mail')
+
+				self.stop()
+
+			elif command.type == '_read_mail_not_found':
+				print('-> mail not found')
+				print('<- read_mail')
+				self.stop()
+
 			if self._client_socket:
 				if command.type == 'send_mail':
 					self._logger.info('command data: %s', command.data)
@@ -150,7 +181,7 @@ class IpcApp(Network):
 					self._client_send_list_mails(self._client_socket, command.data['only_new'])
 
 				elif command.type == 'read_mail':
-					self._client_send_read_mail(self._client_socket)
+					self._client_send_read_mail(self._client_socket, command.data['uuid'])
 
 				elif command.type == 'save':
 					self._client_send_save(self._client_socket)
@@ -188,6 +219,12 @@ class IpcApp(Network):
 	def read_mail_command(self, m_uuid: str) -> bool:
 		self._logger.info('read_mail_command(%s)', m_uuid)
 
+		command = IpcCommand('read_mail')
+		command.data = {
+			'uuid': m_uuid,
+		}
+		self.add_command(command)
+
 	def save_command(self):
 		self._logger.info('save_command()')
 
@@ -221,7 +258,7 @@ class IpcApp(Network):
 			self._logger.debug('payload: %s', payload)
 
 			if group_i == 1:
-				if command_i == 0:
+				if command_i == 1:
 					print('-> receive mails from server')
 
 					chunks_len, chunk_num = payload[0:2]
@@ -248,12 +285,27 @@ class IpcApp(Network):
 					for mail_encoded in mails_encoded:
 						self._logger.debug('mail_encoded: "%s"', mail_encoded)
 
-						mail = Mail()
+						mail = Mail('N/A')
 						mail.ipc_decode(mail_encoded.encode())
 
 						self._logger.debug('mail: %s', mail)
 
 						_command.data.append(mail)
+
+				if command_i == 2:
+					print('-> receive mail from server')
+
+					mail_found = int.from_bytes(payload[0].encode(), 'little')
+					if mail_found == 1:
+						mail_encoded = payload[1]
+						self._logger.debug('mail_encoded: %s', mail_encoded)
+
+						mail = Mail('N/A')
+						mail.ipc_decode(mail_encoded.encode())
+
+						self.add_command(IpcCommand('_read_mail_found', mail))
+					else:
+						self.add_command(IpcCommand('_read_mail_not_found'))
 
 	def _client_connect(self):
 		self._logger.info('_client_connect()')
@@ -307,11 +359,12 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 1, data)
 
-	def _client_send_read_mail(self, sock: socket.socket):
+	def _client_send_read_mail(self, sock: socket.socket, m_uuid: str):
 		self._logger.debug('_client_send_read_mail()')
 		self._logger.debug('sock: %s', sock)
 
 		data = [
+			m_uuid,
 		]
 
 		self._client_write(sock, 1, 2, data)

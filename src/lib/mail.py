@@ -26,8 +26,11 @@ class Mail():
 	sign_hash: str
 	sign: str
 
-	def __init__(self):
-		self.uuid = str(uuid.uuid4())
+	def __init__(self, uuid_s: str = None):
+		if uuid_s == None:
+			self.uuid = str(uuid.uuid4())
+		else:
+			self.uuid = uuid_s
 		self.sender = None
 		self.receiver = None
 		self.origin = None
@@ -89,7 +92,7 @@ class Mail():
 		return data
 
 	def from_dict(self, data: dict):
-		# self._logger.debug('from_dict() -> %s', data)
+		self._logger.debug('from_dict() -> %s', data)
 
 		if 'sender' in data:
 			self.set_sender(data['sender'])
@@ -304,8 +307,7 @@ class Queue():
 
 		_data = read_json_file(self._path, {})
 		for m_uuid, row in _data.items():
-			mail = Mail()
-			mail.uuid = m_uuid
+			mail = Mail(m_uuid)
 			mail.from_dict(row)
 
 			self._logger.debug('load mail: %s', mail)
@@ -379,7 +381,7 @@ class Database():
 
 		data = read_json_file(self._path, {})
 		for mail_uuid, mail_raw in data.items():
-			mail = Mail()
+			mail = Mail(mail_uuid)
 			mail.from_dict(mail_raw)
 
 			self._logger.debug('load mail: %s', mail)
@@ -414,3 +416,12 @@ class Database():
 
 	def get_mails(self) -> dict:
 		return self._data.items()
+
+	def get_mail(self, mail_uuid: str) -> Mail:
+		self._logger.debug('get_mail %s', mail_uuid)
+		self._logger.debug('_data %s', self._data)
+
+		try:
+			return self._data[mail_uuid]
+		except KeyError:
+			return None

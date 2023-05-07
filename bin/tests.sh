@@ -9,7 +9,7 @@ mkdir -p tmp/tests/data_default
 mkdir -p tmp/tests/data_custom
 mkdir -p tmp/tests/keys
 
-set -x
+set -e
 . .venv/bin/activate
 coverage run -m unittest discover -s src
 coverage html -d tmp/coverage

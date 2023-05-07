@@ -58,6 +58,9 @@ python3 -m unittest tests/test_mail.py
 
 ./src/ipc_app.py mail -c var/config1.json -s Test -b 'Hello World' -t XYZ
 ./src/ipc_app.py list -c var/config2.json
+
+./src/ipc_app.py -c var/config2.json list
+./src/ipc_app.py -c var/config2.json read --uuid 4fbd8a82-05ac-4a30-9bad-4d9ff02661b2
 ```
 
 ```bash

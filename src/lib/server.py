@@ -853,10 +853,9 @@ class Server(Network):
 
 					self._logger.debug('mail data: %s', mail_data)
 
-					mail = Mail()
+					mail = Mail(mail_uuid)
 					mail.receiver = mail_target.id
 					mail.target = mail_target
-					mail.uuid = mail_uuid
 					mail.body = mail_data
 					mail.is_encrypted = True
 					mail.received_now()
@@ -1073,7 +1072,7 @@ class Server(Network):
 						mails = list(filter(lambda _mail: _mail[1].is_new, mails))
 						# mails = dict(filter(lambda _mail: _mail[1].is_new, mails))
 
-					print('mails: %s' % mails)
+					# print('mails: %s' % mails)
 
 					chunks = []
 					for n in range(0, len(mails), 5):
@@ -1090,6 +1089,21 @@ class Server(Network):
 				elif command_i == 2:
 					self._logger.info('READ MAIL command')
 
+					m_uuid = payload[0]
+					self._logger.debug('m_uuid: %s', m_uuid)
+
+					mail = self._mail_db.get_mail(m_uuid)
+					if mail == None:
+						self._logger.error('mail not found')
+						mail_encoded = None
+					else:
+						self._logger.debug('mail: %s', mail)
+
+						mail_encoded = mail.ipc_encode()
+						self._logger.debug('mail_encoded: %s', mail_encoded)
+
+					self._ipc_client_send_read_mail(sock, mail_encoded)
+
 			elif group_i == 2:
 				if command_i == 0:
 					self._logger.debug('SAVE command')
@@ -1103,7 +1117,18 @@ class Server(Network):
 		self._logger.debug('_ipc_client_send_list_mail()')
 		self._logger.debug('mails: %s', mails)
 
-		self._client_write(sock, 1, 0, [chunks_len, chunk_num] + mails)
+		self._client_write(sock, 1, 1, [chunks_len, chunk_num] + mails)
+
+	def _ipc_client_send_read_mail(self, sock: socket.socket, mail: str):
+		self._logger.debug('_ipc_client_send_read_mail()')
+		self._logger.debug('mail: %s', mail)
+
+		if mail != None:
+			data = [1, mail]
+		else:
+			data = [0]
+
+		self._client_write(sock, 1, 2, data)
 
 	def handle_sockets(self) -> bool:
 		# self._logger.debug('handle_sockets()')

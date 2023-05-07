@@ -12,6 +12,7 @@ def main():
 	parser.add_argument('-s', '--subject', type=str, nargs='?', required=False, help='Subject')
 	parser.add_argument('-b', '--body', type=str, nargs='?', required=False, help='Text')
 	parser.add_argument('-n', '--new', action='store_true', required=False, help='List only new mails')
+	parser.add_argument('-u', '--uuid', type=str, nargs='?', required=False, help='UUID of mail to read')
 	parser.add_argument('-l', '--loglevel', default='warning', help='Provide logging level. Example --loglevel debug')
 	parser.add_argument('command')
 
@@ -32,8 +33,7 @@ def main():
 
 	elif args.command == 'read':
 		print('-> Read command')
-		app.read_mail_command()
-		app.stop()
+		app.read_mail_command(args.uuid)
 
 	elif args.command == 'save':
 		print('-> Save command')
