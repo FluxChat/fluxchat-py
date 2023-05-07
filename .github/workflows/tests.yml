@@ -44,12 +44,12 @@ jobs:
 
   test_and_deploy_latest:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.11']
 
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
       - name: SSH Key
         run: |
