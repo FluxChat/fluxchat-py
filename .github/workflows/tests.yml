@@ -6,6 +6,11 @@ on:
       - develop
   workflow_dispatch:
 
+env:
+  DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+  DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+
 jobs:
   test3:
     runs-on: ubuntu-latest
@@ -15,6 +20,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: SSH Key
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          ls -la ~/.ssh/
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ls -la ~/.ssh/
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -29,3 +41,6 @@ jobs:
 
       - name: Run Tests
         run: ./bin/tests.sh
+
+      - name: Deploy
+        run: ./bin/deploy.sh
