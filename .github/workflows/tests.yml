@@ -12,11 +12,41 @@ env:
   DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
 
 jobs:
-  test3:
+  test_old_versions:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.9', '3.10']
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: SSH Key
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          ls -la ~/.ssh/
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          ls -la ~/.ssh/
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip3 --version
+          pip3 install -r requirements.txt
+
+      - name: Run Tests
+        run: ./bin/tests.sh
+
+  test_and_deploy_latest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
 
     steps:
       - uses: actions/checkout@v3
