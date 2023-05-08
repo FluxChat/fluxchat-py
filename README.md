@@ -2,6 +2,8 @@
 
 A decentralized, peer-to-peer, encrypted chat written in Python.
 
+FluxChat uses asymetic-encryption to encrypt messages end-to-end. TLS is used to encrypt the traffic between single nodes. Kademlia algorithm is used to route messages and position nodes in the network.
+
 ## Project Outlines
 
 The project outlines as described in my blog post about [Open Source Software Collaboration](https://blog.fox21.at/2019/02/21/open-source-software-collaboration.html).
@@ -10,16 +12,25 @@ The project outlines as described in my blog post about [Open Source Software Co
 
 ## Installation
 
-For the setup we assume that FluxChat is running on a personal Computer in a Local Area Network, which is connected to the public Internet via a default gateway. By default FluxChat will listen on all network interfaces (0.0.0.0).
+The setup process for FluxChat involves installing the required Python dependencies and generating the necessary configuration files.
+
+To start the setup process, run
 
 ```bash
 ./bin/setup.sh
 ```
 
-To setup another node, use environment variables.
+The script utilizes `virtualenv` to create a virtual environment and install the required Python dependencies. The environment variables used during the setup process are optional. See a list of available environment variables in section 'Environment Variables' below.
+
+If the private key file is not found, the `src/gen_rsa.py` script will be executed to generate the private key, public key, and a self-signed certificate. This can be also done by `openssl`.
+
+Towards the end of the setup process, the script runs `envsubst` to substitute variables in the `config-example.json` template file with environment variables, generating the final configuration file.
+
+For the setup we assume that FluxChat is running on a personal Computer in a Local Area Network (LAN), which is connected to the public Internet via a default gateway. By default FluxChat will listen on all network interfaces (0.0.0.0).
+
+To setup another node, you can use environment variables.
 
 ```bash
-. .venv/bin/activate
 export FLUXCHAT_CONFIG=var/config2.json
 export FLUXCHAT_PORT=25002
 export FLUXCHAT_DATA_DIR=var/data2
