@@ -246,12 +246,13 @@ class Server(Network):
 		with open(self._config['public_key_file'], 'rb') as f:
 			self._public_key = serialization.load_pem_public_key(f.read())
 
-		public_bytes = self._public_key.public_bytes(
-			encoding=serialization.Encoding.PEM,
+		# DER is binary representation of public key.
+		public_bin = self._public_key.public_bytes(
+			encoding=serialization.Encoding.DER,
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		self._public_key_b64 = base64.b64encode(public_bytes).decode()
+		self._public_key_b64 = base64.b64encode(public_bin).decode()
 
 	def has_contact(self) -> bool:
 		if 'contact' in self._config:

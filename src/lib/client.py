@@ -6,6 +6,7 @@ import base58
 import base64
 
 import lib.overlay as overlay
+import lib.helper as helper
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -248,6 +249,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
+		# PEM is used to store public keys in Base64 encoded format, with header and footer.
 		public_key_pem = self.public_key.public_bytes(
 			encoding=serialization.Encoding.PEM,
 			format=serialization.PublicFormat. SubjectPublicKeyInfo
@@ -266,12 +268,13 @@ class Client():
 		if not self.has_public_key():
 			return None
 
-		public_bytes = self.public_key.public_bytes(
-			encoding=serialization.Encoding.PEM,
+		# DER is binary representation of public key.
+		public_bin = self.public_key.public_bytes(
+			encoding=serialization.Encoding.DER,
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		return base64.b64encode(public_bytes).decode()
+		return base64.b64encode(public_bin).decode()
 
 	def reset_public_key(self):
 		self.public_key = None
@@ -283,17 +286,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		public_bytes = self.public_key.public_bytes(
-			encoding=serialization.Encoding.PEM,
-			format=serialization.PublicFormat.SubjectPublicKeyInfo
-		)
-
-		hasher = hashes.Hash(hashes.SHA256())
-		hasher.update(public_bytes)
-		digest = hasher.finalize()
-
-		base58_hash = base58.b58encode(digest).decode()
-		return f'FC_{base58_hash}' == self.id
+		return helper.generate_id_from_public_key(self.public_key) == self.id
 
 	def encrypt(self, data: bytes) -> bytes:
 		if not self.has_public_key():

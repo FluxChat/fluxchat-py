@@ -79,3 +79,5 @@ export IS_UNITTEST=true
 export PYTHONPATH=$PWD/src
 coverage run -m unittest tests.test_address_book.AddressBookTestCase.test_save_load
 ```
+
+openssl rsa -pubin -inform PEM -in var/data1/public_key.pem -outform DER | openssl dgst -sha256 -c

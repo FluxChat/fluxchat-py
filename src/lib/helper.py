@@ -18,25 +18,26 @@ def generate_id_from_public_key_file(file_path: str) -> str:
 
 	public_key = serialization.load_pem_public_key(key_data)
 
-	return generate_id_from_public_key_data(public_key)
+	return generate_id_from_public_key(public_key)
 
 # Generate ID from Public Key Data
-def generate_id_from_public_key_data(key_data: rsa.RSAPublicKey) -> str:
-	public_bytes = key_data.public_bytes(
-		encoding=serialization.Encoding.PEM,
+def generate_id_from_public_key(public_key: rsa.RSAPublicKey) -> str:
+	# DER is binary representation of public key.
+	public_bin = public_key.public_bytes(
+		encoding=serialization.Encoding.DER,
 		format=serialization.PublicFormat.SubjectPublicKeyInfo
 	)
-	public_bytes = str(public_bytes).split('\\n')[1:-1]
-	public_bytes = ''.join(public_bytes)
 
-	raw_key = base64.b64decode(public_bytes)
+	# print('public_bin:', public_bin)
 
-	return generate_id_from_public_key(raw_key)
+	return generate_id_from_public_key_der(public_bin)
 
-def generate_id_from_public_key(public_key_bytes: bytes) -> str:
+def generate_id_from_public_key_der(public_key_bytes: bytes) -> str:
 	hasher = hashes.Hash(hashes.SHA256())
 	hasher.update(public_key_bytes)
 	digest = hasher.finalize()
+
+	# print('digest:', digest.hex())
 
 	base58_hash = base58.b58encode(digest).decode()
 	return f'FC_{base58_hash}'
