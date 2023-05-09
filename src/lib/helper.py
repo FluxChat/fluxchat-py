@@ -8,6 +8,7 @@ import uuid
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 # Generate ID from Public Key
 def generate_id_from_public_key_file(file_path: str) -> str:
@@ -15,29 +16,27 @@ def generate_id_from_public_key_file(file_path: str) -> str:
 	key_data = f.read()
 	f.close()
 
-	# print('generate_id_from_public_key_file', key_data)
+	public_key = serialization.load_pem_public_key(key_data)
 
-	return generate_id_from_public_key_data(key_data)
+	return generate_id_from_public_key_data(public_key)
 
 # Generate ID from Public Key Data
-def generate_id_from_public_key_data(key_data: bytes) -> str:
-	public_key = serialization.load_pem_public_key(key_data)
-	# print('-> public_key type', type(public_key))
-	public_bytes = public_key.public_bytes(
+def generate_id_from_public_key_data(key_data: rsa.RSAPublicKey) -> str:
+	public_bytes = key_data.public_bytes(
 		encoding=serialization.Encoding.PEM,
-		format=serialization.PublicFormat.SubjectPublicKeyInfo)
-	# print('-> public_bytes', type(public_bytes))
+		format=serialization.PublicFormat.SubjectPublicKeyInfo
+	)
+	public_bytes = str(public_bytes).split('\\n')[1:-1]
+	public_bytes = ''.join(public_bytes)
 
-	return generate_id_from_public_key(public_bytes)
+	raw_key = base64.b64decode(public_bytes)
+
+	return generate_id_from_public_key(raw_key)
 
 def generate_id_from_public_key(public_key_bytes: bytes) -> str:
-	# print('public_key_bytes', public_key_bytes)
-
 	hasher = hashes.Hash(hashes.SHA256())
 	hasher.update(public_key_bytes)
 	digest = hasher.finalize()
-
-	# print('digest', digest.hex())
 
 	base58_hash = base58.b58encode(digest).decode()
 	return f'FC_{base58_hash}'

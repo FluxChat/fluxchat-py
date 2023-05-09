@@ -5,6 +5,7 @@
 import os
 import ssl
 import sys
+import base64
 import datetime as dt
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -44,6 +45,7 @@ public_key_path = os.path.join(data_dir, 'public_key.pem')
 with open(public_key_path, 'wb') as f:
 	f.write(public_key_pem)
 
+raw_public_key = base64.b64decode(''.join(str(public_key_pem).split('\\n')[1:-1]))
 
 # Certificate
 print('-> Generating Certificate', file=sys.stderr)
@@ -70,4 +72,4 @@ _server_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 _server_ssl.load_cert_chain(certfile=certificate_path, keyfile=private_key_path, password=pkd)
 
 print('-> Generate ID from Public Key', file=sys.stderr)
-print(generate_id_from_public_key(public_key_pem), end='')
+print(generate_id_from_public_key(raw_public_key), end='')
