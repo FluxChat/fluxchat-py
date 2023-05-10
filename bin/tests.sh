@@ -10,6 +10,10 @@ mkdir -p tmp/tests/data_custom
 mkdir -p tmp/tests/keys
 
 set -e
-. .venv/bin/activate
+
+if [[ -z ${CI} ]]; then
+	. .venv/bin/activate
+fi
+
 coverage run -m unittest discover -s src
 coverage html -d tmp/coverage
