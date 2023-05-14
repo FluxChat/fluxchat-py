@@ -4,6 +4,10 @@ A decentralized, peer-to-peer, encrypted chat written in Python.
 
 FluxChat uses asymetic-encryption to encrypt messages end-to-end. TLS is used to encrypt the traffic between single nodes. Kademlia algorithm is used to route messages and position nodes in the network.
 
+## Motivation
+
+TBD
+
 ## Project Outlines
 
 The project outlines as described in my blog post about [Open Source Software Collaboration](https://blog.fox21.at/2019/02/21/open-source-software-collaboration.html).
