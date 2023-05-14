@@ -6,11 +6,11 @@ which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 1; }
 which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 1; }
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
 
-export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-var/config1.json}
+export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-./var/config1.json}
 export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-0.0.0.0}
 export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
 export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
-export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-var/data1}
+export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-./var/data1}
 export FLUXCHAT_LOG_FILE=${FLUXCHAT_LOG_FILE:-fluxchat.log}
 export FLUXCHAT_IPC_PORT=${FLUXCHAT_IPC_PORT:-26001}
 export FLUXCHAT_KEY_PASSWORD=${FLUXCHAT_KEY_PASSWORD:-password}
