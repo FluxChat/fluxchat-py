@@ -509,12 +509,12 @@ class Server(Network):
 						continue
 
 					# Version
-					# if c_version < self._config['version']['min']:
-					# 	self._logger.warning('skip, version is too old: %d < %d', c_version, self._config['version']['min'])
-					# 	self._logger.debug('conn mode 0')
-					# 	client.conn_mode = 0
-					# 	client.conn_msg = 'version is too old'
-					# 	continue
+					if c_version != VERSION:
+						self._logger.warning('skip, version mismatch: %d != %d', c_version, VERSION)
+						self._logger.debug('conn mode 0')
+						client.conn_mode = 0
+						client.conn_msg = 'version mismatch'
+						continue
 
 					# Challenge
 					if not client.cash.verify(c_cc_proof, c_cc_nonce):
