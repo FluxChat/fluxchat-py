@@ -11,7 +11,7 @@ class ContactTestCase(unittest.TestCase):
 
 			('private', None, [None, None, False]),
 
-			('public', None, ['public', None, False]),
+			('public', None, [None, None, False]),
 			('public', '192.168.10.10', ['192.168.10.10', None, False]),
 
 			('public:', None, [None, None, False]),
