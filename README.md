@@ -20,6 +20,12 @@ cd fluxchat-py
 ./bin/start.sh
 ```
 
+## Features
+
+- Peer-to-peer connection without a central server.
+- Send end-to-end messages with [asymmetric encryption]((https://en.wikipedia.org/wiki/Public-key_cryptography)).
+- TLS encryption used to secure communication between individual nodes.
+
 ## Further Information
 
 See [wiki](https://github.com/FluxChat/fluxchat-py/wiki) for more informations about
