@@ -46,6 +46,7 @@ class Server(Network):
 	_wrote_pid_file: bool
 	_client_auth_timeout: dt.timedelta
 	_client_action_retention_time: dt.timedelta
+	_contact: Contact
 
 	def __init__(self, config: dict = {}):
 		self._host_name = socket.gethostname()
@@ -63,11 +64,17 @@ class Server(Network):
 		self._client_action_retention_time = None
 		self._ssl_handshake_timeout = dt.timedelta(seconds=SSL_HANDSHAKE_TIMEOUT)
 
-
 		self._logger = logging.getLogger('server')
 		self._logger.info('init()')
 
 		self._config = config
+
+		# TODO: use below
+		if 'contact' in self._config:
+			self._contact = Contact.resolve(self._config['contact'])
+		else:
+			self._contact = Contact()
+
 		if 'address_book' not in self._config:
 			self._config['address_book'] = {
 				'max_clients': 20,
@@ -254,6 +261,7 @@ class Server(Network):
 
 		self._public_key_b64 = base64.b64encode(public_bin).decode()
 
+	# TODO: remove, replace with Contact class
 	def has_contact(self) -> bool:
 		if 'contact' in self._config:
 			if self._config['contact'] == 'disabled' or self._config['contact'] == 'private':
@@ -265,6 +273,7 @@ class Server(Network):
 
 		return False
 
+	# TODO: remove, replace with Contact class
 	def get_contact(self) -> str:
 		if self.has_contact():
 			items = self._config['contact'].split(':')
