@@ -15,7 +15,7 @@ class ClientTestCase(unittest.TestCase):
 		client.auth = 3
 		client.actions = ['a', 'b', 'c', 'd']
 
-		self.assertEqual(str(client), 'Client(test,a:p=localhost:25001,ID=FC_test1,c=99,d=t,a=3,ac=4)')
+		self.assertEqual(str(client), 'Client(test,localhost:25001,ID=FC_test1,c=99,d=t,a=3,ac=4)')
 
 	def test_from_list(self):
 		client = Client()

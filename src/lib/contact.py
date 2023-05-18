@@ -6,15 +6,27 @@ class Contact:
 	addr: str = None
 	port: int = None
 	is_valid: bool = False
+	is_ipv6: bool = False
 
 	def __init__(self) -> None:
 		pass
+
+	def __str__(self) -> str:
+		return f'{self.addr}:{self.port}'
 
 	@staticmethod
 	def resolve(raw: str, raddr: str = None):
 		contact = Contact()
 
-		items = raw.split(':')
+		if '[' in raw and ']' in raw:
+			# IPv6
+			items = [
+				raw.split(']')[0][1:],
+				int(raw.split(']')[1].split(':')[1])
+			]
+		else:
+			items = raw.split(':')
+
 		items_len = len(items)
 
 		if items_len == 1:
@@ -26,6 +38,11 @@ class Contact:
 				contact.port = None
 			else:
 				contact.port = int(items[1])
+		elif items_len > 2:
+			# IPv6
+			contact.addr = ':'.join(items[0:-1])
+			contact.port = int(items[-1])
+			contact.is_ipv6 = True
 
 		if contact.addr == '':
 			contact.addr = 'private'
@@ -38,7 +55,7 @@ class Contact:
 		else:
 			try:
 				ip_add = str(ipaddress.ip_address(contact.addr))
-				if ip_add[0:4] == '127.':
+				if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
 					# Localhost is invalid.
 					contact.addr = None
 			except ValueError:
@@ -47,7 +64,7 @@ class Contact:
 					results = socket.getaddrinfo(contact.addr, None)
 					for result in results:
 						ip_add = result[4][0]
-						if ip_add[0:4] == '127.':
+						if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
 							# Localhost is invalid.
 							contact.addr = None
 							break

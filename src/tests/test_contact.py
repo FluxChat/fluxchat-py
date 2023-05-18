@@ -5,10 +5,13 @@ from lib.contact import Contact
 class ContactTestCase(unittest.TestCase):
 	def test_resolve_contact(self):
 		data = [
+			# IPv4
 			('', None, [None, None, False]),
 			('', '192.168.10.10', [None, None, False]),
 
-			('public', None, [None, None, False]),
+			('private', None, [None, None, False]),
+
+			('public', None, ['public', None, False]),
 			('public', '192.168.10.10', ['192.168.10.10', None, False]),
 
 			('public:', None, [None, None, False]),
@@ -31,6 +34,17 @@ class ContactTestCase(unittest.TestCase):
 
 			('non-resolvable.fluxchat.dev:25001', None, [None, 25001, False]),
 			('non-resolvable.fluxchat.dev:25001', '192.168.10.20', [None, 25001, False]),
+
+
+			# IPv6
+			# 2001:db8::/32 is reserved for documentation and example code.
+
+			('2001:db8::1:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
+			('[2001:db8::1]:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
+
+			('test.ipv6.fluxchat.dev:25001', '2001:db8::2', ['test.ipv6.fluxchat.dev', 25001, True]),
+
+			('non-resolvable.ipv6.fluxchat.dev:25001', '2001:db8::2', [None, 25001, False]),
 		]
 		for contact_s, raddr, expect_a in data:
 			contact = Contact.resolve(contact_s, raddr)

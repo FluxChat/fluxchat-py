@@ -310,7 +310,7 @@ class IpcApp(Network):
 	def _client_connect(self):
 		self._logger.info('_client_connect()')
 
-		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 		sock.settimeout(2)
 		try:
 			self._logger.debug('sock.connect to %s:%s', self._ipc_config['address'], self._ipc_config['port'])

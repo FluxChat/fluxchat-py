@@ -176,7 +176,7 @@ class Server(Network):
 		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
 		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=self._pkd)
 
-		self._main_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self._main_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
@@ -194,7 +194,7 @@ class Server(Network):
 		if 'discovery' in self._config and self._config['discovery']['enabled']:
 			self._logger.debug('discovery')
 
-			self._discovery_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+			self._discovery_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) # UDP
 			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -218,7 +218,7 @@ class Server(Network):
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
 			self._logger.debug('ipc %s', ipc_addr)
 
-			self._ipc_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			self._ipc_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 			self._ipc_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			self._ipc_server_socket.bind(ipc_addr)
 			self._ipc_server_socket.listen()
@@ -380,7 +380,7 @@ class Server(Network):
 		client_ssl.check_hostname = False
 		client_ssl.verify_mode = ssl.CERT_NONE
 
-		client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		client_sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 		client_sock.settimeout(2)
 		try:
 			self._logger.debug('client sock connect to %s:%s', client.address, client.port)

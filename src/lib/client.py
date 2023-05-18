@@ -107,7 +107,7 @@ class Client():
 		self.challenge = [None, None, None, None, None] # min, max, data, proof, nonce
 
 	def __str__(self):
-		return 'Client({},a:p={}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
+		return 'Client({},{}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
 	def __repr__(self): # pragma: no cover
 		return 'Client({})'.format(self.uuid)
