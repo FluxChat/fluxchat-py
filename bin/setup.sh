@@ -30,19 +30,19 @@ echo "-> FLUXCHAT_KEY_DERIVATION_ITERATIONS: ${FLUXCHAT_KEY_DERIVATION_ITERATION
 mkdir -p ${FLUXCHAT_DATA_DIR}
 chmod go-rwx ${FLUXCHAT_DATA_DIR}
 
+if ! virtualenv --system-site-packages -p python3 ./.venv ; then
+	echo 'ERROR: could not install venv'
+	exit 1
+fi
 if [[ -d ./.venv ]]; then
 	source ./.venv/bin/activate
-else
-	if ! virtualenv --system-site-packages -p python3 ./.venv ; then
-		echo 'ERROR: could not install venv'
-		exit 1
-	fi
-	echo '-> installing requirements'
-	if ! pip3 install -r requirements.txt ; then
-		echo 'ERROR: could not install requirements'
-		exit 1
-	fi
 fi
+echo '-> installing requirements'
+if ! pip3 install -r requirements.txt ; then
+	echo 'ERROR: could not install requirements'
+	exit 1
+fi
+
 
 rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
 if test -f ${rsa_priv_key_file} ; then
