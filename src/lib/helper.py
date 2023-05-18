@@ -18,10 +18,10 @@ def generate_id_from_public_key_file(file_path: str) -> str:
 
 	public_key = serialization.load_pem_public_key(key_data)
 
-	return generate_id_from_public_key(public_key)
+	return generate_id_from_public_key_rsa(public_key)
 
 # Generate ID from Public Key Data
-def generate_id_from_public_key(public_key: rsa.RSAPublicKey) -> str:
+def generate_id_from_public_key_rsa(public_key: rsa.RSAPublicKey) -> str:
 	# DER is binary representation of public key.
 	public_bin = public_key.public_bytes(
 		encoding=serialization.Encoding.DER,

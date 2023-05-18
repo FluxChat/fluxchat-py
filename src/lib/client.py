@@ -286,7 +286,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		return helper.generate_id_from_public_key(self.public_key) == self.id
+		return helper.generate_id_from_public_key_rsa(self.public_key) == self.id
 
 	def encrypt(self, data: bytes) -> bytes:
 		if not self.has_public_key():

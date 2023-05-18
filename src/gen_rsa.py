@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
-from lib.helper import generate_id_from_public_key, password_key_derivation
+from lib.helper import generate_id_from_public_key_rsa, password_key_derivation
 
 key_password = os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()
 data_dir = os.getenv('FLUXCHAT_DATA_DIR', 'var/data')
@@ -72,9 +72,4 @@ _server_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 _server_ssl.load_cert_chain(certfile=certificate_path, keyfile=private_key_path, password=pkd)
 
 print('-> Generate ID from Public Key', file=sys.stderr)
-# DER is binary representation of public key.
-public_bin = public_key.public_bytes(
-	encoding=serialization.Encoding.DER,
-	format=serialization.PublicFormat.SubjectPublicKeyInfo
-)
-print(generate_id_from_public_key_der(public_bin), end='')
+print(generate_id_from_public_key_rsa(public_key), end='')
