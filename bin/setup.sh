@@ -7,7 +7,7 @@ which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; e
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
 
 export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-./var/config1.json}
-export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-0.0.0.0}
+export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-::0}
 export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
 export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
 export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-./var/data1}

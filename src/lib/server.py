@@ -183,14 +183,20 @@ class Server(Network):
 		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
 		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=self._pkd)
 
-		self._main_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-		self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		# self._main_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM, dualstack_ipv6=True)
+		# self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 		try:
-			self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
-			self._main_server_socket.bind((self._config['address'], self._config['port']))
+			# self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
+			# self._main_server_socket.bind((self._config['address'], self._config['port']))
+
+			self._logger.debug('create server %s:%s', self._config['address'], self._config['port'])
+			self._main_server_socket = socket.create_server((self._config['address'], self._config['port']), family=socket.AF_INET6, reuse_port=True, dualstack_ipv6=True)
 		except OSError as e:
 			self._logger.error('OSError: %s', e)
+			raise e
+		except Exception as e:
+			self._logger.error('Exception: %s', e)
 			raise e
 
 		self._logger.debug('listen')
@@ -206,7 +212,7 @@ class Server(Network):
 			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
 			try:
-				self._discovery_socket.bind(('', self._config['discovery']['port']))
+				self._discovery_socket.bind(('::0', self._config['discovery']['port']))
 			except OSError as e:
 				self._logger.error('OSError: %s', e)
 				raise e

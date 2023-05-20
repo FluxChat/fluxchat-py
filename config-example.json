@@ -23,7 +23,7 @@
 	"bootstrap": "default",
 	"ipc": {
 		"enabled": true,
-		"address": "127.0.0.1",
+		"address": "::1",
 		"port": ${FLUXCHAT_IPC_PORT}
 	},
 	"mail": {
