@@ -464,13 +464,14 @@ class Server(Network):
 						continue
 
 					client.auth |= 2
-					client.challenge[0] = int(payload[0]) # min
-					client.challenge[1] = int(payload[1]) # max
-					client.challenge[2] = str(payload[2]) # data
+
+					client.challenge.min = int(payload[0])
+					client.challenge.max = int(payload[1])
+					client.challenge.data = str(payload[2])
 
 					self._logger.debug('challenge: %s', client.challenge)
 
-					c_data_len = len(client.challenge[2])
+					c_data_len = len(client.challenge.data)
 					if c_data_len > 36:
 						self._logger.warning('skip, challenge data too long: %d > 36', c_data_len)
 						self._logger.debug('conn mode 0')
@@ -478,19 +479,19 @@ class Server(Network):
 						client.conn_msg = 'challenge data too long'
 						continue
 
-					if client.challenge[0] > self._config['challenge']['max']:
-						self._logger.warning('skip, challenge min is too big: %d > %d', client.challenge[0], self._config['challenge']['max'])
+					if client.challenge.min > self._config['challenge']['max']:
+						self._logger.warning('skip, challenge min is too big: %d > %d', client.challenge.min, self._config['challenge']['max'])
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
 						client.conn_msg = 'challenge min is too big'
 						continue
 
-					cash = Cash(client.challenge[2], client.challenge[0])
+					cash = Cash(client.challenge.data, client.challenge.min)
 					self._logger.debug('mine')
 					cash.mine()
 					self._logger.debug('mine done')
-					client.challenge[3] = cash.proof
-					client.challenge[4] = cash.nonce
+					client.challenge.proof = cash.proof
+					client.challenge.nonce = cash.nonce
 
 					self._logger.debug('challenge: %s', client.challenge)
 
@@ -1246,7 +1247,7 @@ class Server(Network):
 
 				elif client.auth & 2 != 0 and client.auth & 4 == 0:
 					self._logger.debug('send ID')
-					self._client_send_id(client.sock, client.challenge[3], str(client.challenge[4]))
+					self._client_send_id(client.sock, client.challenge.proof, str(client.challenge.nonce))
 					client.auth |= 4
 
 				if client.auth == 15:

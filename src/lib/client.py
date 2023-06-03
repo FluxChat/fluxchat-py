@@ -40,6 +40,13 @@ class Action():
 
 		return False
 
+class Challenge():
+	min: int
+	max: int
+	data: str
+	proof: str
+	nonce: str
+
 class Client():
 	uuid: str # Internal ID
 	address: str
@@ -104,7 +111,8 @@ class Client():
 		self.actions = list()
 		self.public_key = None
 		self.cash = None
-		self.challenge = [None, None, None, None, None] # min, max, data, proof, nonce
+
+		self.challenge = Challenge()
 
 	def __str__(self):
 		return 'Client({},{}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
