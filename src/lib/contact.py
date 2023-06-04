@@ -20,9 +20,10 @@ class Contact:
 
 		if '[' in raw and ']' in raw:
 			# IPv6
+			items = raw.split(']')
 			items = [
-				raw.split(']')[0][1:],
-				int(raw.split(']')[1].split(':')[1])
+				items[0][1:],
+				int(items[1][1:]),
 			]
 		else:
 			items = raw.split(':')
