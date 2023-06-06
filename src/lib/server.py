@@ -465,9 +465,9 @@ class Server(Network):
 
 					client.auth |= 2
 
-					client.challenge.min = int(payload[0])
-					client.challenge.max = int(payload[1])
-					client.challenge.data = str(payload[2])
+					client.challenge.min = int.from_bytes(payload[0], 'little')
+					client.challenge.max = int.from_bytes(payload[1], 'little')
+					client.challenge.data = str(payload[2].decode())
 
 					self._logger.debug('challenge: %s', client.challenge)
 
@@ -483,13 +483,14 @@ class Server(Network):
 						self._logger.warning('skip, challenge min is too big: %d > %d', client.challenge.min, self._config['challenge']['max'])
 						self._logger.debug('conn mode 0')
 						client.conn_mode = 0
-						client.conn_msg = 'challenge min is too big'
+						client.conn_msg = 'challenge min is too big: %d > %d'.format(client.challenge.min, self._config['challenge']['max'])
 						continue
 
 					cash = Cash(client.challenge.data, client.challenge.min)
 					self._logger.debug('mine')
 					cash.mine()
 					self._logger.debug('mine done')
+
 					client.challenge.proof = cash.proof
 					client.challenge.nonce = cash.nonce
 
@@ -506,13 +507,15 @@ class Server(Network):
 						self._logger.debug('skip, already authenticated')
 						continue
 
-					c_version = int.from_bytes(payload[0].encode(), 'little')
-					c_id = payload[1]
-					c_cc_proof = payload[2]
-					c_cc_nonce = int(payload[3])
+					c_version = int.from_bytes(payload[0], 'little')
+					c_id = payload[1].decode()
+					c_contact_s = payload[2].decode()
+					c_cc_proof = payload[3].decode()
+					c_cc_nonce = int.from_bytes(payload[4], 'little')
 
 					self._logger.debug('c_version: %s', c_version)
 					self._logger.debug('c_id: %s', c_id)
+					self._logger.debug('c_contact_s: %s', c_contact_s)
 					self._logger.debug('c_cc_proof: %s', c_cc_proof)
 					self._logger.debug('c_cc_nonce: %s', c_cc_nonce)
 
@@ -542,15 +545,11 @@ class Server(Network):
 					self._logger.debug('cash verified')
 
 					# Contact info
-					c_has_contact_info = False
-					if payload_len >= 5:
-						addr = sock.getpeername()
-
-						# Client sent contact info
-						c_contact = Contact.resolve(payload[4], addr[0])
-						c_contact_addr = c_contact.addr
-						c_contact_port = c_contact.port
-						c_has_contact_info = c_contact.is_valid
+					addr = sock.getpeername()
+					c_contact = Contact.resolve(c_contact_s, addr[0])
+					c_contact_addr = c_contact.addr
+					c_contact_port = c_contact.port
+					c_has_contact_info = c_contact.is_valid
 
 					c_switch = False
 					if client.dir_mode == 'i':
@@ -652,7 +651,7 @@ class Server(Network):
 					self._logger.info('GET_NEAREST_TO command')
 
 					try:
-						node = overlay.Node(payload[0])
+						node = overlay.Node(payload[0].decode())
 					except:
 						self._logger.warning('skip, invalid node')
 						continue
@@ -723,7 +722,7 @@ class Server(Network):
 
 					is_relay = False
 					fwd_clients = []
-					node_id = payload[0]
+					node_id = payload[0].decode()
 					self._logger.debug('node id: %s', node_id)
 
 					try:
@@ -900,21 +899,20 @@ class Server(Network):
 		self._logger.debug('_client_send_challenge(%s)', challenge)
 
 		self._client_write(sock, 1, 1, [
-			str(self._config['challenge']['min']),
-			str(self._config['challenge']['max']),
+			self._config['challenge']['min'],
+			self._config['challenge']['max'],
 			challenge,
 		])
 
-	def _client_send_id(self, sock: socket.socket, proof: str, nonce: str):
-		self._logger.debug('_client_send_id(%s, %s)', proof, nonce)
+	def _client_send_id(self, sock: socket.socket, proof: str, nonce: int):
+		self._logger.debug('_client_send_id(%s, %d)', proof, nonce)
 		data = [
 			VERSION,
 			self._config['id'],
+			self._config['contact'],
 			proof,
 			nonce,
 		]
-		if self.has_contact():
-			data.append(self.get_contact())
 
 		# self._logger.debug('data: %s', data)
 		self._client_write(sock, 1, 2, data)
@@ -1062,7 +1060,8 @@ class Server(Network):
 				if command_i == 0:
 					self._logger.info('SEND MAIL command')
 
-					target, body = payload
+					target = payload[0].decode()
+					body = payload[1].decode()
 					self._logger.debug('target: %s', target)
 					self._logger.debug('body: %s', body)
 
@@ -1078,7 +1077,7 @@ class Server(Network):
 				elif command_i == 1:
 					self._logger.info('LIST MAILS command')
 
-					flags_i = int.from_bytes(payload[0].encode(), 'little')
+					flags_i = int.from_bytes(payload[0], 'little')
 					only_new = flags_i & 1 != 0
 					self._logger.debug('flags_i: %d', flags_i)
 					self._logger.debug('only_new: %s', only_new)
@@ -1106,7 +1105,7 @@ class Server(Network):
 				elif command_i == 2:
 					self._logger.info('READ MAIL command')
 
-					m_uuid = payload[0]
+					m_uuid = payload[0].decode()
 					self._logger.debug('m_uuid: %s', m_uuid)
 
 					mail = self._mail_db.get_mail(m_uuid)
@@ -1247,7 +1246,7 @@ class Server(Network):
 
 				elif client.auth & 2 != 0 and client.auth & 4 == 0:
 					self._logger.debug('send ID')
-					self._client_send_id(client.sock, client.challenge.proof, str(client.challenge.nonce))
+					self._client_send_id(client.sock, client.challenge.proof, client.challenge.nonce)
 					client.auth |= 4
 
 				if client.auth == 15:

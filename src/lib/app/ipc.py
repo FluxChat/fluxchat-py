@@ -295,9 +295,9 @@ class IpcApp(Network):
 				if command_i == 2:
 					print('-> receive mail from server')
 
-					mail_found = int.from_bytes(payload[0].encode(), 'little')
+					mail_found = int.from_bytes(payload[0], 'little')
 					if mail_found == 1:
-						mail_encoded = payload[1]
+						mail_encoded = payload[1].decode()
 						self._logger.debug('mail_encoded: %s', mail_encoded)
 
 						mail = Mail('N/A')

@@ -117,12 +117,13 @@ class Network():
 						item_len = payload_raw[pos]
 					pos += 1
 
-					# self._logger.debug('item len: %d %s', item_len, type(item_len))
+					self._logger.debug('item len: %d %s', item_len, type(item_len))
 
 					item = payload_raw[pos:pos + item_len]
-					# self._logger.debug('item content: %s', item)
+					self._logger.debug('item content: %s', item)
 
-					payload_items.append(item.decode())
+					# TODO: Remove decode here. use Bytes everywhere and decode in server.py when needed
+					payload_items.append(item)
 					pos += item_len
 
 				status.commands.append([group, command, payload_items])
@@ -137,7 +138,7 @@ class Network():
 		flag_lengths_are_4_bytes = False
 
 		for item in data:
-			#self._logger.debug('data item: %s %s', type(item), item)
+			self._logger.debug('data item: %s %s', type(item), item)
 
 			if isinstance(item, int):
 				continue

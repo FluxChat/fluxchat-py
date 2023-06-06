@@ -32,6 +32,7 @@ class Cash():
 			hasher = hashes.Hash(hashes.SHA256())
 			hasher.update(input_data)
 			digest = hasher.finalize()
+			print('digest: {} {}'.format(self.nonce, digest.hex()))
 
 			found_bits = 0
 			for c in digest:
