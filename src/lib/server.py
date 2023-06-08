@@ -442,7 +442,7 @@ class Server(Network):
 			payload_len = len(payload)
 
 			self._logger.debug('group: %d, command %d', group_i, command_i)
-			self._logger.debug('payload: %s', payload)
+			self._logger.debug('payload: %d %s', payload_len, payload)
 
 			if group_i >= 2 and client.auth != 15:
 				self._logger.debug('not authenticated: %s', client.auth)
@@ -560,23 +560,19 @@ class Server(Network):
 							# Client sent contact info
 							_client = self._address_book.get_client_by_id(c_id)
 							if _client == None:
-								self._logger.debug('client not found A')
+								self._logger.debug('client not found by ID (A)')
 
 								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
 								if _client == None:
-									self._logger.debug('client not found B')
+									self._logger.debug('client not found by Addr:Port (B)')
 
 									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
 									_client.dir_mode = client.dir_mode
 									_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
-
-									c_switch = True
 								else:
 									self._logger.debug('client found B: %s', _client)
-									c_switch = True
 							else:
 								self._logger.debug('client found A: %s', _client)
-								c_switch = True
 
 							_client.address = c_contact_addr
 							_client.port = c_contact_port
@@ -592,7 +588,7 @@ class Server(Network):
 							else:
 								self._logger.debug('client found C: {}'.format(_client))
 
-							c_switch = True
+						c_switch = True
 
 					elif client.dir_mode == 'o':
 						# Client is outgoing
