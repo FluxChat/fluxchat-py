@@ -495,6 +495,11 @@ class Server(Network):
 					client.challenge.nonce = cash.nonce
 
 					self._logger.debug('challenge: %s', client.challenge)
+					self._logger.debug('cash.min: %s', client.challenge.min)
+					self._logger.debug('cash.max: %s', client.challenge.max)
+					self._logger.debug('cash.data: %s', client.challenge.data)
+					self._logger.debug('cash.proof: %s', cash.proof)
+					self._logger.debug('cash.nonce: %s', cash.nonce)
 
 				elif command_i == 2:
 					self._logger.info('ID command')
@@ -636,9 +641,11 @@ class Server(Network):
 					self._client_send_ok(_client.sock)
 
 					self._logger.debug('Client Z: %s', _client)
+
 				elif command_i == 3:
 					self._logger.info('PING command')
 					self._client_send_pong(sock)
+
 				elif command_i == 4:
 					self._logger.info('PONG command')
 
@@ -1248,11 +1255,12 @@ class Server(Network):
 				if client.auth == 15:
 					client.conn_mode = 2
 
-				if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
-					self._logger.debug('client used_at: %s', client.used_at)
-					self._logger.debug('client timeout (%s)', self._client_auth_timeout)
-					client.conn_mode = 0
-					client.conn_msg = 'timeout'
+				# TODO activate for production
+				# if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
+				# 	self._logger.debug('client used_at: %s', client.used_at)
+				# 	self._logger.debug('client timeout (%s)', self._client_auth_timeout)
+				# 	client.conn_mode = 0
+				# 	client.conn_msg = 'timeout'
 
 		return True
 

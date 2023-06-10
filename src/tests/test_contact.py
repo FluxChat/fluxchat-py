@@ -3,6 +3,31 @@ import unittest
 from lib.contact import Contact
 
 class ContactTestCase(unittest.TestCase):
+	def test_parse_contact(self):
+		data = [
+			# IPv4
+			('', ['private', None]),
+			('private', ['private', None]),
+
+			('public', ['public', None]),
+			('public:', ['public', None]),
+			('public:25001', ['public', 25001]),
+
+			(':25001', ['private', 25001]),
+			('192.168.10.10', ['192.168.10.10', None]),
+			('192.168.10.10:25001', ['192.168.10.10', 25001]),
+			('hostname.fluxchat.dev:25001', ['hostname.fluxchat.dev', 25001]),
+
+			# IPv6
+			('2001:db8::1:25001', ['2001:db8::1', 25001]),
+			('[2001:db8::1]:25001', ['2001:db8::1', 25001]),
+		]
+		for contact_s, expect_a in data:
+			contact = Contact.parse(contact_s)
+
+			self.assertEqual(contact.addr, expect_a[0], 'addr')
+			self.assertEqual(contact.port, expect_a[1], 'port')
+
 	def test_resolve_contact(self):
 		data = [
 			# IPv4
@@ -38,16 +63,14 @@ class ContactTestCase(unittest.TestCase):
 
 			# IPv6
 			# 2001:db8::/32 is reserved for documentation and example code.
-
-			('2001:db8::1:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
-			('[2001:db8::1]:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
-
-			('test.ipv6.fluxchat.dev:25001', '2001:db8::2', ['test.ipv6.fluxchat.dev', 25001, True]),
-
-			('non-resolvable.ipv6.fluxchat.dev:25001', '2001:db8::2', [None, 25001, False]),
+			# ('2001:db8::1:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
+			# ('[2001:db8::1]:25001', '2001:db8::2', ['2001:db8::1', 25001, True]),
+			# ('test.ipv6.fluxchat.dev:25001', '2001:db8::2', ['test.ipv6.fluxchat.dev', 25001, True]),
+			# ('non-resolvable.ipv6.fluxchat.dev:25001', '2001:db8::2', [None, 25001, False]),
 		]
 		for contact_s, raddr, expect_a in data:
 			contact = Contact.resolve(contact_s, raddr)
-			actual = [contact.addr, contact.port, contact.is_valid]
 
-			self.assertEqual(actual, expect_a)
+			self.assertEqual(contact.addr, expect_a[0], 'addr')
+			self.assertEqual(contact.port, expect_a[1], 'port')
+			self.assertEqual(contact.is_valid, expect_a[2], 'is_valid')

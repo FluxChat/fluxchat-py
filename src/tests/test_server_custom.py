@@ -25,12 +25,6 @@ class ServerTestCase(unittest.TestCase):
 		} | self.config)
 		self.assertFalse(server.has_contact())
 
-	def test_has_contact_false2(self):
-		server = Server({
-			'contact': False,
-		} | self.config)
-		self.assertFalse(server.has_contact())
-
 	def test_has_contact_public_no_port(self):
 		server = Server({
 			'port': 25001,

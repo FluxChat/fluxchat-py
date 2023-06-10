@@ -15,7 +15,7 @@ class Contact:
 		return f'{self.addr}:{self.port}'
 
 	@staticmethod
-	def resolve(raw: str, raddr: str = None):
+	def parse(raw: str) -> 'Contact':
 		contact = Contact()
 
 		if '[' in raw and ']' in raw:
@@ -47,6 +47,12 @@ class Contact:
 
 		if contact.addr == '':
 			contact.addr = 'private'
+
+		return contact
+
+	@staticmethod
+	def resolve(raw: str, raddr: str = None) -> 'Contact':
+		contact = Contact.parse(raw)
 
 		if contact.addr == 'public':
 			contact.addr = raddr

@@ -8,6 +8,7 @@ from lib.client import Client
 
 import lib.overlay as overlay
 from lib.helper import read_json_file, write_json_file
+from lib.contact import Contact
 
 class AddressBook():
 	_path: str
@@ -174,26 +175,17 @@ class AddressBook():
 		self._logger.debug('add_bootstrap(%s)', file_path)
 		_data = read_json_file(file_path, [])
 		for row in _data:
-			items = row.split(':')
-			items_len = len(items)
+			contact = Contact.parse(row)
 
-			address = items[0]
-			port = int(items[1])
-			if items_len >= 3:
-				is_trusted = items[2] == 't'
-			else:
-				is_trusted = False
-
-			_client = self.get_client_by_addr_port(address, port)
+			_client = self.get_client_by_addr_port(contact.addr, contact.port)
 			if _client != None:
 				self._logger.debug('bootstrap client already exists: %s', _client)
 				continue
 
 			client = Client()
-			client.address = address
-			client.port = port
+			client.address = contact.addr
+			client.port = contact.port
 			client.is_bootstrap = True
-			client.is_trusted = is_trusted
 			client.debug_add = 'bootstrap'
 
 			self._clients_by_uuid[client.uuid] = client

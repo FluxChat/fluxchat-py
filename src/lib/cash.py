@@ -29,10 +29,13 @@ class Cash():
 
 			input_data = b'FC:' + str(self.bits).encode() + b':' + self.data + b':' + str(self.nonce).encode()
 
+			# print(input_data)
+			# print(input_data.hex())
+
 			hasher = hashes.Hash(hashes.SHA256())
 			hasher.update(input_data)
 			digest = hasher.finalize()
-			print('digest: {} {}'.format(self.nonce, digest.hex()))
+			# print('digest: {} {}'.format(self.nonce, digest.hex()))
 
 			found_bits = 0
 			for c in digest:
