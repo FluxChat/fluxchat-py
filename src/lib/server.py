@@ -1255,12 +1255,12 @@ class Server(Network):
 				if client.auth == 15:
 					client.conn_mode = 2
 
-				# TODO activate for production
-				# if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
-				# 	self._logger.debug('client used_at: %s', client.used_at)
-				# 	self._logger.debug('client timeout (%s)', self._client_auth_timeout)
-				# 	client.conn_mode = 0
-				# 	client.conn_msg = 'timeout'
+				# Auth Timeout
+				if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
+					self._logger.debug('client used_at: %s', client.used_at)
+					self._logger.debug('client timeout (%s)', self._client_auth_timeout)
+					client.conn_mode = 0
+					client.conn_msg = 'timeout'
 
 		return True
 

@@ -2,11 +2,11 @@
 import socket
 import uuid
 import datetime as dt
-import base58
 import base64
 
 import lib.overlay as overlay
 import lib.helper as helper
+import lib.cash as cash
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -85,8 +85,8 @@ class Client():
 	auth: int
 
 	actions: list
-	#cash: cash.Cash
-	challenge: list
+	cash: cash.Cash
+	challenge: Challenge
 
 	def __init__(self):
 		self.uuid = str(uuid.uuid4())
@@ -315,4 +315,4 @@ class Client():
 		self.dir_mode = None
 		self.auth = 0
 		self.actions = []
-		self.challenge = [None, None, None, None, None]
+		self.challenge = Challenge()
