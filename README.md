@@ -14,6 +14,7 @@ Dependencies:
 Run this in your favourite shell, Bash.
 
 ```bash
+brew install libffi
 git clone https://github.com/FluxChat/fluxchat-py.git
 cd fluxchat-py
 ./bin/setup.sh

@@ -48,12 +48,22 @@ rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
 if test -f ${rsa_priv_key_file} ; then
 	echo '-> generating id'
 	FLUXCHAT_ID=$(./src/gen_id.py -f ${FLUXCHAT_DATA_DIR}/public_key.pem)
+	status=$?
+	echo "-> gen_id.py status: '${status}'"
 else
 	echo '-> generating rsa keys'
 	FLUXCHAT_ID=$(./src/gen_rsa.py)
+	status=$?
+	echo "-> gen_rsa.py status: '${status}'"
 fi
-echo "-> FLUXCHAT_ID: ${FLUXCHAT_ID}"
+
+echo "-> FLUXCHAT_ID: '${FLUXCHAT_ID}'"
 export FLUXCHAT_ID
+
+if [[ -z ${FLUXCHAT_ID} ]]; then
+	echo 'ERROR: could not generate id'
+	exit 1
+fi
 
 if ! test -f ${FLUXCHAT_CONFIG}; then
 	echo '-> generating config'
