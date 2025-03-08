@@ -1,10 +1,10 @@
 
-import unittest
+from unittest import TestCase
 from lib.server import Server
 
 SERVER_DATA_DIR = 'tmp/tests/data_default'
 
-class ServerTestCase(unittest.TestCase):
+class ServerTestCase(TestCase):
 	def setUp(self):
 		self.server = Server({
 			'id': 'FC_test',

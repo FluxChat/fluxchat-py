@@ -1,8 +1,10 @@
 
+from typing import Callable
 import datetime as dt
 
+
 class Task():
-	# _execfunc
+	_execfunc: Callable
 	_interval: dt.timedelta
 	_last_run: dt.datetime
 	is_one_shot: bool

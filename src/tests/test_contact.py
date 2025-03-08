@@ -1,8 +1,9 @@
 
-import unittest
+from unittest import TestCase
 from lib.contact import Contact
 
-class ContactTestCase(unittest.TestCase):
+
+class ContactTestCase(TestCase):
 	def test_parse_contact(self):
 		data = [
 			# IPv4

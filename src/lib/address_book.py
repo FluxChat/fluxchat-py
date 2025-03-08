@@ -1,14 +1,14 @@
 
-import logging
 import datetime as dt
-import os
-
+from os import path, remove
+from logging import getLogger, Logger
 from sty import fg
 from lib.client import Client
 
 import lib.overlay as overlay
 from lib.helper import read_json_file, write_json_file
 from lib.contact import Contact
+
 
 class AddressBook():
 	_path: str
@@ -18,6 +18,7 @@ class AddressBook():
 	_clients_by_id: dict
 	_changes: bool
 	_clients_ttl: dt.timedelta
+	_logger: Logger
 
 	def __init__(self, path: str, config: dict = None):
 		self._path = path
@@ -27,7 +28,7 @@ class AddressBook():
 		self._clients_by_id = dict()
 		self._changes = False
 
-		self._logger = logging.getLogger('address_book')
+		self._logger = getLogger('app.address_book')
 		self._logger.info('init()')
 
 		if self._ab_config == None:
@@ -55,8 +56,8 @@ class AddressBook():
 
 				self._clients_by_id[client.id] = client
 
-				key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
-				if os.path.isfile(key_file_path):
+				key_file_path = path.join(self._config['keys_dir'], client.id + '.pem')
+				if path.isfile(key_file_path):
 					client.load_public_key_from_pem_file(key_file_path)
 
 	def save(self) -> bool:
@@ -72,8 +73,8 @@ class AddressBook():
 			_data[client_uuid] = client.as_dict()
 
 			if client.id != None:
-				key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
-				if not os.path.isfile(key_file_path):
+				key_file_path = path.join(self._config['keys_dir'], client.id + '.pem')
+				if not path.isfile(key_file_path):
 					client.write_public_key_to_pem_file(key_file_path)
 
 		write_json_file(self._path, _data)
@@ -159,9 +160,9 @@ class AddressBook():
 		if not force and client.is_trusted:
 			return False
 
-		key_file_path = os.path.join(self._config['keys_dir'], client.id + '.pem')
-		if os.path.isfile(key_file_path):
-			os.remove(key_file_path)
+		key_file_path = path.join(self._config['keys_dir'], client.id + '.pem')
+		if path.isfile(key_file_path):
+			remove(key_file_path)
 
 		del self._clients_by_uuid[client.uuid]
 		if client.id != None:

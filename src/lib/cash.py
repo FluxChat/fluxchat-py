@@ -1,6 +1,7 @@
 
-import random
+from random import randint
 from cryptography.hazmat.primitives import hashes
+
 
 class Cash():
 	data: str
@@ -21,7 +22,7 @@ class Cash():
 		return self.__str__()
 
 	def mine(self) -> int:
-		self.nonce = random.randint(0, 100000000)
+		self.nonce = randint(0, 100000000)
 
 		cycle = 0
 		while True:

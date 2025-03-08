@@ -1,11 +1,11 @@
 
-import unittest
+from unittest import TestCase
 from lib.server import Server
 from lib.client import Client
 
 SERVER_DATA_DIR = 'tmp/tests/data_custom'
 
-class ServerTestCase(unittest.TestCase):
+class ServerTestCase(TestCase):
 	def setUp(self) -> None:
 		self.config = {
 			'id': 'FC_test',

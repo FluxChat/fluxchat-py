@@ -1,14 +1,15 @@
 
-import secrets
-import base58
-import base64
-import json
-import os
-import uuid
+from secrets import token_bytes
+from base58 import b58encode
+from base64 import b64encode
+from json import dump, load
+from os import getenv, path
+from uuid import UUID
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.asymmetric import rsa
+
 
 # Generate ID from Public Key
 def generate_id_from_public_key_file(file_path: str) -> str:
@@ -39,21 +40,21 @@ def generate_id_from_public_key_der(public_key_bytes: bytes) -> str:
 
 	# print('digest:', digest.hex())
 
-	base58_hash = base58.b58encode(digest).decode()
+	base58_hash = b58encode(digest).decode()
 	return f'FC_{base58_hash}'
 
 def generate_test_id() -> str: # pragma: no cover
-	public_bytes = secrets.token_bytes(20)
+	public_bytes = token_bytes(20)
 
 	hasher = hashes.Hash(hashes.SHA256())
 	hasher.update(public_bytes)
 	digest = hasher.finalize()
 
-	base58_hash = base58.b58encode(digest).decode()
+	base58_hash = b58encode(digest).decode()
 	return f'FC_{base58_hash}'
 
 def password_key_derivation(key_password: bytes) -> str:
-	iterations = int(os.environ.get('FLUXCHAT_KEY_DERIVATION_ITERATIONS', 600000))
+	iterations = int(getenv('FLUXCHAT_KEY_DERIVATION_ITERATIONS', 600000))
 
 	salt = b'FluxChat_Static_Salt'
 	kdf = PBKDF2HMAC(
@@ -65,24 +66,24 @@ def password_key_derivation(key_password: bytes) -> str:
 	kdf_b = kdf.derive(key_password)
 
 	# base64
-	kdf_b64 = base64.b64encode(kdf_b).decode()
+	kdf_b64 = b64encode(kdf_b).decode()
 
 	return kdf_b64
 
-def write_json_file(path: str, data):
-	with open(path, 'w') as write_file:
-		json.dump(data, write_file, indent=4)
+def write_json_file(file_path: str, data):
+	with open(file_path, 'w') as write_file:
+		dump(data, write_file, indent=4)
 
-def read_json_file(path: str, default = None) -> dict:
-	if not os.path.exists(path) and default != None:
-		write_json_file(path, default)
+def read_json_file(file_path: str, default = None) -> dict:
+	if not path.exists(file_path) and default != None:
+		write_json_file(file_path, default)
 
-	with open(path, 'r') as read_file:
-		return json.load(read_file)
+	with open(file_path, 'r') as read_file:
+		return load(read_file)
 
 def is_valid_uuid(id: str):
 	try:
-		obj = uuid.UUID(id, version=4)
+		obj = UUID(id, version=4)
 	except ValueError:
 		return False
 	return str(obj) == id

@@ -1,12 +1,14 @@
 
-import os
-import unittest
+# import os
+from os import path, remove
+from unittest import TestCase
 from lib.address_book import AddressBook
 
 ADDRESS_BOOK_PATH = 'tmp/tests/address_book.json'
 BOOTSTRAP_PATH = 'tmp/tests/bootstrap.json'
 
-class AddressBookTestCase(unittest.TestCase):
+
+class AddressBookTestCase(TestCase):
 	def setUp(self) -> None:
 		self.config = {
 			'keys_dir': 'tmp/tests/keys',
@@ -17,8 +19,8 @@ class AddressBookTestCase(unittest.TestCase):
 		}
 
 	def test_save_load(self):
-		if os.path.exists(ADDRESS_BOOK_PATH):
-			os.remove(ADDRESS_BOOK_PATH)
+		if path.exists(ADDRESS_BOOK_PATH):
+			remove(ADDRESS_BOOK_PATH)
 
 		address_book = AddressBook(ADDRESS_BOOK_PATH, self.config)
 
@@ -58,10 +60,10 @@ class AddressBookTestCase(unittest.TestCase):
 		self.assertEqual(client2, None)
 
 	def test_bootstrap(self):
-		if os.path.exists(ADDRESS_BOOK_PATH):
-			os.remove(ADDRESS_BOOK_PATH)
-		if os.path.exists(BOOTSTRAP_PATH):
-			os.remove(BOOTSTRAP_PATH)
+		if path.exists(ADDRESS_BOOK_PATH):
+			remove(ADDRESS_BOOK_PATH)
+		if path.exists(BOOTSTRAP_PATH):
+			remove(BOOTSTRAP_PATH)
 
 		f = open(BOOTSTRAP_PATH, 'w')
 		f.write('["localhost:25001", "localhost:25002"]')

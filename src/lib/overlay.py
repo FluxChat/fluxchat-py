@@ -1,6 +1,6 @@
+from os import getenv
+from base58 import b58decode
 
-import os
-import base58
 
 class Node():
 	id: str
@@ -24,7 +24,7 @@ class Node():
 		return self.id == other.id
 
 	def decode(self) -> bytes:
-		return base58.b58decode(self.id[3:])
+		return b58decode(self.id[3:])
 
 	def has_valid_id(self) -> bool:
 		if self.id[0:3] != 'FC_':
@@ -38,7 +38,7 @@ class Node():
 	@staticmethod
 	def parse(id: str):
 		node = Node(id)
-		if not os.environ.get('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
+		if not getenv('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
 			raise ValueError('Invalid ID')
 
 		return node

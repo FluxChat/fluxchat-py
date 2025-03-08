@@ -1,9 +1,10 @@
 
-import unittest
+from unittest import TestCase
 from lib.client import Client
 from lib.overlay import Node
 
-class ClientTestCase(unittest.TestCase):
+
+class ClientTestCase(TestCase):
 	def test_str(self):
 		client = Client()
 		client.uuid = 'test'

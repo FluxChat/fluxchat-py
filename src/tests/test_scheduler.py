@@ -1,9 +1,9 @@
 
-import unittest
+from unittest import TestCase
 import datetime as dt
 from lib.scheduler import Scheduler
 
-class SchedulerTestCase(unittest.TestCase):
+class SchedulerTestCase(TestCase):
 	def task1(self) -> bool:
 		return True
 

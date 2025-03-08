@@ -1,9 +1,10 @@
 
-import unittest
+from unittest import TestCase
 from lib.client import Action, Client
 from lib.overlay import Node
 
-class ClientActionTestCase(unittest.TestCase):
+
+class ClientActionTestCase(TestCase):
 	def test_str(self):
 		action = Action('test')
 		self.assertEqual(str(action), 'Action(test/None,d=None,s=False)')

@@ -1,8 +1,9 @@
 
-import unittest
+from unittest import TestCase
 from lib.helper import binary_encode, binary_decode
 
-class BinaryEnvelopeTestCase(unittest.TestCase):
+
+class BinaryEnvelopeTestCase(TestCase):
 	def test_encode1(self):
 		data = {
 			1: 'ABC1',

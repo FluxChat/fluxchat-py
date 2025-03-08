@@ -1,15 +1,16 @@
 
-import socket
-import uuid
 import datetime as dt
-import base64
+from socket import socket as Socket
+from uuid import uuid4
+from base64 import b64encode, b64decode
 
-import lib.overlay as overlay
-import lib.helper as helper
-import lib.cash as cash
+from lib.cash import Cash
+from lib.overlay import Node, Distance
+from lib.helper import generate_id_from_public_key_rsa
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+
 
 class Action():
 	id: str
@@ -40,12 +41,14 @@ class Action():
 
 		return False
 
+
 class Challenge():
 	min: int
 	max: int
 	data: str
 	proof: str
 	nonce: str
+
 
 class Client():
 	uuid: str # Internal ID
@@ -59,8 +62,8 @@ class Client():
 	debug_add: str
 
 	# Unmapped
-	node: overlay.Node
-	sock: socket.socket
+	node: Node
+	sock: Socket
 	# buf: bytes
 
 	# Connection Mode
@@ -85,11 +88,11 @@ class Client():
 	auth: int
 
 	actions: list
-	cash: cash.Cash
+	cash: Cash
 	challenge: Challenge
 
 	def __init__(self):
-		self.uuid = str(uuid.uuid4())
+		self.uuid = str(uuid4())
 		self.address = None
 		self.port = None
 		self.id = None
@@ -200,11 +203,11 @@ class Client():
 
 	def set_id(self, id: str):
 		self.id = id
-		self.node = overlay.Node.parse(id)
+		self.node = Node.parse(id)
 
-	def distance(self, node: overlay.Node) -> int:
+	def distance(self, node: Node) -> int:
 		if self.node == None:
-			return overlay.Distance()
+			return Distance()
 
 		return self.node.distance(node)
 
@@ -218,7 +221,7 @@ class Client():
 		return _actions
 
 	# Remove actions with is_strong == False
-	def soft_reset_actions(self):
+	def soft_reset_actions(self) -> list:
 		strong_actions = list(filter(lambda _action: _action.is_strong, self.actions))
 		actions = list(self.actions)
 		self.actions = strong_actions
@@ -269,7 +272,7 @@ class Client():
 		return True
 
 	def load_public_key_from_pem(self, raw: str):
-		raw = base64.b64decode(raw)
+		raw = b64decode(raw)
 		self.public_key = serialization.load_pem_public_key(raw)
 
 	def get_base64_public_key(self) -> str:
@@ -282,7 +285,7 @@ class Client():
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		return base64.b64encode(public_bin).decode()
+		return b64encode(public_bin).decode()
 
 	def reset_public_key(self):
 		self.public_key = None
@@ -294,7 +297,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		return helper.generate_id_from_public_key_rsa(self.public_key) == self.id
+		return generate_id_from_public_key_rsa(self.public_key) == self.id
 
 	def encrypt(self, data: bytes) -> bytes:
 		if not self.has_public_key():

@@ -1,9 +1,11 @@
 
-import socket
-import ssl
 import datetime as dt
-import select
-import struct
+from logging import Logger
+from socket import socket as Socket
+from ssl import SSLObject, SSLWantReadError, SSLWantWriteError, SSLError
+from select import select
+from struct import error as StructError
+
 
 CLIENT_READ_SIZE = 2048
 
@@ -17,7 +19,13 @@ class SocketReadStatus(): # pragma: no cover
 		self.msg = 'Init'
 
 class Network():
-	def _client_read(self, sock: socket.socket) -> SocketReadStatus:
+	_logger: Logger
+	_ssl_handshake_timeout: dt.timedelta
+
+	def __init__(self) -> None:
+		pass
+
+	def _client_read(self, sock: Socket) -> SocketReadStatus:
 		self._logger.debug('_client_read(%s)', sock)
 
 		status = SocketReadStatus()
@@ -94,7 +102,7 @@ class Network():
 				try:
 					length = int.from_bytes(raw_total[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
-				except struct.error as e:
+				except StructError as e:
 					self._logger.debug('struct.error: %s', e)
 
 					status.disconnect = True
@@ -132,7 +140,7 @@ class Network():
 
 		return status
 
-	def _client_write(self, sock: socket.socket, group: int, command: int, data: list = []):
+	def _client_write(self, sock: Socket, group: int, command: int, data: list = []):
 		self._logger.debug('_client_write(%d, %d, %s)', group, command, data)
 
 		flag_lengths_are_4_bytes = False
@@ -195,7 +203,7 @@ class Network():
 
 		sock.sendall(raw)
 
-	def _ssl_handshake(self, socket_ssl: ssl.SSLObject) -> None:
+	def _ssl_handshake(self, socket_ssl: SSLObject) -> None:
 		self._logger.debug('_ssl_handshake(%s)', socket_ssl)
 
 		start = dt.datetime.now()
@@ -205,15 +213,15 @@ class Network():
 				self._logger.debug('ssl handshake: %d', tries)
 				socket_ssl.do_handshake()
 				break
-			except ssl.SSLWantReadError as e:
+			except SSLWantReadError as e:
 				pass
 				# self._logger.debug('ssl.SSLWantReadError: %s', e)
-				select.select([socket_ssl], [], [], 0.3)
-			except ssl.SSLWantWriteError as e:
+				select([socket_ssl], [], [], 0.3)
+			except SSLWantWriteError as e:
 				pass
 				# self._logger.debug('ssl.SSLWantWriteError: %s', e)
-				select.select([], [socket_ssl], [], 0.3)
-			except ssl.SSLError as e:
+				select([], [socket_ssl], [], 0.3)
+			except SSLError as e:
 				self._logger.error('ssl.SSLError: %s', e)
 				raise SslHandshakeError(e)
 

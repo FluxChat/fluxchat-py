@@ -1,11 +1,11 @@
 
-import unittest
+from unittest import TestCase
 import datetime as dt
 import time
 
 from lib.task import Task
 
-class TaskTestCase(unittest.TestCase):
+class TaskTestCase(TestCase):
 	def test_task1(self):
 		task = Task(lambda: True)
 		self.assertTrue(task.run())

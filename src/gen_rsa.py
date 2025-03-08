@@ -7,6 +7,7 @@ import ssl
 import sys
 import base64
 import datetime as dt
+from os import getenv, path
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -15,8 +16,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
 from lib.helper import generate_id_from_public_key_rsa, password_key_derivation
 
-key_password = os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()
-data_dir = os.getenv('FLUXCHAT_DATA_DIR', 'var/data')
+
+key_password = getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()
+data_dir = getenv('FLUXCHAT_DATA_DIR', 'var/data')
 
 print('-> Password Key Derivation', file=sys.stderr)
 pkd = password_key_derivation(key_password).encode()
@@ -29,7 +31,7 @@ private_key_pem = private_key.private_bytes(
 	format=serialization.PrivateFormat.PKCS8,
 	encryption_algorithm=serialization.BestAvailableEncryption(pkd)
 )
-private_key_path = os.path.join(data_dir, 'private_key.pem')
+private_key_path = path.join(data_dir, 'private_key.pem')
 with open(private_key_path, 'wb') as f:
 	f.write(private_key_pem)
 
@@ -41,7 +43,7 @@ public_key_pem = public_key.public_bytes(
 	encoding=serialization.Encoding.PEM,
 	format=serialization.PublicFormat.SubjectPublicKeyInfo
 )
-public_key_path = os.path.join(data_dir, 'public_key.pem')
+public_key_path = path.join(data_dir, 'public_key.pem')
 with open(public_key_path, 'wb') as f:
 	f.write(public_key_pem)
 
@@ -61,7 +63,7 @@ builder = x509.CertificateBuilder(issuer, subject, public_key, serial_number, no
 cert = builder.sign(private_key, hashes.SHA256(), default_backend())
 certificate_pem = cert.public_bytes(serialization.Encoding.PEM)
 
-certificate_path = os.path.join(data_dir, 'certificate.pem')
+certificate_path = path.join(data_dir, 'certificate.pem')
 with open(certificate_path, 'wb') as f:
 	f.write(certificate_pem)
 

@@ -1,8 +1,8 @@
 
-import unittest
+from unittest import TestCase
 from lib.overlay import Node, Distance
 
-class NodeTestCase(unittest.TestCase):
+class NodeTestCase(TestCase):
 	def setUp(self):
 		self.node1 = Node('FC_d7vkj3XKCF8JNpt3MMacwhcMfz75tJHEF2Zou4m4pih')
 

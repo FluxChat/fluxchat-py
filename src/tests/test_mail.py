@@ -1,10 +1,10 @@
 
-import unittest
+from unittest import TestCase
 import datetime as dt
 import base64
 from lib.mail import Mail, Queue
 
-class MailTestCase(unittest.TestCase):
+class MailTestCase(TestCase):
 	def test_mail_str(self):
 		mail = Mail()
 		mail.uuid = '123'

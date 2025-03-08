@@ -1,10 +1,10 @@
 
-import unittest
+from unittest import TestCase
 import datetime as dt
 import base64
 from lib.helper import password_key_derivation
 
-class PasswordKeyDerivationTestCase(unittest.TestCase):
+class PasswordKeyDerivationTestCase(TestCase):
 	def test_pkd1(self):
 		password = 'password'
 		pkd = password_key_derivation(password.encode())

@@ -1,13 +1,13 @@
 
-import logging
-import os
-import socket
-import ssl
-import selectors
-import struct
-import base64
-import uuid
 import datetime as dt
+from socket import socket as Socket, timeout as SocketTimeout, gethostname, gethostbyname, create_server, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
+from selectors import DefaultSelector, EVENT_READ
+from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT, CERT_NONE
+from struct import unpack, error as StructError
+from base64 import b64encode, b64decode
+from uuid import uuid4
+from os import getenv, path
+from logging import getLogger
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -21,26 +21,27 @@ from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
 from lib.network import Network, SslHandshakeError
 from lib.cash import Cash
 from lib.contact import Contact
-import lib.overlay as overlay
+from lib.overlay import Node, Distance
+
 
 VERSION = 1
 SSL_HANDSHAKE_WAIT = 0.3
 SSL_HANDSHAKE_TIMEOUT = 5
-SSL_MINIMUM_VERSION = ssl.TLSVersion.TLSv1_2
+SSL_MINIMUM_VERSION = TLSVersion.TLSv1_2
 
 class Server(Network):
 	_config: dict
-	_selectors: selectors.DefaultSelector
-	_main_server_socket: socket.socket
-	_discovery_socket: socket.socket
-	_ipc_server_socket: socket.socket
+	_selectors: DefaultSelector
+	_main_server_socket: Socket
+	_discovery_socket: Socket
+	_ipc_server_socket: Socket
 	_address_book: AddressBook
 	_mail_queue: MailQueue
 	_mail_db: MailDatabase
 	_hostname: str
 	_lan_ip: str
 	_clients: list
-	_local_node: overlay.Node
+	_local_node: Node
 	_public_key_b64: str
 	_pid_file_path: str
 	_wrote_pid_file: bool
@@ -49,10 +50,10 @@ class Server(Network):
 	_contact: Contact
 
 	def __init__(self, config: dict = {}):
-		self._host_name = socket.gethostname()
-		self._lan_ip = socket.gethostbyname(self._host_name)
+		self._host_name = gethostname()
+		self._lan_ip = gethostbyname(self._host_name)
 		self._clients = []
-		self._selectors = selectors.DefaultSelector()
+		self._selectors = DefaultSelector()
 		self._public_key = None
 		self._public_key_b64 = None
 		self._private_key = None
@@ -64,7 +65,7 @@ class Server(Network):
 		self._client_action_retention_time = None
 		self._ssl_handshake_timeout = dt.timedelta(seconds=SSL_HANDSHAKE_TIMEOUT)
 
-		self._logger = logging.getLogger('server')
+		self._logger = getLogger('app.server')
 		self._logger.info('init()')
 
 		self._config = config
@@ -90,34 +91,34 @@ class Server(Network):
 		self._client_action_retention_time = dt.timedelta(minutes=self._config['client']['action_retention_time'])
 
 		if 'data_dir' in self._config:
-			self._pid_file_path = os.path.join(self._config['data_dir'], 'server.pid')
+			self._pid_file_path = path.join(self._config['data_dir'], 'server.pid')
 			self._write_pid_file()
 
 			if 'public_key_file' not in self._config:
-				self._config['public_key_file'] = os.path.join(self._config['data_dir'], 'public_key.pem')
+				self._config['public_key_file'] = path.join(self._config['data_dir'], 'public_key.pem')
 			if 'private_key_file' not in self._config:
-				self._config['private_key_file'] = os.path.join(self._config['data_dir'], 'private_key.pem')
+				self._config['private_key_file'] = path.join(self._config['data_dir'], 'private_key.pem')
 
-			self._certificate_file = os.path.join(self._config['data_dir'], 'certificate.pem')
+			self._certificate_file = path.join(self._config['data_dir'], 'certificate.pem')
 
 			if 'keys_dir' not in self._config:
-				self._config['keys_dir'] = os.path.join(self._config['data_dir'], 'keys')
-			if not os.path.isdir(self._config['keys_dir']):
+				self._config['keys_dir'] = path.join(self._config['data_dir'], 'keys')
+			if not path.isdir(self._config['keys_dir']):
 				os.mkdir(self._config['keys_dir'])
 
-			address_book_path = os.path.join(self._config['data_dir'], 'address_book.json')
+			address_book_path = path.join(self._config['data_dir'], 'address_book.json')
 			self._address_book = AddressBook(address_book_path, self._config)
 			self._address_book.load()
 
-			bootstrap_path = os.path.join(self._config['data_dir'], 'bootstrap.json')
-			if os.path.isfile(bootstrap_path):
+			bootstrap_path = path.join(self._config['data_dir'], 'bootstrap.json')
+			if path.isfile(bootstrap_path):
 				self._address_book.add_bootstrap(bootstrap_path)
 
-			mail_queue_path = os.path.join(self._config['data_dir'], 'mail_queue.json')
+			mail_queue_path = path.join(self._config['data_dir'], 'mail_queue.json')
 			self._mail_queue = MailQueue(mail_queue_path, self._config)
 			self._mail_queue.load()
 
-			mail_db_path = os.path.join(self._config['data_dir'], 'mail_db.json')
+			mail_db_path = path.join(self._config['data_dir'], 'mail_db.json')
 			self._mail_db = MailDatabase(mail_db_path)
 			self._mail_db.load()
 
@@ -125,7 +126,7 @@ class Server(Network):
 			self._config['challenge'] = {'min': 15, 'max': 20}
 
 		if 'id' in self._config:
-			self._local_node = overlay.Node.parse(self._config['id'])
+			self._local_node = Node.parse(self._config['id'])
 
 		if isinstance(self._config['discovery'], bool):
 			self._config['discovery'] = {
@@ -154,7 +155,7 @@ class Server(Network):
 		self._logger.info('__del__() end')
 
 	def _write_pid_file(self):
-		if os.path.isfile(self._pid_file_path):
+		if path.isfile(self._pid_file_path):
 			self._logger.error('Another instance of FluxChat is already running.')
 			self._logger.error('If this is not the case, delete the file: %s', self._pid_file_path)
 			exit(1)
@@ -167,31 +168,31 @@ class Server(Network):
 		self._logger.info('_remove_pid_file()')
 		if not self._wrote_pid_file:
 			return
-		if os.path.isfile(self._pid_file_path):
+		if path.isfile(self._pid_file_path):
 			os.remove(self._pid_file_path)
 
 	def start(self):
 		self._logger.info('start')
 
 		self._logger.info('password_key_derivation')
-		self._pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
+		self._pkd = password_key_derivation(getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
 
 		self._load_public_key_from_pem_file()
 		self._load_private_key_from_pem_file()
 
-		self._main_server_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+		self._main_server_ssl = SSLContext(PROTOCOL_TLS_SERVER)
 		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
 		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=self._pkd)
 
-		# self._main_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM, dualstack_ipv6=True)
-		# self._main_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		# self._main_server_socket = Socket(AF_INET6, SOCK_STREAM, dualstack_ipv6=True)
+		# self._main_server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
 		try:
 			# self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
 			# self._main_server_socket.bind((self._config['address'], self._config['port']))
 
 			self._logger.debug('create server %s:%s', self._config['address'], self._config['port'])
-			self._main_server_socket = socket.create_server((self._config['address'], self._config['port']), family=socket.AF_INET6, reuse_port=True, dualstack_ipv6=True)
+			self._main_server_socket = create_server((self._config['address'], self._config['port']), family=AF_INET6, reuse_port=True, dualstack_ipv6=True)
 		except OSError as e:
 			self._logger.error('OSError: %s', e)
 			raise e
@@ -202,14 +203,14 @@ class Server(Network):
 		self._logger.debug('listen')
 		self._main_server_socket.listen()
 		self._main_server_socket.setblocking(False)
-		self._selectors.register(self._main_server_socket, selectors.EVENT_READ, data={'type': 'main_server'})
+		self._selectors.register(self._main_server_socket, EVENT_READ, data={'type': 'main_server'})
 
 		if 'discovery' in self._config and self._config['discovery']['enabled']:
 			self._logger.debug('discovery')
 
-			self._discovery_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) # UDP
-			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-			self._discovery_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self._discovery_socket = Socket(AF_INET6, SOCK_DGRAM) # UDP
+			self._discovery_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+			self._discovery_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
 			try:
 				self._discovery_socket.bind(('::0', self._config['discovery']['port']))
@@ -225,27 +226,27 @@ class Server(Network):
 				res = self._discovery_socket.sendto(self.get_contact().encode(), ('<broadcast>', 26000))
 				self._logger.debug('res %s', res)
 
-			self._selectors.register(self._discovery_socket, selectors.EVENT_READ, data={'type': 'discovery'})
+			self._selectors.register(self._discovery_socket, EVENT_READ, data={'type': 'discovery'})
 
 		if 'ipc' in self._config and self._config['ipc']['enabled']:
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
 			self._logger.debug('ipc %s', ipc_addr)
 
-			self._ipc_server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-			self._ipc_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self._ipc_server_socket = Socket(AF_INET6, SOCK_STREAM)
+			self._ipc_server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 			self._ipc_server_socket.bind(ipc_addr)
 			self._ipc_server_socket.listen()
 			self._ipc_server_socket.setblocking(False)
 
-			self._selectors.register(self._ipc_server_socket, selectors.EVENT_READ, data={'type': 'ipc_server'})
+			self._selectors.register(self._ipc_server_socket, EVENT_READ, data={'type': 'ipc_server'})
 
 	def _load_private_key_from_pem_file(self) -> None:
 		self._logger.debug('load private key from pem file')
 
-		if not os.path.isfile(self._config['private_key_file']):
+		if not path.isfile(self._config['private_key_file']):
 			raise Exception('private key file not found: {}'.format(self._config['private_key_file']))
 
-		_pkd = password_key_derivation(os.getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
+		_pkd = password_key_derivation(getenv('FLUXCHAT_KEY_PASSWORD', 'password').encode()).encode()
 
 		with open(self._config['private_key_file'], 'rb') as f:
 			self._private_key = serialization.load_pem_private_key(f.read(), password=_pkd)
@@ -253,7 +254,7 @@ class Server(Network):
 	def _load_public_key_from_pem_file(self) -> None:
 		self._logger.debug('load public key from pem file')
 
-		if not os.path.isfile(self._config['public_key_file']):
+		if not path.isfile(self._config['public_key_file']):
 			raise Exception('public key file not found: {}'.format(self._config['public_key_file']))
 
 		with open(self._config['public_key_file'], 'rb') as f:
@@ -265,7 +266,7 @@ class Server(Network):
 			format=serialization.PublicFormat.SubjectPublicKeyInfo
 		)
 
-		self._public_key_b64 = base64.b64encode(public_bin).decode()
+		self._public_key_b64 = b64encode(public_bin).decode()
 
 	# TODO: remove, replace with Contact class
 	def has_contact(self) -> bool:
@@ -300,7 +301,7 @@ class Server(Network):
 
 		return len(clients) > 0
 
-	def _accept_main_server(self, server_sock: socket.socket):
+	def _accept_main_server(self, server_sock: Socket):
 		self._logger.debug('_accept_main_server()')
 
 		client_sock, addr = server_sock.accept()
@@ -324,7 +325,7 @@ class Server(Network):
 		client.dir_mode = 'i'
 		client.debug_add = 'accept'
 
-		self._selectors.register(client_ssl, selectors.EVENT_READ, data={
+		self._selectors.register(client_ssl, EVENT_READ, data={
 			'type': 'main_client',
 			'client': client,
 		})
@@ -333,7 +334,7 @@ class Server(Network):
 
 		self._logger.debug('_accept_main_server() client: %s', client)
 
-	def _read_discovery(self, server_sock: socket.socket):
+	def _read_discovery(self, server_sock: Socket):
 		self._logger.debug('_read_discovery()')
 
 		data, addr = server_sock.recvfrom(1024)
@@ -362,13 +363,13 @@ class Server(Network):
 
 		self._client_connect(client)
 
-	def _accept_ipc_server(self, server_sock: socket.socket):
+	def _accept_ipc_server(self, server_sock: Socket):
 		self._logger.debug('_accept_ipc_server()')
 
 		client_sock, addr = server_sock.accept()
 		client_sock.setblocking(False)
 
-		self._selectors.register(client_sock, selectors.EVENT_READ, data={
+		self._selectors.register(client_sock, EVENT_READ, data={
 			'type': 'ipc_client',
 		})
 
@@ -390,12 +391,12 @@ class Server(Network):
 		client.dir_mode = 'o'
 		client.refresh_used_at()
 
-		client_ssl = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+		client_ssl = SSLContext(PROTOCOL_TLS_CLIENT)
 		client_ssl.minimum_version = SSL_MINIMUM_VERSION
 		client_ssl.check_hostname = False
-		client_ssl.verify_mode = ssl.CERT_NONE
+		client_ssl.verify_mode = CERT_NONE
 
-		client_sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+		client_sock = Socket(AF_INET6, SOCK_STREAM)
 		client_sock.settimeout(2)
 		try:
 			self._logger.debug('client sock connect to %s:%s', client.address, client.port)
@@ -407,8 +408,8 @@ class Server(Network):
 		except TimeoutError as e:
 			self._logger.error('TimeoutError: %s', e)
 			return False
-		except socket.timeout as e:
-			self._logger.error('socket.timeout: %s', e)
+		except SocketTimeout as e:
+			self._logger.error('SocketTimeout: %s', e)
 			return False
 
 		client_sock.settimeout(None)
@@ -418,7 +419,7 @@ class Server(Network):
 		# client.sock = client_sock
 		client.sock = client_ssl
 
-		self._selectors.register(client_ssl, selectors.EVENT_READ, data={
+		self._selectors.register(client_ssl, EVENT_READ, data={
 			'type': 'main_client',
 			'client': client,
 		})
@@ -434,7 +435,7 @@ class Server(Network):
 		self._logger.debug('_client_connect done')
 		return True
 
-	def _client_commands(self, sock: socket.socket, client: Client, commands: list):
+	def _client_commands(self, sock: Socket, client: Client, commands: list):
 		self._logger.debug('_client_commands(%s)', client)
 
 		for command_raw in commands:
@@ -633,7 +634,7 @@ class Server(Network):
 						self._clients.append(_client)
 
 						self._selectors.unregister(sock)
-						self._selectors.register(_client.sock, selectors.EVENT_READ, data={
+						self._selectors.register(_client.sock, EVENT_READ, data={
 							'type': 'main_client',
 							'client': _client,
 						})
@@ -654,7 +655,7 @@ class Server(Network):
 					self._logger.info('GET_NEAREST_TO command')
 
 					try:
-						node = overlay.Node(payload[0].decode())
+						node = Node(payload[0].decode())
 					except:
 						self._logger.warning('skip, invalid node')
 						continue
@@ -681,7 +682,7 @@ class Server(Network):
 					self._logger.debug('action: %s', action)
 
 					nearest_client = None
-					distance = overlay.Distance()
+					distance = Distance()
 					for c_contact in payload:
 						self._logger.debug('client contact A: %s', c_contact)
 
@@ -729,7 +730,7 @@ class Server(Network):
 					self._logger.debug('node id: %s', node_id)
 
 					try:
-						target = overlay.Node.parse(node_id)
+						target = Node.parse(node_id)
 					except:
 						self._logger.debug('skip, invalid node')
 						continue
@@ -787,7 +788,7 @@ class Server(Network):
 					self._logger.debug('public key raw: %s', public_key_raw)
 
 					try:
-						node = overlay.Node.parse(node_id)
+						node = Node.parse(node_id)
 						self._logger.debug('node: %s', node)
 					except:
 						self._logger.debug('skip, invalid node')
@@ -864,7 +865,7 @@ class Server(Network):
 						continue
 
 					try:
-						mail_target = overlay.Node.parse(mail_target)
+						mail_target = Node.parse(mail_target)
 						self._logger.debug('mail target: %s', mail_target)
 					except:
 						self._logger.debug('invalid mail target')
@@ -894,11 +895,11 @@ class Server(Network):
 				client.conn_mode = 0
 				client.conn_msg = 'unknown group %d, command %d' % (group_i, command_i)
 
-	def _client_send_ok(self, sock: socket.socket):
+	def _client_send_ok(self, sock: Socket):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_challenge(self, sock: socket.socket, challenge: str):
+	def _client_send_challenge(self, sock: Socket, challenge: str):
 		self._logger.debug('_client_send_challenge(%s)', challenge)
 
 		self._client_write(sock, 1, 1, [
@@ -907,7 +908,7 @@ class Server(Network):
 			challenge,
 		])
 
-	def _client_send_id(self, sock: socket.socket, proof: str, nonce: int):
+	def _client_send_id(self, sock: Socket, proof: str, nonce: int):
 		self._logger.debug('_client_send_id(%s, %d)', proof, nonce)
 		data = [
 			VERSION,
@@ -920,27 +921,27 @@ class Server(Network):
 		# self._logger.debug('data: %s', data)
 		self._client_write(sock, 1, 2, data)
 
-	def _client_send_ping(self, sock: socket.socket):
+	def _client_send_ping(self, sock: Socket):
 		self._logger.debug('_client_send_ping()')
 		self._client_write(sock, 1, 3)
 
-	def _client_send_pong(self, sock: socket.socket):
+	def _client_send_pong(self, sock: Socket):
 		self._logger.debug('_client_send_pong()')
 		self._client_write(sock, 1, 4)
 
-	def _client_send_get_nearest_to(self, sock: socket.socket, id: str):
+	def _client_send_get_nearest_to(self, sock: Socket, id: str):
 		self._logger.debug('_client_send_get_nearest_to()')
 		self._client_write(sock, 2, 1, [id])
 
-	def _client_send_get_nearest_response(self, sock: socket.socket, client_ids: list):
+	def _client_send_get_nearest_response(self, sock: Socket, client_ids: list):
 		self._logger.debug('_client_send_get_nearest_response()')
 		self._client_write(sock, 2, 2, client_ids)
 
-	def _client_request_public_key_for_node(self, sock: socket.socket, id: str):
+	def _client_request_public_key_for_node(self, sock: Socket, id: str):
 		self._logger.debug('_client_request_public_key_for_node(%s)', id)
 		self._client_write(sock, 2, 3, [id])
 
-	def _client_response_public_key_for_node(self, sock: socket.socket, id: str, public_key: str):
+	def _client_response_public_key_for_node(self, sock: Socket, id: str, public_key: str):
 		self._logger.debug('_client_response_public_key_for_node()')
 		# self._logger.debug('type: %s', type(id))
 		# self._logger.debug('type: %s', type(public_key))
@@ -948,7 +949,7 @@ class Server(Network):
 
 		self._client_write(sock, 2, 4, [id, public_key])
 
-	def _client_send_mail(self, sock: socket.socket, mail: Mail):
+	def _client_send_mail(self, sock: Socket, mail: Mail):
 		self._logger.debug('_client_send_mail()')
 		if not mail.is_encrypted:
 			self._logger.debug('mail not encrypted')
@@ -962,7 +963,7 @@ class Server(Network):
 			mail.body,
 		])
 
-	def _ipc_client_read(self, sock: socket.socket):
+	def _ipc_client_read(self, sock: Socket):
 		self._logger.debug('_ipc_client_read()')
 
 		try:
@@ -998,10 +999,10 @@ class Server(Network):
 				lengths_are_4_bytes = flags_i & 1 != 0
 
 				try:
-					# length = struct.unpack('<I', raw[raw_pos:raw_pos + 4])[0]
+					# length = unpack('<I', raw[raw_pos:raw_pos + 4])[0]
 					length = int.from_bytes(raw[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
-				except struct.error as e:
+				except StructError as e:
 					self._logger.error('IPC struct.error: %s', e)
 					self._logger.error('IPC unregister socket')
 					self._selectors.unregister(sock)
@@ -1018,7 +1019,7 @@ class Server(Network):
 				while pos < length:
 					self._logger.debug('IPC pos: %d', pos)
 					if lengths_are_4_bytes:
-						# item_len = struct.unpack('<I', payload_raw[pos:pos + 4])[0]
+						# item_len = unpack('<I', payload_raw[pos:pos + 4])[0]
 						item_len = int.from_bytes(payload_raw[pos:pos + 4], 'little')
 						pos += 3
 					else:
@@ -1043,7 +1044,7 @@ class Server(Network):
 			self._logger.debug('IPC unregister socket')
 			self._selectors.unregister(sock)
 
-	def _ipc_client_commands(self, sock: socket.socket, commands: list):
+	def _ipc_client_commands(self, sock: Socket, commands: list):
 		self._logger.debug('_ipc_client_commands()')
 		self._logger.debug('commands: %s', commands)
 
@@ -1132,13 +1133,13 @@ class Server(Network):
 					self._logger.debug('STOP command')
 					self._scheduler.shutdown('STOP command')
 
-	def _ipc_client_send_list_mail(self, sock: socket.socket, chunks_len: int, chunk_num: int, mails: list):
+	def _ipc_client_send_list_mail(self, sock: Socket, chunks_len: int, chunk_num: int, mails: list):
 		self._logger.debug('_ipc_client_send_list_mail()')
 		self._logger.debug('mails: %s', mails)
 
 		self._client_write(sock, 1, 1, [chunks_len, chunk_num] + mails)
 
-	def _ipc_client_send_read_mail(self, sock: socket.socket, mail: str):
+	def _ipc_client_send_read_mail(self, sock: Socket, mail: str):
 		self._logger.debug('_ipc_client_send_read_mail()')
 		self._logger.debug('mail: %s', mail)
 
@@ -1240,7 +1241,7 @@ class Server(Network):
 
 			if client.conn_mode == 1:
 				if client.auth & 1 == 0:
-					data_org = str(uuid.uuid4())
+					data_org = str(uuid4())
 					client.cash = Cash(data_org, self._config['challenge']['min'])
 
 					self._logger.debug('send CHALLENGE')
@@ -1340,7 +1341,7 @@ class Server(Network):
 
 		return had_actions
 
-	def _create_action_request_public_key_for_node(self, target: overlay.Node, mode: str) -> Action:
+	def _create_action_request_public_key_for_node(self, target: Node, mode: str) -> Action:
 		self._logger.debug('_create_action_request_public_key_for_node(%s, %s)', target, mode)
 
 		action_data = {
@@ -1497,7 +1498,7 @@ class Server(Network):
 			return
 
 		# Raw Body
-		raw_body = base64.b64decode(mail.body)
+		raw_body = b64decode(mail.body)
 		raw_body_len = len(raw_body).to_bytes(2, 'little')
 		self._logger.debug('raw body "%s"', raw_body)
 		self._logger.debug('raw body len %s', raw_body_len)
@@ -1513,7 +1514,7 @@ class Server(Network):
 		hasher.update(raw_body)
 		sign_hash = hasher.finalize()
 
-		sign_hash_b64 = base64.b64encode(sign_hash).decode()
+		sign_hash_b64 = b64encode(sign_hash).decode()
 		self._logger.debug('sign_hash: %s', sign_hash_b64)
 
 		# Signature
@@ -1557,7 +1558,7 @@ class Server(Network):
 		# 4 bytes for length = 4 * 8 bits = 32 bits = 2^32 = 4.294.967.296 bytes
 		pub_data = binary_encode(pub_items, 4)
 
-		encoded = base64.b64encode(pub_data).decode()
+		encoded = b64encode(pub_data).decode()
 		self._logger.debug('pub data b64 "%s"', encoded)
 
 		mail.body = encoded
@@ -1578,7 +1579,7 @@ class Server(Network):
 		self._logger.debug('body %s', mail.body)
 
 		# base64 decode body
-		pub_data = base64.b64decode(mail.body)
+		pub_data = b64decode(mail.body)
 		self._logger.debug('pub_data: %s', pub_data)
 
 		pub_items = binary_decode(pub_data, 4)
@@ -1620,8 +1621,8 @@ class Server(Network):
 		mail.is_encrypted = False
 		mail.is_new = True
 		mail.verified = 'n'
-		mail.sign_hash = base64.b64encode(sign_token).decode()
-		mail.sign = base64.b64encode(signature).decode()
+		mail.sign_hash = b64encode(sign_token).decode()
+		mail.sign = b64encode(signature).decode()
 		mail.decode(raw_body)
 
 		self._mail_db.changed()
@@ -1632,11 +1633,11 @@ class Server(Network):
 		self._logger.debug('client: %s', client)
 
 		self._logger.debug('sign_hash A: %s', mail.sign_hash)
-		sign_hash = base64.b64decode(mail.sign_hash)
+		sign_hash = b64decode(mail.sign_hash)
 		self._logger.debug('sign_hash B: %s', sign_hash)
 
 		self._logger.debug('sign A: %s', mail.sign)
-		sign = base64.b64decode(mail.sign)
+		sign = b64decode(mail.sign)
 		self._logger.debug('sign B: %s', sign)
 
 		try:

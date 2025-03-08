@@ -1,8 +1,9 @@
 
-import unittest
+from unittest import TestCase
 from lib.cash import Cash
 
-class CashTestCase(unittest.TestCase):
+
+class CashTestCase(TestCase):
 	def test_str(self):
 		cash = Cash('test1', 1)
 		self.assertEqual(str(cash), 'Cash(b=1)')

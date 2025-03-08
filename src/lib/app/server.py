@@ -1,12 +1,13 @@
 
-import logging
-import os
 import datetime as dt
-
+from logging import getLogger, basicConfig, Logger
 from sty import fg
+from os import path
+
 from lib.helper import read_json_file
 from lib.server import Server
 from lib.scheduler import Scheduler
+
 
 class ServerApp():
 	_config_file: str
@@ -14,6 +15,8 @@ class ServerApp():
 	_server: Server
 	_scheduler: Scheduler
 	_is_dev: bool
+	_logger: Logger
+	_loglevel: str
 
 	def __init__(self, config_file: str = None, is_dev: bool = False, loglevel: str = None):
 		self._config_file = config_file
@@ -34,7 +37,7 @@ class ServerApp():
 
 		if 'file' in self._config['log'] and self._config['log']['file']:
 			if '/' not in self._config['log']['file'] and self._config['log']['file'][0] != '/':
-				self._config['log']['file'] = os.path.join(self._config['data_dir'], self._config['log']['file'])
+				self._config['log']['file'] = path.join(self._config['data_dir'], self._config['log']['file'])
 
 		if not 'level' in self._config['log']:
 			self._config['log']['level'] = 'warning'
@@ -51,9 +54,9 @@ class ServerApp():
 			if 'file' in self._config['log'] and self._config['log']['file']:
 				logConfig['filename'] = self._config['log']['file']
 			logConfig['filemode'] = 'a'
-		logging.basicConfig(**logConfig)
+		basicConfig(**logConfig)
 
-		self._logger = logging.getLogger('server.app')
+		self._logger = getLogger('app.server')
 		self._logger.info('start')
 
 		# Server

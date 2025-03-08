@@ -1,6 +1,7 @@
 
-import ipaddress
-import socket
+from socket import getaddrinfo, gaierror
+from ipaddress import ip_address
+
 
 class Contact:
 	addr: str = None
@@ -61,21 +62,21 @@ class Contact:
 			contact.port = None
 		else:
 			try:
-				ip_add = str(ipaddress.ip_address(contact.addr))
+				ip_add = str(ip_address(contact.addr))
 				if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
 					# Localhost is invalid.
 					contact.addr = None
 			except ValueError:
 				# Contact is hostname
 				try:
-					results = socket.getaddrinfo(contact.addr, None)
+					results = getaddrinfo(contact.addr, None)
 					for result in results:
 						ip_add = result[4][0]
 						if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
 							# Localhost is invalid.
 							contact.addr = None
 							break
-				except socket.gaierror:
+				except gaierror:
 					contact.addr = None
 
 		contact.is_valid = contact.addr != None and contact.port != None

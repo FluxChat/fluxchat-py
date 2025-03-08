@@ -1,8 +1,9 @@
 
-import logging
-import time
 import datetime as dt
+from time import sleep
+from logging import getLogger
 from lib.task import Task
+
 
 class Scheduler():
 	_running: bool
@@ -16,7 +17,7 @@ class Scheduler():
 		self._running = False
 		self._tasks = []
 
-		self._logger = logging.getLogger('scheduler')
+		self._logger = getLogger('app.scheduler')
 		self._logger.info('init()')
 
 	def __del__(self):
@@ -60,7 +61,7 @@ class Scheduler():
 				_sleep_time = self.SLEEP_TIME
 
 			#self._logger.debug('sleeping: {}'.format(_sleep_time))
-			time.sleep(_sleep_time)
+			sleep(_sleep_time)
 
 			_cycle += 1
 

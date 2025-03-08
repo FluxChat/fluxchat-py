@@ -1,15 +1,15 @@
 
-import logging
-import socket
-import base64
-import time
-import selectors
 import datetime as dt
+from logging import getLogger, basicConfig, DEBUG
+from selectors import DefaultSelector, EVENT_READ
+from socket import socket as Socket, timeout as SocketTimeout, AF_INET6, SOCK_STREAM
+from typing import Optional
 
 from lib.network import Network, SocketReadStatus
 from lib.helper import read_json_file
 from lib.mail import Mail
 from lib.scheduler import Scheduler
+
 
 class IpcCommand():
 	type: str
@@ -19,20 +19,20 @@ class IpcCommand():
 		self.data = data
 		self.waiting = False
 
+
 class IpcApp(Network):
 	_config_file: str
 	_config: dict
 	_ipc_config: dict
-	_selectors: selectors.DefaultSelector
-	_logger: logging.Logger
+	_selectors: DefaultSelector
 	_commands: list
 	_scheduler: Scheduler
-	_client_socket: socket.socket
+	_client_socket: Socket
 
 	def __init__(self, config_file: str = None, loglevel: str = None):
 		self._config_file = config_file
 		self._loglevel = loglevel
-		self._selectors = selectors.DefaultSelector()
+		self._selectors = DefaultSelector()
 		self._commands = []
 		self._scheduler = None
 		self._client_socket = None
@@ -41,9 +41,9 @@ class IpcApp(Network):
 			'level': self._loglevel,
 			'format': '%(asctime)s %(process)d %(levelname)-8s %(name)-13s %(message)s',
 		}
-		logging.basicConfig(**logConfig)
+		basicConfig(**logConfig)
 
-		self._logger = logging.getLogger('ipc_app')
+		self._logger = getLogger('app.ipc')
 		self._logger.info('init()')
 
 	def __del__(self):
@@ -71,10 +71,10 @@ class IpcApp(Network):
 			raise Exception('IPC is not enabled')
 
 		logConfig = {
-			'level': logging.DEBUG,
+			'level': DEBUG,
 			'format': '%(asctime)s %(process)d %(levelname)-8s %(name)-13s %(message)s',
 		}
-		logging.basicConfig(**logConfig)
+		basicConfig(**logConfig)
 
 		self.add_command(IpcCommand('_client_connect'))
 
@@ -246,7 +246,7 @@ class IpcApp(Network):
 
 				self._client_commands(key.fileobj, status.commands)
 
-	def _client_commands(self, sock: socket.socket, commands: list):
+	def _client_commands(self, sock: Socket, commands: list):
 		self._logger.debug('_handle_client(%s)', sock)
 		self._logger.debug('commands: %s', commands)
 
@@ -310,7 +310,7 @@ class IpcApp(Network):
 	def _client_connect(self):
 		self._logger.info('_client_connect()')
 
-		sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+		sock = Socket(AF_INET6, SOCK_STREAM)
 		sock.settimeout(2)
 		try:
 			self._logger.debug('sock.connect to %s:%s', self._ipc_config['address'], self._ipc_config['port'])
@@ -322,21 +322,21 @@ class IpcApp(Network):
 		except TimeoutError as e:
 			self._logger.error('TimeoutError: %s', e)
 			return False
-		except socket.timeout as e:
-			self._logger.error('socket.timeout: %s', e)
+		except SocketTimeout as e:
+			self._logger.error('SocketTimeout: %s', e)
 			return False
 		sock.settimeout(None)
 		sock.setblocking(False)
 
-		self._selectors.register(sock, selectors.EVENT_READ, data={'type': 'client'})
+		self._selectors.register(sock, EVENT_READ, data={'type': 'client'})
 
 		return sock
 
-	def _client_send_ok(self, sock: socket.socket):
+	def _client_send_ok(self, sock: Socket):
 		self._logger.debug('_client_send_ok()')
 		self._client_write(sock, 0, 0)
 
-	def _client_send_send_mail(self, sock: socket.socket, target: str, raw: str):
+	def _client_send_send_mail(self, sock: Socket, target: str, raw: str):
 		self._logger.debug('_client_send_send_mail()')
 		self._logger.debug('sock: %s', sock)
 		self._logger.debug('target: %s', target)
@@ -344,7 +344,7 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 0, [target, raw])
 
-	def _client_send_list_mails(self, sock: socket.socket, only_new: bool = False):
+	def _client_send_list_mails(self, sock: Socket, only_new: bool = False):
 		self._logger.debug('_client_send_list_mails()')
 		self._logger.debug('sock: %s', sock)
 		self._logger.debug('only_new: %s', only_new)
@@ -359,7 +359,7 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 1, data)
 
-	def _client_send_read_mail(self, sock: socket.socket, m_uuid: str):
+	def _client_send_read_mail(self, sock: Socket, m_uuid: str):
 		self._logger.debug('_client_send_read_mail()')
 		self._logger.debug('sock: %s', sock)
 
@@ -369,11 +369,11 @@ class IpcApp(Network):
 
 		self._client_write(sock, 1, 2, data)
 
-	def _client_send_save(self, sock: socket.socket):
+	def _client_send_save(self, sock: Socket):
 		self._logger.debug('_client_send_save()')
 		self._client_write(sock, 2, 0)
 
-	def _client_disconnect(self, sock: socket.socket):
+	def _client_disconnect(self, sock: Socket):
 		self._logger.info('_client_disconnect()')
 		self._client_send_ok(sock)
 		sock.close()

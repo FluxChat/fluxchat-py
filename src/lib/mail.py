@@ -1,11 +1,11 @@
 
-import logging
 import datetime as dt
-import uuid
-import base64
-
+from base64 import b64encode
+from uuid import uuid4
+from logging import getLogger
 import lib.overlay as overlay
 from lib.helper import read_json_file, write_json_file, binary_encode, binary_decode
+
 
 class Mail():
 	uuid: str
@@ -28,7 +28,7 @@ class Mail():
 
 	def __init__(self, uuid_s: str = None):
 		if uuid_s == None:
-			self.uuid = str(uuid.uuid4())
+			self.uuid = str(uuid4())
 		else:
 			self.uuid = uuid_s
 		self.sender = None
@@ -48,8 +48,7 @@ class Mail():
 		self.sign_hash = None
 		self.sign = None
 
-		self._logger = logging.getLogger('mail')
-		# self._logger.info('init()')
+		self._logger = getLogger('app.mail')
 
 	def __str__(self): # pragma: no cover
 		return 'Mail({})'.format(self.uuid)
@@ -168,7 +167,7 @@ class Mail():
 			b'\x21', body_len, self.body.encode(),
 		]
 		raw = b''.join(items)
-		return base64.b64encode(raw).decode()
+		return b64encode(raw).decode()
 
 	def decode(self, data: bytes):
 		self._logger.debug('decode(%s)', data)
@@ -299,7 +298,7 @@ class Queue():
 
 		self._retention_time = dt.timedelta(hours=self._mail_config['retention_time'])
 
-		self._logger = logging.getLogger('mail.Queue')
+		self._logger = getLogger('app.mail.Queue')
 		self._logger.info('init()')
 
 	def load(self):
@@ -373,7 +372,7 @@ class Database():
 		self._data = dict()
 		self._changes = False
 
-		self._logger = logging.getLogger('mail.Database')
+		self._logger = getLogger('app.mail.Database')
 		self._logger.info('init()')
 
 	def load(self):
