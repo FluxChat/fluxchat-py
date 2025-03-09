@@ -6,7 +6,7 @@ from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT
 from struct import unpack, error as StructError
 from base64 import b64encode, b64decode
 from uuid import uuid4
-from os import getenv, path
+from os import getenv, getpid, path
 from logging import getLogger
 
 from cryptography.hazmat.primitives import serialization, hashes
@@ -161,7 +161,7 @@ class Server(Network):
 			exit(1)
 
 		with open(self._pid_file_path, 'w') as fh:
-			fh.write(str(os.getpid()))
+			fh.write(str(getpid()))
 		self._wrote_pid_file = True
 
 	def _remove_pid_file(self):
