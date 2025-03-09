@@ -113,7 +113,7 @@ class Database():
 		queued_mails = self._cursor.execute('SELECT uuid, pubid, receiver, body, is_encrypted, created_at, valid_until FROM queue').fetchall()
 		for mail in queued_mails:
 			self._logger.debug(f'load mail: {mail}')
-			mail = Mail.from_db(mail)
+			mail = Mail.from_queue_db(mail)
 
 			self._queue_by_uuid[mail.uuid] = mail
 
@@ -121,7 +121,7 @@ class Database():
 		mails = self._cursor.execute('SELECT uuid, pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until FROM mails').fetchall()
 		for mail in mails:
 			self._logger.debug(f'load mail: {mail}')
-			mail = Mail.from_db(mail)
+			mail = Mail.from_mail_db(mail)
 
 			self._mails_by_uuid[mail.uuid] = mail
 

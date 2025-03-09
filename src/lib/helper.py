@@ -83,7 +83,7 @@ def read_json_file(file_path: str, default = None) -> dict:
 def is_valid_uuid(id: str):
 	try:
 		obj = UUID(id, version=4)
-	except ValueError:
+	except Exception:
 		return False
 	return str(obj) == id
 

@@ -130,7 +130,8 @@ class ServerApp():
 			web.get('/v1/mails', self._get_mails),
 			web.get('/v1/mails/queue', self._get_queue),
 			web.get('/v1/nodes', self._get_nodes),
-			web.post('/v1/save', self._post_save),
+			web.post('/v1/actions/save', self._post_save),
+			web.post('/v1/actions/queue', self._post_handle_mail_queue),
 		])
 
 		self._api_runner = web.AppRunner(self._api_app)
@@ -232,6 +233,18 @@ class ServerApp():
 
 		if server_db := self._server.get_database():
 			server_db.save()
+
+		json = {'status': 'OK'}
+		response = web.Response(
+			text=dumps(json, indent=4, default=str),
+			content_type='application/json',
+		)
+		return response
+
+	async def _post_handle_mail_queue(self, request: web_request.Request):
+		print(f'-> _post_handle_mail_queue')
+
+		self._server.handle_mail_queue()
 
 		json = {'status': 'OK'}
 		response = web.Response(

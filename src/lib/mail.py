@@ -131,14 +131,29 @@ class Mail():
 			self.sign = data['sign']
 
 	@staticmethod
-	def from_db(data: tuple) -> 'Mail':
-		# self._logger.debug('from_db() -> %s', data)
+	def from_queue_db(data: tuple) -> 'Mail':
+		print(f'from_db() -> {data}', )
+		uuid, pubid, receiver, body, is_encrypted, created_at, valid_until = data
+
+		mail = Mail(pubid)
+		mail.uuid = uuid
+		mail.set_receiver(receiver)
+		mail.body = body
+		mail.is_encrypted = is_encrypted
+		mail.created_at = dt.datetime.fromisoformat(created_at)
+		mail.valid_until = dt.datetime.fromisoformat(valid_until)
+
+		return mail
+
+	@staticmethod
+	def from_mail_db(data: tuple) -> 'Mail':
+		print(f'from_db() -> {data}', )
 		uuid, pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until = data
 
 		mail = Mail(pubid)
 		mail.uuid = uuid
-		mail.sender = sender
-		mail.receiver = receiver
+		mail.set_sender(sender)
+		mail.set_receiver(receiver)
 		mail.subject = subject
 		mail.body = body
 		mail.forwarded_to = loads(forwarded_to)
@@ -155,13 +170,9 @@ class Mail():
 		return mail
 
 	def received_now(self):
-		# self._logger.debug('received_now()')
-
 		self.received_at = dt.datetime.now(dt.UTC)
 
 	def set_sender(self, sender: str):
-		# self._logger.debug('set_sender(%s)', sender)
-
 		try:
 			self.origin = Node.parse(sender)
 		except:
@@ -171,8 +182,6 @@ class Mail():
 			self.sender = sender
 
 	def set_receiver(self, receiver: str):
-		# self._logger.debug('set_receiver(%s)', receiver)
-
 		try:
 			self.target = Node.parse(receiver)
 		except:

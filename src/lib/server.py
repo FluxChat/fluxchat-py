@@ -730,11 +730,11 @@ class Server(Network):
 
 					if target == self._local_node:
 						self._logger.debug('local node')
-						self._client_response_public_key_for_node(sock, target.id, self._public_key_b64)
+						self._client_response_public_key_for_node(sock, target.pubid, self._public_key_b64)
 					else:
 						self._logger.debug('not local node')
 
-						_client = self._database.get_client_by_pubid(target.id)
+						_client = self._database.get_client_by_pubid(target.pubid)
 						if _client is None:
 							self._logger.debug('client not found')
 
@@ -746,7 +746,7 @@ class Server(Network):
 							if _client.has_public_key():
 								self._logger.debug('client has public key')
 
-								self._client_response_public_key_for_node(sock, target.id, _client.get_base64_public_key())
+								self._client_response_public_key_for_node(sock, target.pubid, _client.get_base64_public_key())
 							else:
 								self._logger.debug('client does not have public key')
 
@@ -762,15 +762,15 @@ class Server(Network):
 
 							self._logger.debug('client: %s', _client)
 
-							if _client.has_action('request_public_key_for_node', target.id):
-								self._logger.debug('client already has action request_public_key_for_node/%s', target.id)
+							if _client.has_action('request_public_key_for_node', target.pubid):
+								self._logger.debug('client already has action request_public_key_for_node/%s', target.pubid)
 							else:
-								self._logger.debug('create action request_public_key_for_node/%s', target.id)
+								self._logger.debug('create action request_public_key_for_node/%s', target.pubid)
 
 								action = self._create_action_request_public_key_for_node(target, 'r')
 
 								def _action_func(_arg_client: Client):
-									self._client_response_public_key_for_node(sock, target.id, _arg_client.get_base64_public_key())
+									self._client_response_public_key_for_node(sock, target.pubid, _arg_client.get_base64_public_key())
 
 								action.func = _action_func
 								_client.add_action(action)
@@ -870,7 +870,7 @@ class Server(Network):
 					self._logger.debug('mail data: %s', mail_data)
 
 					mail = Mail(mail_uuid)
-					mail.receiver = mail_target.id
+					mail.receiver = mail_target.pubid
 					mail.target = mail_target
 					mail.body = mail_data
 					mail.is_encrypted = True
@@ -957,7 +957,7 @@ class Server(Network):
 
 		self._client_write(sock, 3, 1, [
 			mail.pubid,
-			mail.target.id,
+			mail.target.pubid,
 			mail.body,
 		])
 
@@ -1384,9 +1384,9 @@ class Server(Network):
 		return bool(self._config['bootstrap'])
 
 	def handle_mail_queue(self) -> bool:
-		self._logger.debug('handle_mail_queue()')
+		self._logger.debug('handle_mail_queue() -> mails: %d', len(self._database.get_mails()))
 
-		for mail_uuid, mail in self._database.get_mails().items():
+		for mail_uuid, mail in self._database.get_queue_mails().items():
 			self._logger.debug('mail %s', mail)
 
 			if mail.is_delivered:
@@ -1439,13 +1439,13 @@ class Server(Network):
 			else:
 				self._logger.debug('mail is not encrypted yet')
 
-				client = self._database.get_client_by_pubid(mail.target.id)
+				client = self._database.get_client_by_pubid(mail.target.pubid)
 				if client is None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
 
-						if client.has_action('request_public_key_for_node', mail.target.id):
-							self._logger.debug('client already has action request_public_key_for_node/%s', mail.target.id)
+						if client.has_action('request_public_key_for_node', mail.target.pubid):
+							self._logger.debug('client already has action request_public_key_for_node/%s', mail.target.pubid)
 						else:
 							self._logger.debug('create action request_public_key_for_node from client: %s', client)
 
