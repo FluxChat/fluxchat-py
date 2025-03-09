@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-import os
-import argparse
-
+from asyncio import run as arun
+from signal import SIGINT, signal
+from argparse import ArgumentParser
 from lib.app.ipc import IpcApp
 
-def main():
-	parser = argparse.ArgumentParser(prog='ipc_app', description='IPC App')
+async def main():
+	parser = ArgumentParser(prog='ipc_app', description='IPC App')
 	parser.add_argument('-c', '--config', type=str, required=True, help='Path to Config File')
 	parser.add_argument('-t', '--target', type=str, nargs='?', required=False, help='Target to send mail to')
 	parser.add_argument('-s', '--subject', type=str, nargs='?', required=False, help='Subject')
@@ -17,7 +17,6 @@ def main():
 	parser.add_argument('command')
 
 	args = parser.parse_args()
-	# print(args)
 
 	app = IpcApp(args.config, args.loglevel.upper())
 	app.start()
@@ -41,10 +40,10 @@ def main():
 		app.stop()
 
 	try:
-		app.run()
+		await app.run()
 	except KeyboardInterrupt:
 		print()
-		app.shutdown('KeyboardInterrupt')
+		await app.shutdown('KeyboardInterrupt')
 
 if __name__ == '__main__':
-	main()
+	arun(main())

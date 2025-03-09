@@ -82,9 +82,9 @@ class IpcApp(Network):
 		self._scheduler.add_task(self.handle_sockets, dt.timedelta(milliseconds=100))
 		self._scheduler.add_task(self.handle_commands, dt.timedelta(milliseconds=100))
 
-	def run(self):
+	async def run(self):
 		self._logger.info('run()')
-		self._scheduler.run()
+		await self._scheduler.run()
 		self._logger.info('run finished')
 
 	def shutdown(self, reason: str = None):

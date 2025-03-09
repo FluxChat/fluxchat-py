@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-from asyncio import run as arun
-from signal import SIGINT, signal
+from asyncio import run as arun, create_task, get_event_loop, ensure_future
+from signal import SIGINT, signal as signal_fn
+import signal
 from argparse import ArgumentParser
 from lib.app.server import ServerApp
 
-def main():
+
+async def main():
 	parser = ArgumentParser(prog='server_app', description='Server App')
 	parser.add_argument('-c', '--config', type=str, nargs=1, required=True, help='Path to Config File')
 	parser.add_argument('--dev', default=False, action='store_true')
@@ -15,13 +17,22 @@ def main():
 
 	app = ServerApp(args.config[0], args.dev, args.loglevel)
 
-	signal(SIGINT, lambda sig, frame: app.shutdown('SIGINT'))
+	async def asigint_fn(sig, frame=None):
+		print('-> server_app.py sigint_fn')
+		await app.shutdown('SIGINT')
+
+	# I don't know what I'm doing. Some SO magic.
+	loop = get_event_loop()
+	for signame in ('SIGINT', 'SIGTERM'):
+		loop.add_signal_handler(getattr(signal, signame),
+								lambda: ensure_future(asigint_fn(signame)))
 
 	app.start()
 	try:
-		arun(app.run())
+		await app.run()
 	except KeyboardInterrupt:
-		app.shutdown('KeyboardInterrupt')
+		print('-> server_app.py KeyboardInterrupt')
+		await app.shutdown('KeyboardInterrupt')
 
 if __name__ == '__main__':
-	main()
+	arun(main())

@@ -26,6 +26,11 @@
 		"address": "127.0.0.1",
 		"port": ${FLUXCHAT_IPC_PORT}
 	},
+	"restapi": {
+		"enabled": true,
+		"address": "127.0.0.1",
+		"port": ${FLUXCHAT_RESTAPI_PORT}
+	},
 	"mail": {
 		"retention_time": 24
 	},

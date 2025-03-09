@@ -5,14 +5,27 @@ from socket import socket as Socket
 from ssl import SSLObject, SSLWantReadError, SSLWantWriteError, SSLError
 from select import select
 from struct import error as StructError
+from typing import Union
 
 
 CLIENT_READ_SIZE = 2048
 
+# RawCommandType = list[list[int, int, list[int]]]
+RawGroupType = int
+RawCommandType = int
+RawPayloadItemsType = list[Union[int, bytes]]
+RawItemType = list[RawGroupType, RawCommandType, RawPayloadItemsType]
+RawCommandsType = list[RawItemType]
+
 class SslHandshakeError(Exception):
 	pass
 
+# status.commands.append([group, command, payload_items])
 class SocketReadStatus(): # pragma: no cover
+	disconnect: bool
+	commands: RawCommandsType
+	msg: str
+
 	def __init__(self) -> None:
 		self.disconnect = False
 		self.commands = []
@@ -53,7 +66,7 @@ class Network():
 				status.disconnect = True
 				status.msg = 'ConnectionResetError'
 				reading = False
-			except ssl.SSLWantReadError as e:
+			except SSLWantReadError as e:
 				self._logger.debug('SSLWantReadError: %s', e)
 
 				status.disconnect = True

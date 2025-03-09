@@ -5,7 +5,7 @@ from logging import getLogger, Logger
 from sty import fg
 from lib.client import Client
 
-import lib.overlay as overlay
+from lib.overlay import Node, Distance
 from lib.helper import read_json_file, write_json_file
 from lib.contact import Contact
 
@@ -14,8 +14,8 @@ class AddressBook():
 	_path: str
 	_config: dict
 	_ab_config: dict
-	_clients_by_uuid: dict
-	_clients_by_id: dict
+	_clients_by_uuid: dict[str, Client]
+	_clients_by_id: dict[str, Client]
 	_changes: bool
 	_clients_ttl: dt.timedelta
 	_logger: Logger
@@ -82,7 +82,7 @@ class AddressBook():
 
 		return True
 
-	def get_clients(self) -> dict:
+	def get_clients(self) -> dict[str, Client]:
 		return self._clients_by_uuid
 
 	def get_clients_len(self) -> int:
@@ -264,9 +264,14 @@ class AddressBook():
 				if _clients_len <= self._ab_config['max_clients']:
 					return
 
-	def get_nearest_to(self, node: overlay.Node, limit: int = 20, with_contact_infos: bool = None) -> list:
+	def get_nearest_to(self, node: Node, limit: int = 20, with_contact_infos: bool = None) -> list:
+		def sort_key(_client: Client) -> Distance:
+			print(f'-> sort_key client: {_client}')
+			print(f'-> sort_key node: {_client.node}')
+			return _client.node.distance(node)
+
 		_clients = list(self._clients_by_uuid.values())
-		_clients.sort(key=lambda _client: _client.node.distance(node))
+		_clients.sort(key=sort_key)
 
 		if with_contact_infos:
 			_clients = list(filter(lambda _client: with_contact_infos == _client.has_contact(), _clients))

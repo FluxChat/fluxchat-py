@@ -18,7 +18,7 @@ from lib.client import Client, Action
 from lib.address_book import AddressBook
 from lib.helper import is_valid_uuid, binary_encode, binary_decode, password_key_derivation
 from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
-from lib.network import Network, SslHandshakeError
+from lib.network import Network, RawCommandsType, SslHandshakeError
 from lib.cash import Cash
 from lib.contact import Contact
 from lib.overlay import Node, Distance
@@ -40,7 +40,7 @@ class Server(Network):
 	_mail_db: MailDatabase
 	_hostname: str
 	_lan_ip: str
-	_clients: list
+	_clients: list[Client]
 	_local_node: Node
 	_public_key_b64: str
 	_pid_file_path: str
@@ -440,11 +440,10 @@ class Server(Network):
 		self._logger.debug('_client_connect done')
 		return True
 
-	def _client_commands(self, sock: Socket, client: Client, commands: list):
+	def _client_commands(self, sock: Socket, client: Client, commands: RawCommandsType):
 		self._logger.debug('_client_commands(%s)', client)
 
-		for command_raw in commands:
-			group_i, command_i, payload = command_raw
+		for group_i, command_i, payload in commands:
 			payload_len = len(payload)
 
 			self._logger.debug('group: %d, command %d', group_i, command_i)
@@ -691,7 +690,7 @@ class Server(Network):
 					for c_contact in payload:
 						self._logger.debug('client contact A: %s', c_contact)
 
-						c_id, c_contact_raw = c_contact.split(':', 1)
+						c_id, c_contact_raw = c_contact.encode().split(':', 1)
 						self._logger.debug('client contact B: %s %s', c_id, c_contact_raw)
 
 						c_contact = Contact.resolve(c_contact_raw)
@@ -1049,12 +1048,11 @@ class Server(Network):
 			self._logger.debug('IPC unregister socket')
 			self._selectors.unregister(sock)
 
-	def _ipc_client_commands(self, sock: Socket, commands: list):
+	def _ipc_client_commands(self, sock: Socket, commands: RawCommandsType):
 		self._logger.debug('_ipc_client_commands()')
 		self._logger.debug('commands: %s', commands)
 
-		for command_raw in commands:
-			group_i, command_i, payload = command_raw
+		for group_i, command_i, payload in commands:
 			payload_len = len(payload)
 
 			self._logger.debug('group %d, command %d', group_i, command_i)
@@ -1069,8 +1067,10 @@ class Server(Network):
 				if command_i == 0:
 					self._logger.info('SEND MAIL command')
 
-					target = payload[0].decode()
-					body = payload[1].decode()
+					print(f'-> payload: {payload}')
+
+					target = payload[0]
+					body = payload[1]
 					self._logger.debug('target: %s', target)
 					self._logger.debug('body: %s', body)
 
@@ -1228,6 +1228,9 @@ class Server(Network):
 
 		return True
 
+	def get_clients(self) -> list[Client]:
+		return self._clients
+
 	def add_client(self, client: Client):
 		self._clients.append(client)
 
@@ -1372,7 +1375,7 @@ class Server(Network):
 	def handle_mail_queue(self) -> bool:
 		self._logger.debug('handle_mail_queue()')
 
-		for mail_uuid, mail in self._mail_queue.get_mails():
+		for mail_uuid, mail in self._mail_queue.get_mails().items():
 			self._logger.debug('mail %s', mail)
 
 			if mail.is_delivered:
@@ -1665,3 +1668,12 @@ class Server(Network):
 			mail.sign = None
 
 		self._mail_db.changed()
+
+	def get_addressbook(self) -> AddressBook:
+		return self._address_book
+
+	def get_mail_db(self) -> MailDatabase:
+		return self._mail_db
+
+	def get_mail_queue(self) -> MailQueue:
+		return self._mail_queue

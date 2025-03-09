@@ -1,8 +1,8 @@
 
 import datetime as dt
-from time import sleep
 from logging import getLogger
 from lib.task import Task
+from asyncio import sleep as asleep
 
 
 class Scheduler():
@@ -61,7 +61,7 @@ class Scheduler():
 				_sleep_time = self.SLEEP_TIME
 
 			#self._logger.debug('sleeping: {}'.format(_sleep_time))
-			sleep(_sleep_time)
+			await asleep(_sleep_time)
 
 			_cycle += 1
 

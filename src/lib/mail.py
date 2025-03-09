@@ -285,7 +285,7 @@ class Queue():
 	_path: str
 	_config: dict
 	_mail_config: dict
-	_mails_by_uuid: dict
+	_mails_by_uuid: dict[str, Mail]
 	_changes: bool
 	_retention_time: dt.timedelta
 
@@ -336,8 +336,8 @@ class Queue():
 		self._mails_by_uuid[mail.uuid] = mail
 		self._changes = True
 
-	def get_mails(self) -> dict:
-		return self._mails_by_uuid.items()
+	def get_mails(self) -> dict[str, Mail]:
+		return self._mails_by_uuid
 
 	def has_mail(self, mail_uuid: str) -> bool:
 		self._logger.debug('has_mail(%s)', mail_uuid)
@@ -365,7 +365,7 @@ class Queue():
 
 class Database():
 	_path: str
-	_data: dict
+	_data: dict[str, Mail]
 	_changes: bool
 
 	def __init__(self, path: str) -> None:
@@ -414,8 +414,8 @@ class Database():
 		self._logger.debug('has_mail %s', mail_uuid)
 		return mail_uuid in self._data
 
-	def get_mails(self) -> dict:
-		return self._data.items()
+	def get_mails(self) -> dict[str, Mail]:
+		return self._data
 
 	def get_mail(self, mail_uuid: str) -> Mail:
 		self._logger.debug('get_mail %s', mail_uuid)
