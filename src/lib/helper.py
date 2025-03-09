@@ -13,9 +13,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 # Generate ID from Public Key
 def generate_id_from_public_key_file(file_path: str) -> str:
-	f = open(file_path, 'rb')
-	key_data = f.read()
-	f.close()
+	with open(file_path, 'rb') as f:
+		key_data = f.read()
 
 	public_key = serialization.load_pem_public_key(key_data)
 
@@ -41,7 +40,7 @@ def generate_id_from_public_key_der(public_key_bytes: bytes) -> str:
 	# print('digest:', digest.hex())
 
 	base58_hash = b58encode(digest).decode()
-	return f'FC_{base58_hash}'
+	return f'FC_{base58_hash}' # pid
 
 def generate_test_id() -> str: # pragma: no cover
 	public_bytes = token_bytes(20)

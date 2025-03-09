@@ -10,18 +10,18 @@ class ClientTestCase(TestCase):
 		client.uuid = 'test'
 		client.address = 'localhost'
 		client.port = 25001
-		client.id = 'FC_test1'
+		client.pid = 'FC_test1'
 		client.conn_mode = 99
 		client.dir_mode = 't'
 		client.auth = 3
 		client.actions = ['a', 'b', 'c', 'd']
 
-		self.assertEqual(str(client), 'Client(test,localhost:25001,ID=FC_test1,c=99,d=t,a=3,ac=4)')
+		self.assertEqual(str(client), 'Client(test,localhost:25001,PID=FC_test1,c=99,d=t,a=3,ac=4)')
 
 	def test_from_list(self):
 		client = Client()
 		client.from_list(['FC_test1', 'localhost', 25001])
-		self.assertEqual(client.id, 'FC_test1')
+		self.assertEqual(client.pid, 'FC_test1')
 		self.assertEqual(client.address, 'localhost')
 		self.assertEqual(client.port, 25001)
 
@@ -30,9 +30,9 @@ class ClientTestCase(TestCase):
 		client.inc_meetings()
 		self.assertEqual(client.meetings, 1)
 
-	def test_set_id(self):
+	def test_set_pid(self):
 		client = Client()
-		client.set_id('FC_test1')
+		client.set_pid('FC_test1')
 		self.assertEqual(client.node, 'FC_test1')
 
 	def test_distance1(self):
@@ -45,16 +45,16 @@ class ClientTestCase(TestCase):
 	def test_distance2(self):
 		node = Node('FC_test1')
 		client = Client()
-		client.set_id('FC_test2')
+		client.set_pid('FC_test2')
 		distance = client.distance(node)
 		self.assertEqual(str(distance), 'Distance(225)')
 		self.assertTrue(client.distance(node) == 225)
 
 	def test_eq1(self):
 		client1 = Client()
-		client1.set_id('FC_test1')
+		client1.set_pid('FC_test1')
 		client2 = Client()
-		client2.set_id('FC_test1')
+		client2.set_pid('FC_test1')
 		self.assertTrue(client1 == client2)
 
 	def test_eq2(self):
@@ -78,14 +78,14 @@ class ClientTestCase(TestCase):
 
 	def test_eq3(self):
 		client1 = Client()
-		client1.set_id('FC_test1')
+		client1.set_pid('FC_test1')
 		client2 = Client()
-		client2.set_id('FC_test2')
+		client2.set_pid('FC_test2')
 		self.assertFalse(client1 == client2)
 
 	def test_eq4(self):
 		client1 = Client()
-		client1.set_id('FC_test1')
+		client1.set_pid('FC_test1')
 		self.assertFalse(client1 == 1)
 
 	def test_eq5(self):

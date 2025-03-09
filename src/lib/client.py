@@ -51,15 +51,17 @@ class Challenge():
 
 
 class Client():
-	uuid: str # Internal ID
+	uuid: int # Internal ID
+	pid: str # Public ID aka Short Public Keyy
 	address: str
 	port: int
-	id: str
 	seen_at: dt.datetime
 	meetings: int
 	is_bootstrap: bool
 	is_trusted: bool
 	debug_add: str
+	# _is_new: bool
+	_changed: bool
 
 	# Unmapped
 	node: Node
@@ -92,10 +94,10 @@ class Client():
 	challenge: Challenge
 
 	def __init__(self):
-		self.uuid = str(uuid4())
+		self.uuid = None
+		self.pid = None
 		self.address = None
 		self.port = None
-		self.id = None
 		self.created_at = dt.datetime.now(dt.UTC)
 		self.seen_at = dt.datetime.strptime('2001-01-01 00:00:00+0000', '%Y-%m-%d %H:%M:%S%z')
 		self.used_at = dt.datetime.now(dt.UTC)
@@ -103,6 +105,8 @@ class Client():
 		self.is_bootstrap = False
 		self.is_trusted = False
 		self.debug_add = 'Init'
+		# self._is_new = True
+		self._changed = True
 
 		# Unmapped
 		self.node = None
@@ -118,7 +122,7 @@ class Client():
 		self.challenge = Challenge()
 
 	def __str__(self):
-		return 'Client({},{}:{},ID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.id, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
+		return 'Client({},{}:{},PID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.pid, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
 	def __repr__(self): # pragma: no cover
 		return 'Client({})'.format(self.uuid)
@@ -127,16 +131,30 @@ class Client():
 		if not isinstance(other, Client):
 			return False
 
-		if self.id == '' or other.id == '':
+		if self.pid == '' or other.pid == '':
 			return False
 
 		if self.uuid is not None and other.uuid is not None and self.uuid == other.uuid:
 			return True
 
-		if self.id is None or other.id is None:
+		if self.pid is None or other.pid is None:
 			return False
 
-		return self.id == other.id
+		return self.pid == other.pid
+
+	# def set_is_new(self, value: bool = True) -> bool:
+	# 	self._is_new = value
+
+	# @property
+	# def is_new(self) -> bool:
+	# 	return self._is_new
+
+	def changed(self, value: bool = True) -> None:
+		self._changed = value
+
+	@property
+	def has_changed(self) -> bool:
+		return self._changed
 
 	def as_dict(self) -> dict:
 		data = dict()
@@ -144,8 +162,8 @@ class Client():
 			data['address'] = self.address
 		if self.port is not None:
 			data['port'] = self.port
-		if self.id is not None:
-			data['id'] = self.id
+		if self.pid is not None:
+			data['pid'] = self.pid
 		if self.created_at is not None:
 			data['created_at'] = self.created_at.isoformat()
 		if self.seen_at is not None:
@@ -168,8 +186,8 @@ class Client():
 			self.address = data['address']
 		if 'port' in data:
 			self.port = int(data['port'])
-		if 'id' in data:
-			self.set_id(data['id'])
+		if 'pid' in data:
+			self.set_pid(data['pid'])
 		if 'created_at' in data:
 			self.created_at = dt.datetime.fromisoformat(data['created_at'])
 		if 'seen_at' in data:
@@ -186,15 +204,33 @@ class Client():
 			self.debug_add = data['debug_add']
 
 	def from_list(self, data: list):
-		self.id = data[0]
+		self.pid = data[0]
 
 		if len(data) >= 3:
 			self.address = data[1]
 			self.port = int(data[2])
 
-	def from_db() -> 'Client':
-		# TODO sqlite3
-		pass
+	@staticmethod
+	def from_db(node: tuple) -> 'Client':
+		uuid, pid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add = node
+		# print(f'-> from_db: {node}')
+
+		client = Client()
+		client.uuid = uuid
+		client.pid = pid
+		client.address = address
+		client.port = port
+		client.created_at = dt.datetime.fromisoformat(created_at)
+		client.seen_at = dt.datetime.fromisoformat(seen_at)
+		client.used_at = dt.datetime.fromisoformat(used_at)
+		client.meetings = meetings
+		client.is_bootstrap = is_bootstrap
+		client.is_trusted = is_trusted
+		client.debug_add = debug_add
+		client.node = Node.parse(id)
+
+		return client
+
 
 	def refresh_seen_at(self) -> None:
 		self.seen_at = dt.datetime.now(dt.UTC)
@@ -205,9 +241,9 @@ class Client():
 	def inc_meetings(self) -> None:
 		self.meetings += 1
 
-	def set_id(self, id: str) -> None:
-		self.id = id
-		self.node = Node.parse(id)
+	def set_pid(self, pid: str) -> None:
+		self.pid = pid
+		self.node = Node.parse(pid)
 
 	def distance(self, node: Node) -> int:
 		if self.node is None:
@@ -231,18 +267,18 @@ class Client():
 		self.actions = strong_actions
 		return actions
 
-	def has_action(self, id: str, subid: str = None) -> bool:
+	def has_action(self, aid: str, subid: str = None) -> bool:
 		def ffunc(_action):
-			return _action.id == id and _action.subid == subid
+			return _action.id == aid and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
 		return len(found) > 0
 
 	# Search for action by id and subid and remove it from actions list.
 	# Keep Strong actions.
 	# Force remove will also remove strong actions.
-	def resolve_action(self, id: str, subid: str = None, force_remove: bool = False) -> Action:
+	def resolve_action(self, aid: str, subid: str = None, force_remove: bool = False) -> Action:
 		def ffunc(_action):
-			return _action.id == id and _action.subid == subid
+			return _action.id == aid and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
 		if len(found) > 0:
 			if not found[0].is_strong or force_remove:
@@ -305,7 +341,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		return generate_id_from_public_key_rsa(self.public_key) == self.id
+		return generate_id_from_public_key_rsa(self.public_key) == self.pid
 
 	def encrypt(self, data: bytes) -> bytes:
 		if not self.has_public_key():

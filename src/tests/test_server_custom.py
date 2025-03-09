@@ -3,20 +3,19 @@ from unittest import TestCase
 from lib.server import Server
 from lib.client import Client
 
-SERVER_DATA_DIR = 'tmp/tests/data_custom'
 
 class ServerTestCase(TestCase):
 	def setUp(self) -> None:
 		self.config = {
 			'id': 'FC_test',
-			'data_dir': SERVER_DATA_DIR,
+			'data_dir': 'tmp/tests/data_custom',
 			'discovery': {
 				'enabled': False,
 				'port': 26000,
 			},
 			'mail': {
 				'retention_time': 24
-			}
+			},
 		}
 
 	def test_has_contact_false1(self):

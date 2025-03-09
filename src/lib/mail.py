@@ -148,7 +148,7 @@ class Mail():
 		# self._logger.debug('set_receiver(%s)', receiver)
 
 		try:
-			self.target = overlay.Node.parse(receiver)
+			self.target = Node.parse(receiver)
 		except:
 			self.target = None
 			self.receiver = None

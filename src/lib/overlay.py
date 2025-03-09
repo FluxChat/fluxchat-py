@@ -3,31 +3,31 @@ from base58 import b58decode
 
 
 class Node():
-	id: str
+	pid: str
 
-	def __init__(self, id: str):
-		self.id = id
+	def __init__(self, pid: str):
+		self.pid = pid
 
 	def __str__(self): # pragma: no cover
-		return 'Node({})'.format(self.id)
+		return 'Node({})'.format(self.pid)
 
 	def __repr__(self): # pragma: no cover
-		return 'Node({})'.format(self.id)
+		return 'Node({})'.format(self.pid)
 
 	def __eq__(self, other):
 		if isinstance(other, str):
-			return self.id == other
+			return self.pid == other
 
 		if not isinstance(other, Node):
 			return False
 
-		return self.id == other.id
+		return self.pid == other.pid
 
 	def decode(self) -> bytes:
-		return b58decode(self.id[3:])
+		return b58decode(self.pid[3:])
 
 	def has_valid_id(self) -> bool:
-		if self.id[0:3] != 'FC_':
+		if self.pid[0:3] != 'FC_':
 			return False
 
 		return len(self.decode()) == 32
@@ -36,8 +36,8 @@ class Node():
 		return Distance(self, other)
 
 	@staticmethod
-	def parse(id: str):
-		node = Node(id)
+	def parse(pid: str):
+		node = Node(pid)
 		if not getenv('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
 			raise ValueError('Invalid ID')
 

@@ -6,3 +6,5 @@ __pycache__
 *.py[cod]
 /.coverage
 /poc/
+/src/dev.py
+/resources/debian

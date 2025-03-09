@@ -2,20 +2,19 @@
 from unittest import TestCase
 from lib.server import Server
 
-SERVER_DATA_DIR = 'tmp/tests/data_default'
 
 class ServerTestCase(TestCase):
 	def setUp(self):
 		self.server = Server({
 			'id': 'FC_test',
-			'data_dir': SERVER_DATA_DIR,
+			'data_dir': 'tmp/tests/data_default',
 			'discovery': {
 				'enabled': False,
 				'port': 26000,
 			},
 			'mail': {
 				'retention_time': 24,
-			}
+			},
 		})
 
 	def test_has_contact(self):
@@ -28,7 +27,7 @@ class ServerTestCase(TestCase):
 		self.assertFalse(self.server.handle_sockets())
 
 	def test_contact_address_book(self):
-		self.assertTrue(self.server.contact_address_book())
+		self.assertFalse(self.server.contact_address_book())
 
 	def test_handle_clients(self):
 		self.assertTrue(self.server.handle_clients())
