@@ -1,6 +1,7 @@
 
 import datetime as dt
 from base64 import b64encode
+from json import loads
 from uuid import uuid4
 from logging import getLogger
 from lib.overlay import Node
@@ -8,7 +9,8 @@ from lib.helper import binary_encode, binary_decode
 
 
 class Mail():
-	uuid: str
+	uuid: int
+	pubid: str
 	sender: str
 	receiver: str
 	origin: Node
@@ -27,11 +29,11 @@ class Mail():
 	sign: str
 	_changes: bool
 
-	def __init__(self, uuid_s: str = None):
-		if uuid_s is None:
-			self.uuid = str(uuid4())
+	def __init__(self, pubid_s: str = None):
+		if pubid_s is None:
+			self.pubid = str(uuid4())
 		else:
-			self.uuid = uuid_s
+			self.pubid = pubid_s
 		self.sender = None
 		self.receiver = None
 		self.origin = None
@@ -53,7 +55,7 @@ class Mail():
 		self._logger = getLogger('app.mail')
 
 	def __str__(self): # pragma: no cover
-		return 'Mail({})'.format(self.uuid)
+		return 'Mail({})'.format(self.pubid)
 
 	def __repr__(self): # pragma: no cover
 		return self.__str__()
@@ -128,6 +130,30 @@ class Mail():
 		if 'sign' in data:
 			self.sign = data['sign']
 
+	@staticmethod
+	def from_db(data: tuple) -> 'Mail':
+		# self._logger.debug('from_db() -> %s', data)
+		uuid, pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until = data
+
+		mail = Mail(pubid)
+		mail.uuid = uuid
+		mail.sender = sender
+		mail.receiver = receiver
+		mail.subject = subject
+		mail.body = body
+		mail.forwarded_to = loads(forwarded_to)
+		mail.is_encrypted = is_encrypted
+		mail.is_delivered = is_delivered
+		mail.is_new = is_new
+		mail.verified = verified
+		mail.sign_hash = sign_hash
+		mail.sign = sign
+		mail.created_at = dt.datetime.fromisoformat(created_at)
+		mail.received_at = dt.datetime.fromisoformat(received_at)
+		mail.valid_until = dt.datetime.fromisoformat(valid_until)
+
+		return mail
+
 	def received_now(self):
 		# self._logger.debug('received_now()')
 
@@ -158,13 +184,13 @@ class Mail():
 	def encode(self) -> str:
 		self._logger.debug('encode()')
 
-		# uuid_len = len(self.uuid).to_bytes(1, 'little')
+		# uuid_len = len(self.pubid).to_bytes(1, 'little')
 		sender_len = len(self.sender).to_bytes(1, 'little')
 		receiver_len = len(self.receiver).to_bytes(1, 'little')
 		subject_len = len(self.subject).to_bytes(1, 'little')
 		body_len = len(self.body).to_bytes(4, 'little')
 		items = [
-			# b'\x00', uuid_len, self.uuid.encode(),
+			# b'\x00', uuid_len, self.pubid.encode(),
 			b'\x01\x13', self.created_at.strftime('%FT%T').encode(),
 			b'\x10', sender_len, self.sender.encode(),
 			b'\x11', receiver_len, self.receiver.encode(),
@@ -233,8 +259,8 @@ class Mail():
 		self._logger.debug('ipc_encode()')
 
 		data = {}
-		if self.uuid is not None:
-			data[0x00] = self.uuid
+		if self.pubid is not None:
+			data[0x00] = self.pubid
 		if self.created_at is not None:
 			data[0x01] = self.created_at.strftime('%FT%T')
 		if self.received_at is not None:
@@ -265,7 +291,7 @@ class Mail():
 		self._logger.debug('data: %s %s', type(data), data)
 
 		if 0x00 in data:
-			self.uuid = data[0x00].decode()
+			self.pubid = data[0x00].decode()
 		if 0x01 in data:
 			item = data[0x01].decode()
 			self.created_at = dt.datetime.fromisoformat(item)
@@ -286,89 +312,3 @@ class Mail():
 		if 0x31 in data:
 			self.body = data[0x31].decode()
 
-
-# class Queue():
-# 	_path: str
-# 	_config: dict
-# 	_mail_config: dict
-# 	_mails_by_uuid: dict[str, Mail]
-# 	_changes: bool
-# 	_retention_time: dt.timedelta
-
-# 	def __init__(self, path: str, config: dict = None):
-# 		self._path = path
-# 		self._config = config
-# 		self._mail_config = self._config['mail']
-# 		self._mails_by_uuid = dict()
-# 		self._changes = False
-
-# 		self._retention_time = dt.timedelta(hours=self._mail_config['retention_time'])
-
-# 		self._logger = getLogger('app.mail.Queue')
-# 		self._logger.info('init()')
-
-# 	def load(self):
-# 		self._logger.info('load')
-
-# 		_data = read_json_file(self._path, {})
-# 		for m_uuid, row in _data.items():
-# 			mail = Mail(m_uuid)
-# 			mail.from_dict(row)
-
-# 			self._logger.debug('load mail: %s', mail)
-
-# 			self._mails_by_uuid[m_uuid] = mail
-
-# 	def save(self) -> bool:
-# 		self._logger.info('save() changes=%s', self._changes)
-
-# 		if not self._changes:
-# 			return False
-
-# 		_data = dict()
-# 		for mail_uuid, mail in self._mails_by_uuid.items():
-# 			_data[mail_uuid] = mail.as_dict()
-
-# 		write_json_file(self._path, _data)
-# 		self._changes = False
-
-# 		return True
-
-
-# class Database():
-# 	_path: str
-# 	_data: dict[str, Mail]
-# 	_changes: bool
-
-# 	def __init__(self, path: str) -> None:
-# 		self._path = path
-# 		self._data = dict()
-# 		self._changes = False
-
-# 		self._logger = getLogger('app.mail.Database')
-# 		self._logger.info('init()')
-
-# 	def load(self):
-# 		self._logger.info('load()')
-
-# 		data = read_json_file(self._path, {})
-# 		for mail_uuid, mail_raw in data.items():
-# 			mail = Mail(mail_uuid)
-# 			mail.from_dict(mail_raw)
-
-# 			self._logger.debug('load mail: %s', mail)
-
-# 			self._data[mail_uuid] = mail
-
-# 	def save(self):
-# 		self._logger.info('save() changes=%s', self._changes)
-
-# 		if not self._changes:
-# 			return
-
-# 		data = dict()
-# 		for mail_uuid, mail in self._data.items():
-# 			data[mail_uuid] = mail.as_dict()
-
-# 		write_json_file(self._path, data)
-# 		self._changes = False

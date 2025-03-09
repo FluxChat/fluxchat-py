@@ -956,7 +956,7 @@ class Server(Network):
 		self._logger.debug('mail: %s', type(mail.body))
 
 		self._client_write(sock, 3, 1, [
-			mail.uuid,
+			mail.pubid,
 			mail.target.id,
 			mail.body,
 		])
@@ -1074,7 +1074,7 @@ class Server(Network):
 
 					self._database.add_queue_mail(mail)
 
-					self._logger.debug('uuid: %s', mail.uuid)
+					self._logger.debug('pubid: %s', mail.pubid)
 
 					self._client_send_ok(sock)
 
@@ -1428,12 +1428,12 @@ class Server(Network):
 						self._logger.debug('client already received mail')
 						continue
 
-					if client.has_action('mail', mail.uuid):
+					if client.has_action('mail', mail.pubid):
 						self._logger.debug('client already has action')
 						continue
 
 					self._logger.debug('add action for mail')
-					action = Action('mail', mail.uuid, data=mail)
+					action = Action('mail', mail.pubid, data=mail)
 					action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 					client.add_action(action)
 			else:

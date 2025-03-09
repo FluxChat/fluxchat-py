@@ -7,14 +7,14 @@ from lib.mail import Mail
 class MailTestCase(TestCase):
 	def test_mail_str(self):
 		mail = Mail()
-		mail.uuid = '123'
+		mail.pubid = '123'
 		mail.receiver = 'receiver'
 
 		self.assertEqual(str(mail), 'Mail(123)')
 
 	def test_dict(self):
 		mail1 = Mail()
-		mail1.uuid = '123'
+		mail1.pubid = '123'
 		mail1.sender = 'test from'
 		mail1.receiver = 'test to'
 		mail1.body = 'test body'
@@ -46,7 +46,7 @@ class MailTestCase(TestCase):
 	# def test_encode(self):
 	# 	mail1 = Mail()
 	# 	mail1.created_at = dt.datetime(2001, 1, 1, 0, 0, 0, 0)
-	# 	mail1.uuid = '123'
+	# 	mail1.pubid = '123'
 	# 	mail1.sender = 'test from'
 	# 	mail1.receiver = 'test to'
 	# 	mail1.subject = 'test subject'

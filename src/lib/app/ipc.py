@@ -126,13 +126,13 @@ class IpcApp(Network):
 
 				print('-> list_mails')
 				print('ID                                    RECEIVED_AT          FROM                                             SUBJECT')
-				row_f = '{uuid}  {received_at}  {sender}  {subject}'
+				row_f = '{pubid}  {received_at}  {sender}  {subject}'
 
 				for mail in command.data:
 					self._logger.info('mail: %s', mail)
 
 					mail_d = mail.as_dict()
-					mail_d['uuid'] = mail.uuid
+					mail_d['pubid'] = mail.pubid
 					# print(mail_d)
 
 					row = row_f.format(**mail_d)
@@ -150,7 +150,7 @@ class IpcApp(Network):
 				print('-> read_mail')
 				print()
 
-				print('ID: %s' % mail.uuid)
+				print('PUBID: %s' % mail.pubid)
 				print('CREATED AT:  %s' % mail.created_at)
 				print('RECEIVED AT: %s' % mail.received_at)
 				# print('VALID UNTIL: %s' % mail.valid_until)
