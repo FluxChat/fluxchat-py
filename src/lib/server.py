@@ -296,7 +296,8 @@ class Server(Network):
 	def _client_is_connected(self, client: Client) -> bool:
 		# self._logger.debug('_client_is_connected()')
 
-		ffunc = lambda _client: _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
+		def ffunc(_client):
+			return _client.uuid == client.uuid or _client.id == client.id or _client.address == client.address and _client.port == client.port
 		clients = list(filter(ffunc, self._clients))
 
 		return len(clients) > 0

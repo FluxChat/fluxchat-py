@@ -89,12 +89,14 @@ class AddressBook():
 		return len(self._clients_by_uuid)
 
 	def get_bootstrap_clients(self) -> list:
-		ffunc = lambda _client: _client[1].is_bootstrap
+		def ffunc(_client):
+			return _client[1].is_bootstrap
 		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 		return bootstrap_clients
 
 	def get_bootstrap_clients_len(self) -> int:
-		ffunc = lambda _client: _client[1].is_bootstrap
+		def ffunc(_client):
+			return _client[1].is_bootstrap
 		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 		return len(bootstrap_clients)
 
@@ -115,7 +117,8 @@ class AddressBook():
 		return None
 
 	def get_client_by_addr_port(self, addr: str, port: int):
-		ffunc = lambda _client: _client[1].address == addr and _client[1].port == port
+		def ffunc(_client):
+			return _client[1].address == addr and _client[1].port == port
 		_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 
 		if len(_clients) > 0:

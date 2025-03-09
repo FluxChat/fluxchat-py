@@ -228,7 +228,8 @@ class Client():
 		return actions
 
 	def has_action(self, id: str, subid: str = None) -> bool:
-		ffunc = lambda _action: _action.id == id and _action.subid == subid
+		def ffunc(_action):
+			return _action.id == id and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
 		return len(found) > 0
 
@@ -236,7 +237,8 @@ class Client():
 	# Keep Strong actions.
 	# Force remove will also remove strong actions.
 	def resolve_action(self, id: str, subid: str = None, force_remove: bool = False) -> Action:
-		ffunc = lambda _action: _action.id == id and _action.subid == subid
+		def ffunc(_action):
+			return _action.id == id and _action.subid == subid
 		found = list(filter(ffunc, self.actions))
 		if len(found) > 0:
 			if not found[0].is_strong or force_remove:

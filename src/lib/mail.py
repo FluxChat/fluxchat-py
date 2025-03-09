@@ -351,7 +351,8 @@ class Queue():
 
 		remove_mails = []
 
-		ffunc = lambda _mail: _mail[1].valid_until is not None and dt.datetime.utcnow() >= _mail[1].valid_until
+		def ffunc(_mail):
+			return _mail[1].valid_until is not None and dt.datetime.utcnow() >= _mail[1].valid_until
 		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
 		self._logger.debug('old mails A: %s', old_mails)
 		remove_mails += old_mails
