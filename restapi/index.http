@@ -1,0 +1,2 @@
+GET http://127.0.0.1:26002/v1/messages
+Accept: application/json
