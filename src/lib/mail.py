@@ -27,7 +27,10 @@ class Mail():
 	verified: str
 	sign_hash: str
 	sign: str
+
+	# Unmapped
 	_changes: bool
+	status: str
 
 	def __init__(self, pubid_s: str = None):
 		if pubid_s is None:
@@ -51,6 +54,7 @@ class Mail():
 		self.sign_hash = None
 		self.sign = None
 		self._changes = False
+		self.status = 'initial'
 
 		self._logger = getLogger('app.mail')
 
@@ -99,6 +103,11 @@ class Mail():
 			data['sign_hash'] = self.sign_hash
 		if self.sign is not None:
 			data['sign'] = self.sign
+
+		# Unmapped
+		if self.status:
+			data['status'] = self.status
+
 		return data
 
 	def from_dict(self, data: dict):

@@ -1400,14 +1400,17 @@ class Server(Network):
 
 			if mail.is_delivered:
 				self._logger.debug('handle_mail_queue: mail is delivered')
+				mail.status = 'mail is delivered'
 				continue
 
 			if mail.target is None:
 				self._logger.debug('handle_mail_queue: mail has no target')
+				mail.status = 'mail has no target'
 				continue
 
 			if mail.target == self._local_node.pubid:
 				self._logger.debug('handle_mail_queue: mail is for me')
+				mail.status = 'mail is for me'
 				continue
 
 			clients = self._database.get_nearest_to(mail.target, with_contact_infos=True)
@@ -1424,13 +1427,15 @@ class Server(Network):
 				self._logger.debug('handle_mail_queue: client for mail: %s', client)
 				if self._client_is_connected(client):
 					# self._logger.debug('client is connected')
-					pass
+					mail.status = f'client is connected: {client}'
 				else:
 					self._logger.debug('handle_mail_queue: client is not connected C')
+					mail.status = f'client is not connected C: {client}'
 					self._client_connect(client)
 
 			if mail.is_encrypted:
 				self._logger.debug('handle_mail_queue: mail is encrypted')
+				mail.status = 'mail is encrypted'
 
 				for client in clients:
 					self._logger.debug('handle_mail_queue: client %s', client)
@@ -1438,32 +1443,38 @@ class Server(Network):
 
 					if not self._client_is_connected(client):
 						self._logger.debug('handle_mail_queue: client is not connected D')
+						mail.status = f'client is not connected D: {client}'
 						continue
 
 					if client.pubid in mail.forwarded_to:
 						self._logger.debug('handle_mail_queue: client already received mail')
+						mail.status = f'client already received mail: {client}'
 						continue
 
 					if client.has_action('mail', mail.pubid):
 						self._logger.debug('handle_mail_queue: client already has action')
+						mail.status = f'client already has action A: {client}'
 						continue
 
 					self._logger.debug('handle_mail_queue: add action for mail')
 					action = Action('mail', mail.pubid, data=mail)
 					action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 					client.add_action(action)
+					mail.status = f'added action for mail: {client}'
 			else:
 				self._logger.debug('handle_mail_queue: mail is not encrypted yet')
 
 				client = self._database.get_client_by_pubid(mail.target.pubid)
 				if client is None or not client.has_public_key():
 					self._logger.debug('handle_mail_queue: client is set and has no public key (clients=%d)', len(clients))
-					for client in clients:
 
+					for client in clients:
 						if client.has_action('request_public_key_for_node', mail.target.pubid):
 							self._logger.debug('handle_mail_queue: client already has action request_public_key_for_node/%s', mail.target.pubid)
+							mail.status = f'client already has action B: {client}'
 						else:
 							self._logger.debug('handle_mail_queue: create action request_public_key_for_node from client: %s', client)
+							mail.status = f'create action from client: {client}'
 
 							action = self._create_action_request_public_key_for_node(mail.target, 'o')
 
@@ -1472,6 +1483,8 @@ class Server(Network):
 							client.add_action(action)
 				else:
 					self._encrypt_mail(mail, client)
+					if mail.is_encrypted:
+						mail.status = 'mail is encrypted'
 
 		return True
 
