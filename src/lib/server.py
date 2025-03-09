@@ -6,7 +6,7 @@ from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT
 from struct import unpack, error as StructError
 from base64 import b64encode, b64decode
 from uuid import uuid4
-from os import getenv, getpid, path
+from os import path, getenv, getpid, mkdir, remove
 from logging import getLogger
 
 from cryptography.hazmat.primitives import serialization, hashes
@@ -104,7 +104,7 @@ class Server(Network):
 			if 'keys_dir' not in self._config:
 				self._config['keys_dir'] = path.join(self._config['data_dir'], 'keys')
 			if not path.isdir(self._config['keys_dir']):
-				os.mkdir(self._config['keys_dir'])
+				mkdir(self._config['keys_dir'])
 
 			address_book_path = path.join(self._config['data_dir'], 'address_book.json')
 			self._address_book = AddressBook(address_book_path, self._config)
@@ -169,7 +169,7 @@ class Server(Network):
 		if not self._wrote_pid_file:
 			return
 		if path.isfile(self._pid_file_path):
-			os.remove(self._pid_file_path)
+			remove(self._pid_file_path)
 
 	def start(self):
 		self._logger.info('start')
