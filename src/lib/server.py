@@ -444,6 +444,7 @@ class Server(Network):
 		self._logger.debug('_client_commands(%s)', client)
 
 		for group_i, command_i, payload in commands:
+			#group_i, command_i, payload = raw_command
 			payload_len = len(payload)
 
 			self._logger.debug('group: %d, command %d', group_i, command_i)
@@ -1200,7 +1201,7 @@ class Server(Network):
 
 		# self._logger.debug('clients: %d', len(_clients))
 
-		connect_to_clients = []
+		connect_to_clients: list[Client] = []
 		zero_meetings_clients = []
 		for client in _clients:
 			self._logger.debug('contact: %s', client)

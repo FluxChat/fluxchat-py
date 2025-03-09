@@ -13,8 +13,8 @@ CLIENT_READ_SIZE = 2048
 # RawCommandType = list[list[int, int, list[int]]]
 RawGroupType = int
 RawCommandType = int
-RawPayloadItemsType = list[Union[int, bytes]]
-RawItemType = list[RawGroupType, RawCommandType, RawPayloadItemsType]
+RawPayloadItemsType = list[bytes]
+RawItemType = tuple[RawGroupType, RawCommandType, RawPayloadItemsType]
 RawCommandsType = list[RawItemType]
 
 class SslHandshakeError(Exception):

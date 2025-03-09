@@ -87,7 +87,7 @@ class Client():
 	# 1, 1, 1, 1 = 15 (Authenticated both)
 	auth: int
 
-	actions: list
+	actions: list[Action]
 	cash: Cash
 	challenge: Challenge
 
