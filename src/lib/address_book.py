@@ -226,7 +226,7 @@ class AddressBook():
 
 		# remove out-of-date clients (invalid client_retention_time)
 		_clients = list(self._clients_by_uuid.values())
-		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl, _clients))
+		_clients = list(filter(lambda _client: dt.datetime.now(dt.UTC) - _client.used_at > self._clients_ttl, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
 			if self.remove_client(client):
@@ -256,7 +256,7 @@ class AddressBook():
 
 		# remove out-of-date clients (invalid client_retention_time)
 		_clients = list(self._clients_by_uuid.values())
-		_clients = list(filter(lambda _client: dt.datetime.utcnow() - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
+		_clients = list(filter(lambda _client: dt.datetime.now(dt.UTC) - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
 			if self.remove_client(client):

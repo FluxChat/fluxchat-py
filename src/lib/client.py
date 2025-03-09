@@ -96,9 +96,9 @@ class Client():
 		self.address = None
 		self.port = None
 		self.id = None
-		self.created_at = dt.datetime.utcnow()
-		self.seen_at = dt.datetime.strptime('2001-01-01 00:00:00', '%Y-%m-%d %H:%M:%S')
-		self.used_at = dt.datetime.utcnow()
+		self.created_at = dt.datetime.now(dt.UTC)
+		self.seen_at = dt.datetime.strptime('2001-01-01 00:00:00+0000', '%Y-%m-%d %H:%M:%S%z')
+		self.used_at = dt.datetime.now(dt.UTC)
 		self.meetings = 0
 		self.is_bootstrap = False
 		self.is_trusted = False
@@ -193,10 +193,10 @@ class Client():
 			self.port = int(data[2])
 
 	def refresh_seen_at(self):
-		self.seen_at = dt.datetime.utcnow()
+		self.seen_at = dt.datetime.now(dt.UTC)
 
 	def refresh_used_at(self):
-		self.used_at = dt.datetime.utcnow()
+		self.used_at = dt.datetime.now(dt.UTC)
 
 	def inc_meetings(self):
 		self.meetings += 1

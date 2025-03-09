@@ -16,7 +16,7 @@ class Task():
 		self.is_one_shot = one_shot
 
 		if self._interval is not None and one_shot:
-			self._last_run = dt.datetime.utcnow()
+			self._last_run = dt.datetime.now(dt.UTC)
 
 	def __str__(self): # pragma: no cover
 		return 'Task({})'.format(self._execfunc)
@@ -29,13 +29,13 @@ class Task():
 		if self._last_run is None:
 			should_run = True
 		else:
-			diff = dt.datetime.utcnow() - self._last_run
+			diff = dt.datetime.now(dt.UTC) - self._last_run
 			if diff > self._interval:
 				should_run = True
 
 		if should_run:
 			exec_res = self._execfunc()
-			self._last_run = dt.datetime.utcnow()
+			self._last_run = dt.datetime.now(dt.UTC)
 			return exec_res
 
 		return False

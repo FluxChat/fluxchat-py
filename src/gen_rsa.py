@@ -57,7 +57,7 @@ subject = issuer = x509.Name([
 ])
 
 serial_number = x509.random_serial_number()
-not_valid_before = dt.datetime.utcnow()
+not_valid_before = dt.datetime.now(dt.UTC)
 not_valid_after = not_valid_before + dt.timedelta(days=3650)
 builder = x509.CertificateBuilder(issuer, subject, public_key, serial_number, not_valid_before, not_valid_after)
 cert = builder.sign(private_key, hashes.SHA256(), default_backend())

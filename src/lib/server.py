@@ -1258,7 +1258,7 @@ class Server(Network):
 					client.conn_mode = 2
 
 				# Auth Timeout
-				if dt.datetime.utcnow() - client.used_at >= self._client_auth_timeout:
+				if dt.datetime.now(dt.UTC) - client.used_at >= self._client_auth_timeout:
 					self._logger.debug('client used_at: %s', client.used_at)
 					self._logger.debug('client timeout (%s)', self._client_auth_timeout)
 					client.conn_mode = 0
@@ -1336,7 +1336,7 @@ class Server(Network):
 				elif action.id == 'test':
 					had_actions = True
 
-				if action.valid_until is not None and dt.datetime.utcnow() >= action.valid_until:
+				if action.valid_until is not None and dt.datetime.now(dt.UTC) >= action.valid_until:
 					self._logger.debug('action is invalid: %s', action)
 					client.remove_action(action)
 
@@ -1352,7 +1352,7 @@ class Server(Network):
 			'try': 0, # 0 = first try, 1 = second try, etc
 		}
 		action = Action('request_public_key_for_node', target.id, data=action_data)
-		action.valid_until = dt.datetime.utcnow() + self._client_action_retention_time
+		action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 		action.is_strong = True
 
 		return action
@@ -1416,7 +1416,7 @@ class Server(Network):
 
 					self._logger.debug('add action for mail')
 					action = Action('mail', mail.uuid, data=mail)
-					action.valid_until = dt.datetime.utcnow() + self._client_action_retention_time
+					action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 					client.add_action(action)
 			else:
 				self._logger.debug('mail is not encrypted yet')

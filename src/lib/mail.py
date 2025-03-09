@@ -37,7 +37,7 @@ class Mail():
 		self.target = None
 		self.subject = None
 		self.body = None
-		self.created_at = dt.datetime.utcnow()
+		self.created_at = dt.datetime.now(dt.UTC)
 		self.received_at = None
 		self.valid_until = None
 		self.forwarded_to = []
@@ -126,7 +126,7 @@ class Mail():
 	def received_now(self):
 		# self._logger.debug('received_now()')
 
-		self.received_at = dt.datetime.utcnow()
+		self.received_at = dt.datetime.now(dt.UTC)
 
 	def set_sender(self, sender: str):
 		# self._logger.debug('set_sender(%s)', sender)
@@ -331,7 +331,7 @@ class Queue():
 	def add_mail(self, mail: Mail):
 		self._logger.debug('add_mail(%s)', mail)
 
-		mail.valid_until = dt.datetime.utcnow() + self._retention_time
+		mail.valid_until = dt.datetime.now(dt.UTC) + self._retention_time
 
 		self._mails_by_uuid[mail.uuid] = mail
 		self._changes = True
@@ -352,7 +352,7 @@ class Queue():
 		remove_mails = []
 
 		def ffunc(_mail):
-			return _mail[1].valid_until is not None and dt.datetime.utcnow() >= _mail[1].valid_until
+			return _mail[1].valid_until is not None and dt.datetime.now(dt.UTC) >= _mail[1].valid_until
 		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
 		self._logger.debug('old mails A: %s', old_mails)
 		remove_mails += old_mails
