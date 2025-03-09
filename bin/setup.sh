@@ -73,5 +73,5 @@ if ! test -f ${FLUXCHAT_CONFIG}; then
 fi
 if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json; then
 	echo '-> generating bootstrap'
-	echo '[]' > ${FLUXCHAT_DATA_DIR}/bootstrap.json
+	echo '["bootstrap.fluxchat.dev:25001"]' > ${FLUXCHAT_DATA_DIR}/bootstrap.json
 fi
