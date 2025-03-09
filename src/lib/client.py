@@ -52,7 +52,7 @@ class Challenge():
 
 class Client():
 	uuid: int # Internal ID
-	pid: str # Public ID aka Short Public Keyy
+	pubid: str # Public ID aka Short Public Keyy
 	address: str
 	port: int
 	seen_at: dt.datetime
@@ -95,7 +95,7 @@ class Client():
 
 	def __init__(self):
 		self.uuid = None
-		self.pid = None
+		self.pubid = None
 		self.address = None
 		self.port = None
 		self.created_at = dt.datetime.now(dt.UTC)
@@ -122,7 +122,7 @@ class Client():
 		self.challenge = Challenge()
 
 	def __str__(self):
-		return 'Client({},{}:{},PID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.pid, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
+		return 'Client({},{}:{},PID={},c={},d={},a={},ac={})'.format(self.uuid, self.address, self.port, self.pubid, self.conn_mode, self.dir_mode, self.auth, len(self.actions))
 
 	def __repr__(self): # pragma: no cover
 		return 'Client({})'.format(self.uuid)
@@ -131,16 +131,16 @@ class Client():
 		if not isinstance(other, Client):
 			return False
 
-		if self.pid == '' or other.pid == '':
+		if self.pubid == '' or other.pubid == '':
 			return False
 
 		if self.uuid is not None and other.uuid is not None and self.uuid == other.uuid:
 			return True
 
-		if self.pid is None or other.pid is None:
+		if self.pubid is None or other.pubid is None:
 			return False
 
-		return self.pid == other.pid
+		return self.pubid == other.pubid
 
 	# def set_is_new(self, value: bool = True) -> bool:
 	# 	self._is_new = value
@@ -162,8 +162,8 @@ class Client():
 			data['address'] = self.address
 		if self.port is not None:
 			data['port'] = self.port
-		if self.pid is not None:
-			data['pid'] = self.pid
+		if self.pubid is not None:
+			data['pubid'] = self.pubid
 		if self.created_at is not None:
 			data['created_at'] = self.created_at.isoformat()
 		if self.seen_at is not None:
@@ -186,8 +186,8 @@ class Client():
 			self.address = data['address']
 		if 'port' in data:
 			self.port = int(data['port'])
-		if 'pid' in data:
-			self.set_pid(data['pid'])
+		if 'pubid' in data:
+			self.set_pubid(data['pubid'])
 		if 'created_at' in data:
 			self.created_at = dt.datetime.fromisoformat(data['created_at'])
 		if 'seen_at' in data:
@@ -204,7 +204,8 @@ class Client():
 			self.debug_add = data['debug_add']
 
 	def from_list(self, data: list):
-		self.pid = data[0]
+		print(f'-> from_list: {data}')
+		self.pubid = data[0]
 
 		if len(data) >= 3:
 			self.address = data[1]
@@ -212,12 +213,12 @@ class Client():
 
 	@staticmethod
 	def from_db(node: tuple) -> 'Client':
-		uuid, pid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add = node
-		# print(f'-> from_db: {node}')
+		uuid, pubid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add = node
+		print(f'-> from_db: {node}')
 
 		client = Client()
 		client.uuid = uuid
-		client.pid = pid
+		client.pubid = pubid
 		client.address = address
 		client.port = port
 		client.created_at = dt.datetime.fromisoformat(created_at)
@@ -227,7 +228,7 @@ class Client():
 		client.is_bootstrap = is_bootstrap
 		client.is_trusted = is_trusted
 		client.debug_add = debug_add
-		client.node = Node.parse(id)
+		client.set_pubid(pubid)
 
 		return client
 
@@ -241,9 +242,10 @@ class Client():
 	def inc_meetings(self) -> None:
 		self.meetings += 1
 
-	def set_pid(self, pid: str) -> None:
-		self.pid = pid
-		self.node = Node.parse(pid)
+	def set_pubid(self, pubid: str) -> None:
+		print(f'-> set_pubid: {pubid}')
+		self.pubid = pubid
+		self.node = Node.parse(pubid)
 
 	def distance(self, node: Node) -> int:
 		if self.node is None:
@@ -341,7 +343,7 @@ class Client():
 		if not self.has_public_key():
 			return False
 
-		return generate_id_from_public_key_rsa(self.public_key) == self.pid
+		return generate_id_from_public_key_rsa(self.public_key) == self.pubid
 
 	def encrypt(self, data: bytes) -> bytes:
 		if not self.has_public_key():

@@ -5,7 +5,7 @@ from selectors import DefaultSelector, EVENT_READ
 from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT, CERT_NONE
 from struct import unpack, error as StructError
 from base64 import b64encode, b64decode
-from typing import cast
+from typing import Optional, cast
 from uuid import uuid4
 from os import path, getenv, getpid, mkdir, remove
 from logging import getLogger
@@ -277,7 +277,7 @@ class Server(Network):
 		# self._logger.debug('_client_is_connected()')
 		def ffunc(_client: Client):
 			return _client.uuid == client.uuid \
-				or _client.pid == client.pid \
+				or _client.pubid == client.pubid \
 				or _client.address == client.address \
 				and _client.port == client.port
 
@@ -555,7 +555,7 @@ class Server(Network):
 
 						if c_has_contact_info:
 							# Client sent contact info
-							_client = self._database.get_client_by_pid(c_id)
+							_client = self._database.get_client_by_pubid(c_id)
 							if _client is None:
 								self._logger.debug('client not found by ID (A)')
 
@@ -575,7 +575,7 @@ class Server(Network):
 							_client.port = c_contact_port
 						else:
 							# Client sent no contact info
-							_client = self._database.get_client_by_pid(c_id)
+							_client = self._database.get_client_by_pubid(c_id)
 							if _client is None:
 								self._logger.debug('client not found C')
 
@@ -600,8 +600,9 @@ class Server(Network):
 						else:
 							self._logger.debug('client has NO contact infos')
 
-					if _client.pid is None:
-						_client.pid = c_id
+					if _client.pubid is None:
+						print(f'-> client.pubid is None: {c_id}')
+						_client.set_pubid(c_id)
 
 					self._logger.debug('Client A: %s', client)
 					self._logger.debug('Client B: %s', _client)
@@ -609,6 +610,7 @@ class Server(Network):
 					_client.refresh_seen_at()
 					_client.refresh_used_at()
 					_client.inc_meetings()
+					_client.changed()
 
 					_client.sock = sock
 					_client.conn_mode = client.conn_mode
@@ -655,8 +657,8 @@ class Server(Network):
 					clients = self._database.get_nearest_to(node, with_contact_infos=True)
 					for _client in clients:
 						self._logger.debug('client: %s %s', _client, _client.distance(node))
-						if _client.pid != self._local_node.pid and _client.pid != node.pid:
-							contact_infos = [_client.pid, _client.address, str(_client.port)]
+						if _client.pubid != self._local_node.pubid and _client.pubid != node.pubid:
+							contact_infos = [_client.pubid, _client.address, str(_client.port)]
 							self._logger.debug('contact infos: %s', contact_infos)
 							client_ids.append(':'.join(contact_infos))
 
@@ -683,10 +685,10 @@ class Server(Network):
 						c_contact = Contact.resolve(c_contact_raw)
 						self._logger.debug('client contact C: %s %s %s', c_contact.addr, c_contact.port, c_contact.is_valid)
 
-						if c_id == self._local_node.pid:
+						if c_id == self._local_node.pubid:
 							continue
 
-						_client = self._database.get_client_by_pid(c_id)
+						_client = self._database.get_client_by_pubid(c_id)
 						if _client is None:
 							self._logger.debug('client not found')
 							_client = self._database.add_client(c_id, c_contact.addr, c_contact.port)
@@ -732,7 +734,7 @@ class Server(Network):
 					else:
 						self._logger.debug('not local node')
 
-						_client = self._database.get_client_by_pid(target.id)
+						_client = self._database.get_client_by_pubid(target.id)
 						if _client is None:
 							self._logger.debug('client not found')
 
@@ -788,7 +790,7 @@ class Server(Network):
 						self._logger.debug('skip, invalid node')
 						continue
 
-					action = client.resolve_action('request_public_key_for_node', node.pid, force_remove=True)
+					action = client.resolve_action('request_public_key_for_node', node.pubid, force_remove=True)
 					if action is None:
 						self._logger.warning('skip, not requested')
 						continue
@@ -799,13 +801,13 @@ class Server(Network):
 
 					self._logger.debug('action: %s', action)
 
-					_client = self._database.get_client_by_pid(node.pid)
+					_client = self._database.get_client_by_pubid(node.pubid)
 					if _client is None:
 						self._logger.debug('client not found')
 
 						_client = Client()
 						_client.debug_add = 'public key response'
-						_client.set_pid(node.pid)
+						_client.set_pubid(node.pubid)
 						_client.load_public_key_from_pem(public_key_raw)
 
 						if _client.verify_public_key():
@@ -881,7 +883,7 @@ class Server(Network):
 						self._database.add_mail(mail)
 					else:
 						self._logger.debug('mail target is not local node')
-						mail.forwarded_to.append(client.pid)
+						mail.forwarded_to.append(client.pubid)
 
 						self._database.get_queue_mails(mail)
 
@@ -1295,8 +1297,8 @@ class Server(Network):
 		self._logger.debug('clean_up')
 
 		if self._database is not None:
-			self._database.hard_clean_up(self._local_node.pid)
-			self._database.soft_clean_up(self._local_node.pid)
+			self._database.hard_clean_up(self._local_node.pubid)
+			self._database.soft_clean_up(self._local_node.pubid)
 			self._database.clean_queue_up()
 
 		return True
@@ -1321,16 +1323,16 @@ class Server(Network):
 				self._logger.debug('action %s', action)
 
 				if action.id == 'bootstrap':
-					self._client_send_get_nearest_to(client.sock, self._local_node.pid)
+					self._client_send_get_nearest_to(client.sock, self._local_node.pubid)
 					client.add_action(Action('nearest_response', data=action.data))
 
 				elif action.id == 'request_public_key_for_node':
 					self._logger.debug('request_public_key_for_node (try: %d)', action.data['try'])
 
 					target = cast(Node, action.data['target'])
-					target_pid = target.pid
+					target_pubid = target.pubid
 
-					self._client_request_public_key_for_node(client.sock, target_pid)
+					self._client_request_public_key_for_node(client.sock, target_pubid)
 					action.data['try'] += 1
 
 				elif action.id == 'mail':
@@ -1339,8 +1341,8 @@ class Server(Network):
 
 					self._client_send_mail(client.sock, mail)
 
-					mail.forwarded_to.append(client.pid)
-					mail.is_delivered = client.pid == mail.target
+					mail.forwarded_to.append(client.pubid)
+					mail.is_delivered = client.pubid == mail.target
 					mail.changed()
 
 					self._database.changed()
@@ -1363,7 +1365,7 @@ class Server(Network):
 			# 'step': 0, # 0 = request created, 1 = send request to client
 			'try': 0, # 0 = first try, 1 = second try, etc
 		}
-		action = Action('request_public_key_for_node', target_node.pid, data=action_data)
+		action = Action('request_public_key_for_node', target_node.pubid, data=action_data)
 		action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 		action.is_strong = True
 
@@ -1395,7 +1397,7 @@ class Server(Network):
 				self._logger.debug('mail has no target')
 				continue
 
-			if mail.target == self._local_node.pid:
+			if mail.target == self._local_node.pubid:
 				self._logger.debug('mail is for me')
 				continue
 
@@ -1422,7 +1424,7 @@ class Server(Network):
 						self._logger.debug('client is not connected D')
 						continue
 
-					if client.pid in mail.forwarded_to:
+					if client.pubid in mail.forwarded_to:
 						self._logger.debug('client already received mail')
 						continue
 
@@ -1437,7 +1439,7 @@ class Server(Network):
 			else:
 				self._logger.debug('mail is not encrypted yet')
 
-				client = self._database.get_client_by_pid(mail.target.id)
+				client = self._database.get_client_by_pubid(mail.target.id)
 				if client is None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
@@ -1478,7 +1480,7 @@ class Server(Network):
 			if mail.verified == 'n':
 				self._logger.debug('mail is not verified')
 
-				_client = self._database.get_client_by_pid(mail.origin.id)
+				_client = self._database.get_client_by_pubid(mail.origin.id)
 
 				request_public_key_for_node_action = False
 				if _client is None:
@@ -1676,5 +1678,5 @@ class Server(Network):
 
 		self._database.changed()
 
-	def get_database(self) -> Database:
+	def get_database(self) -> Optional[Database]:
 		return self._database

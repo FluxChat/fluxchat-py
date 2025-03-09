@@ -124,11 +124,13 @@ class ServerApp():
 		self._api_app = web.Application()
 		self._api_app.add_routes([
 			web.get('/', self._handle_restapi),
+			web.get('/v1', self._handle_restapi),
 			web.get('/v1/infos', self._get_infos),
 			web.get('/v1/clients', self._get_clients),
-			web.get('/v1/messages', self._get_messages),
-			web.get('/v1/queue', self._get_queue),
-			web.get('/v1/addresses', self._get_addresses),
+			web.get('/v1/mails', self._get_mails),
+			web.get('/v1/mails/queue', self._get_queue),
+			web.get('/v1/nodes', self._get_nodes),
+			web.post('/v1/save', self._post_save),
 		])
 
 		self._api_runner = web.AppRunner(self._api_app)
@@ -180,15 +182,15 @@ class ServerApp():
 		)
 		return response
 
-	async def _get_messages(self, request: web_request.Request):
-		print(f'-> _get_messages')
+	async def _get_mails(self, request: web_request.Request):
+		print(f'-> _get_mails')
 
-		messages = []
-		if mail_db := self._server.get_mail_db():
-			for uuid, message in mail_db.get_mails().items():
-				messages.append(message.as_dict())
+		mails = []
+		if server_db := self._server.get_database():
+			for uuid, message in server_db.get_mails().items():
+				mails.append(message.as_dict())
 
-		json = {'messages': messages}
+		json = {'mails': mails}
 		response = web.Response(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
@@ -199,26 +201,39 @@ class ServerApp():
 		print(f'-> _get_queue')
 
 		messages = []
-		if mail_queue := self._server.get_mail_queue():
-			for uuid, message in mail_queue.get_mails().items():
+		if server_db := self._server.get_database():
+			for uuid, message in server_db.get_queue_mails().items():
 				messages.append(message.as_dict())
 
-		json = {'messages': messages}
+		json = {'queue': messages}
 		response = web.Response(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _get_addresses(self, request: web_request.Request):
-		print(f'-> _get_addresses')
+	async def _get_nodes(self, request: web_request.Request):
+		print(f'-> _get_nodes')
 
-		addresses = []
-		if address_book := self._server.get_addressbook():
-			for cuuid, client in address_book.get_clients().items():
-				addresses.append(client.as_dict())
+		nodes = []
+		if server_db := self._server.get_database():
+			for cuuid, client in server_db.get_clients().items():
+				nodes.append(client.as_dict())
 
-		json = {'addresses': addresses}
+		json = {'nodes': nodes}
+		response = web.Response(
+			text=dumps(json, indent=4, default=str),
+			content_type='application/json',
+		)
+		return response
+
+	async def _post_save(self, request: web_request.Request):
+		print(f'-> _post_save')
+
+		if server_db := self._server.get_database():
+			server_db.save()
+
+		json = {'status': 'OK'}
 		response = web.Response(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',

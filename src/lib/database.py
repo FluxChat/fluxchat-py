@@ -19,7 +19,7 @@ class Database():
 	_max_clients: int
 	_new_clients: list[Client]
 	_clients_by_uuid: dict[int, Client]
-	_clients_by_pid: dict[str, Client]
+	_clients_by_pubid: dict[str, Client]
 	_clients_to_remove: list[Client]
 	_mails_by_uuid: dict[str, Mail]
 	_queue_by_uuid: dict[str, Mail]
@@ -44,7 +44,7 @@ class Database():
 		self._cursor = None
 		self._new_clients = []
 		self._clients_by_uuid = dict()
-		self._clients_by_pid = dict()
+		self._clients_by_pubid = dict()
 		self._clients_to_remove = []
 		self._mails_by_uuid = dict()
 		self._queue_by_uuid = dict()
@@ -81,7 +81,7 @@ class Database():
 	def load(self):
 		# Load Nodes
 		self._logger.debug('load nodes')
-		nodes = self._cursor.execute('SELECT uuid, pid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add FROM nodes').fetchall()
+		nodes = self._cursor.execute('SELECT uuid, pubid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add FROM nodes').fetchall()
 		for node in nodes:
 			self._logger.debug(f'load node: {node}')
 			client = Client.from_db(node)
@@ -93,18 +93,18 @@ class Database():
 					self._logger.warning('Client UUID already exists: %s', client.uuid)
 				self._clients_by_uuid[client.uuid] = client
 
-			if client.pid is not None:
-				if client.pid in self._clients_by_pid:
-					self._logger.warning('Client ID already exists: %s', client.pid)
+			if client.pubid is not None:
+				if client.pubid in self._clients_by_pubid:
+					self._logger.warning('Client ID already exists: %s', client.pubid)
 
-				self._clients_by_pid[client.pid] = client
+				self._clients_by_pubid[client.pubid] = client
 
-				key_file_path = path.join(self._config['keys_dir'], client.pid + '.pem')
+				key_file_path = path.join(self._config['keys_dir'], client.pubid + '.pem')
 				if path.isfile(key_file_path):
 					client.load_public_key_from_pem_file(key_file_path)
 
 	def save(self) -> bool:
-		self._logger.debug('save() changes=%s cbuuid=%d cbid=%d', self._changes, len(self._clients_by_uuid), len(self._clients_by_pid))
+		self._logger.debug('save() changes=%s cbuuid=%d cbid=%d', self._changes, len(self._clients_by_uuid), len(self._clients_by_pubid))
 
 		if not self._changes:
 			return False
@@ -114,11 +114,11 @@ class Database():
 			self._logger.debug('new client: %s', client)
 			# Insert Client
 			sql = """
-			INSERT INTO nodes (pid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add)
+			INSERT INTO nodes (pubid, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			"""
 			self._cursor.execute(sql, (
-				client.pid,
+				client.pubid,
 				client.address, client.port,
 				client.created_at,
 				client.seen_at,
@@ -131,51 +131,29 @@ class Database():
 			client.uuid = self._cursor.lastrowid
 
 			self._clients_by_uuid[client.uuid] = client
-			self._clients_by_pid[client.pid] = client
+			self._clients_by_pubid[client.pubid] = client
 
 		self._new_clients = []
 
 		for client_uuid, client in self._clients_by_uuid.items():
-			self._logger.debug('save client: %s', client)
+			self._logger.debug('save client: c=%s %s', client.has_changed, client)
 
 			if not client.has_changed:
 				continue
 
-			if client.pid is not None:
-				key_file_path = path.join(self._config['keys_dir'], client.pid + '.pem')
+			if client.pubid is not None:
+				key_file_path = path.join(self._config['keys_dir'], client.pubid + '.pem')
 				if not path.isfile(key_file_path):
 					client.write_public_key_to_pem_file(key_file_path)
 
 			client.changed(False)
 
-			# if client.uuid is None:
-			# 	self._logger.debug('insert client: %s', client)
-			# 	# Insert Client
-			# 	sql = """
-			# 	INSERT INTO nodes (id, address, port, created_at, seen_at, used_at, meetings, is_bootstrap, is_trusted, debug_add)
-			# 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			# 	"""
-			# 	self._cursor.execute(sql, (
-			# 		client.pid,
-			# 		client.address, client.port,
-			# 		client.created_at,
-			# 		client.seen_at,
-			# 		client.used_at,
-			# 		client.meetings,
-			# 		client.is_bootstrap,
-			# 		client.is_trusted,
-			# 		client.debug_add))
-			# 	self._connection.commit()
-			# 	client.uuid = self._cursor.lastrowid
-
-			# 	self._clients_by_uuid[client.uuid] = client
-			# 	self._clients_by_pid[client.pid] = client
-			# else:
 			self._logger.debug('update client: %s', client)
 			# Update Client
 			sql = """
 			UPDATE nodes
-			SET address = ?, port = ?,
+			SET pubid =?,
+				address = ?, port = ?,
 				seen_at = ?,
 				used_at = ?,
 				meetings = ?,
@@ -185,6 +163,7 @@ class Database():
 			WHERE uuid = ?
 			"""
 			self._cursor.execute(sql, (
+				client.pubid,
 				client.address, client.port,
 				client.seen_at,
 				client.used_at,
@@ -211,7 +190,7 @@ class Database():
 		sql = """
 		CREATE TABLE IF NOT EXISTS nodes (
 			uuid INTEGER PRIMARY KEY,
-			pid VARCHAR(255) NULL,
+			pubid VARCHAR(255) NULL,
 			address VARCHAR(15) NOT NULL,
 			port INTEGER NOT NULL,
 			created_at TIMESTAMP NOT NULL,
@@ -252,10 +231,10 @@ class Database():
 			return self._clients_by_uuid[uuid]
 		return None
 
-	def get_client_by_pid(self, pid: str) -> Optional[Client]:
-		self._logger.debug('get_client_by_pid(%s)', pid)
-		if pid in self._clients_by_pid:
-			return self._clients_by_pid[pid]
+	def get_client_by_pubid(self, pubid: str) -> Optional[Client]:
+		self._logger.debug('get_client_by_pubid(%s)', pubid)
+		if pubid in self._clients_by_pubid:
+			return self._clients_by_pubid[pubid]
 		return None
 
 	def get_client_by_addr_port(self, addr: str, port: int) -> Optional[Client]:
@@ -270,22 +249,22 @@ class Database():
 			return _clients[0][1]
 		return None
 
-	def add_client(self, pid: str = None, addr: str = None, port: int = None) -> Client:
+	def add_client(self, pubid: str = None, addr: str = None, port: int = None) -> Client:
 		self._logger.debug('add_client(%s, %s, %s)', id, addr, port)
-		if pid in self._clients_by_pid:
-			self._logger.debug('client already exists: (%s, %s, %s)', pid, addr, port)
-			return self._clients_by_pid[pid]
+		if pubid in self._clients_by_pubid:
+			self._logger.debug('client already exists: (%s, %s, %s)', pubid, addr, port)
+			return self._clients_by_pubid[pubid]
 
 		client = Client()
-		if pid is not None:
-			client.set_pid(pid)
+		if pubid is not None:
+			client.set_pubid(pubid)
 		if addr is not None:
 			client.address = addr
 		if port is not None:
 			client.port = port
 
-		# if client.pid is not None:
-		# 	self._clients_by_pid[client.pid] = client
+		# if client.pubid is not None:
+		# 	self._clients_by_pubid[client.pubid] = client
 
 		self._new_clients.append(client)
 
@@ -297,8 +276,8 @@ class Database():
 	def append_client(self, client: Client) -> None:
 		self._logger.debug('append_client(%s)', client)
 
-		if client.pid is not None:
-			self._clients_by_pid[client.pid] = client
+		if client.pubid is not None:
+			self._clients_by_pubid[client.pubid] = client
 
 		self.changed()
 		self.save()
@@ -309,15 +288,15 @@ class Database():
 		if not force and client.is_trusted:
 			return False
 
-		key_file_path = path.join(self._config['keys_dir'], client.pid + '.pem')
+		key_file_path = path.join(self._config['keys_dir'], client.pubid + '.pem')
 		if path.isfile(key_file_path):
 			remove(key_file_path)
 
 		if client.uuid is not None and client.uuid in self._clients_by_uuid:
 			del self._clients_by_uuid[client.uuid]
 
-		if client.pid is not None:
-			del self._clients_by_pid[client.pid]
+		if client.pubid is not None:
+			del self._clients_by_pubid[client.pubid]
 
 		self._clients_to_remove.append(client)
 
@@ -345,8 +324,8 @@ class Database():
 
 			# self._clients_by_uuid[client.uuid] = client
 
-			# if client.pid is not None:
-			# 	self._clients_by_pid[client.pid] = client
+			# if client.pubid is not None:
+			# 	self._clients_by_pubid[client.pubid] = client
 
 			self._new_clients.append(client)
 
@@ -360,13 +339,13 @@ class Database():
 		self._logger.debug('hard_clean_up(%s)', local_id)
 
 		_clients_removed_c = 0
-		_clients_len = len(self._clients_by_pid)
+		_clients_len = len(self._clients_by_pubid)
 
 		# remove local_id
-		if local_id is not None and local_id in self._clients_by_pid:
-			del self._clients_by_pid[local_id]
+		if local_id is not None and local_id in self._clients_by_pubid:
+			del self._clients_by_pubid[local_id]
 
-		if len(self._clients_by_pid) <= self._max_clients:
+		if len(self._clients_by_pubid) <= self._max_clients:
 			return _clients_removed_c
 
 		# remove bootstrap clients with no meetings
@@ -374,7 +353,7 @@ class Database():
 			# client = cast(Client, _client_t[1])
 			return _client.is_bootstrap and _client.meetings == 0
 
-		_clients = list(self._clients_by_pid.values())
+		_clients = list(self._clients_by_pubid.values())
 		_clients = list(filter(ffunc1, _clients))
 		for client in _clients:
 			if self.remove_client(client):
@@ -387,7 +366,7 @@ class Database():
 		def ffunc2(_client: Client):
 			return dt.datetime.now(dt.UTC) - _client.used_at > self._clients_ttl
 
-		_clients = list(self._clients_by_pid.values())
+		_clients = list(self._clients_by_pubid.values())
 		_clients = list(filter(ffunc2, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
@@ -401,7 +380,7 @@ class Database():
 		def sfunc(_client: Client):
 			return _client.meetings
 
-		_clients = list(self._clients_by_pid.values())
+		_clients = list(self._clients_by_pubid.values())
 		_clients.sort(key=sfunc)
 
 		for client in _clients:
@@ -419,13 +398,13 @@ class Database():
 		_clients_removed_c = 0
 
 		# remove local_id
-		if local_id is not None and local_id in self._clients_by_pid:
-			del self._clients_by_pid[local_id]
+		if local_id is not None and local_id in self._clients_by_pubid:
+			del self._clients_by_pubid[local_id]
 
-		_clients_len = len(self._clients_by_pid)
+		_clients_len = len(self._clients_by_pubid)
 
 		# remove out-of-date clients (invalid client_retention_time)
-		_clients = list(self._clients_by_pid.values())
+		_clients = list(self._clients_by_pubid.values())
 		_clients = list(filter(lambda _client: dt.datetime.now(dt.UTC) - _client.used_at > self._clients_ttl and _client.meetings == 0, _clients))
 		_clients.sort(key=lambda _client: _client.used_at)
 		for client in _clients:
@@ -443,13 +422,15 @@ class Database():
 			print(f'-> sort_key node: {_client.node}')
 			return _client.node.distance(node)
 
-		_clients = list(self._clients_by_pid.values())
+		_clients = list(self._clients_by_pubid.values())
 		_clients.sort(key=sort_key)
 
 		if with_contact_infos:
 			_clients = list(filter(lambda _client: with_contact_infos == _client.has_contact(), _clients))
 
 		return _clients[:limit]
+
+	### Mails
 
 	def add_mail(self, mail: Mail) -> None:
 		self._logger.debug('add_mail %s', mail)
@@ -472,6 +453,8 @@ class Database():
 			return self._mails_by_uuid[mail_uuid]
 		except KeyError:
 			return None
+
+	## Queue
 
 	def add_queue_mail(self, mail: Mail) -> None:
 		self._logger.debug('add_mail(%s)', mail)

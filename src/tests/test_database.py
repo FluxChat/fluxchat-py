@@ -47,22 +47,22 @@ class AddressBookTestCase(TestCase):
 		database.remove_client(client1)
 		self.assertEqual(database.get_clients_len(), 1)
 
-	def test_get_client_by_pid(self):
+	def test_get_client_by_pubid(self):
 		database = Database(self.config)
 
 		client1 = database.add_client('FC_test1', 'localhost', 25001)
 
-		client1b = database.get_client_by_pid('FC_test1')
-		self.assertEqual(client1b.pid, 'FC_test1')
+		client1b = database.get_client_by_pubid('FC_test1')
+		self.assertEqual(client1b.pubid, 'FC_test1')
 
-		client1c = database.get_client_by_pid('FC_test1')
-		self.assertEqual(client1c.pid, 'FC_test1')
+		client1c = database.get_client_by_pubid('FC_test1')
+		self.assertEqual(client1c.pubid, 'FC_test1')
 
-		client3 = database.get_client_by_pid('FC_test3')
+		client3 = database.get_client_by_pubid('FC_test3')
 		self.assertEqual(client3, None)
 
 		client1e = database.get_client_by_addr_port('localhost', 25001)
-		self.assertEqual(client1e.pid, 'FC_test1')
+		self.assertEqual(client1e.pubid, 'FC_test1')
 
 		client2 = database.get_client_by_addr_port('localhost', 25002)
 		self.assertEqual(client2, None)
@@ -134,7 +134,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 2)
 
 		def mfunc(_client: tuple[int, Client]) -> str:
-			return _client[1].pid
+			return _client[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test2', 'FC_test3'])
@@ -163,7 +163,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 2)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test2', 'FC_test3'])
@@ -192,7 +192,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 2)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test2', 'FC_test3'])
@@ -221,7 +221,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 2)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2'])
@@ -280,7 +280,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 3)
 
 		def mfunc(_client: tuple[int, Client]) -> str:
-			return _client[1].pid
+			return _client[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2', 'FC_test3'])
@@ -309,7 +309,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 3)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2', 'FC_test3'])
@@ -338,7 +338,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 3)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2', 'FC_test3'])
@@ -367,7 +367,7 @@ class AddressBookTestCase(TestCase):
 		self.assertEqual(database.get_clients_len(), 3)
 
 		def mfunc(_client_t: tuple[int, Client]) -> str:
-			return _client_t[1].pid
+			return _client_t[1].pubid
 
 		clients = list(map(mfunc, database.get_clients().items()))
 		self.assertEqual(clients, ['FC_test1', 'FC_test2', 'FC_test3'])

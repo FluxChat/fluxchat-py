@@ -40,7 +40,7 @@ def generate_id_from_public_key_der(public_key_bytes: bytes) -> str:
 	# print('digest:', digest.hex())
 
 	base58_hash = b58encode(digest).decode()
-	return f'FC_{base58_hash}' # pid
+	return f'FC_{base58_hash}' # pubid
 
 def generate_test_id() -> str: # pragma: no cover
 	public_bytes = token_bytes(20)

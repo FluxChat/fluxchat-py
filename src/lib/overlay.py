@@ -3,31 +3,33 @@ from base58 import b58decode
 
 
 class Node():
-	pid: str
+	pubid: str
 
-	def __init__(self, pid: str):
-		self.pid = pid
+	def __init__(self, pubid: str):
+		print(f'-> Node.__init__() {pubid}')
+		self.pubid = pubid
 
 	def __str__(self): # pragma: no cover
-		return 'Node({})'.format(self.pid)
+		return 'Node({})'.format(self.pubid)
 
 	def __repr__(self): # pragma: no cover
-		return 'Node({})'.format(self.pid)
+		return 'Node({})'.format(self.pubid)
 
 	def __eq__(self, other):
 		if isinstance(other, str):
-			return self.pid == other
+			return self.pubid == other
 
 		if not isinstance(other, Node):
 			return False
 
-		return self.pid == other.pid
+		return self.pubid == other.pubid
 
 	def decode(self) -> bytes:
-		return b58decode(self.pid[3:])
+		print(f'-> Node.decode() -> {self.pubid}')
+		return b58decode(self.pubid[3:])
 
 	def has_valid_id(self) -> bool:
-		if self.pid[0:3] != 'FC_':
+		if self.pubid[0:3] != 'FC_':
 			return False
 
 		return len(self.decode()) == 32
@@ -36,8 +38,9 @@ class Node():
 		return Distance(self, other)
 
 	@staticmethod
-	def parse(pid: str):
-		node = Node(pid)
+	def parse(pubid: str):
+		print(f'-> Node.parse() {pubid}')
+		node = Node(pubid)
 		if not getenv('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
 			raise ValueError('Invalid ID')
 
@@ -50,6 +53,9 @@ class Distance():
 		self._distance = 256
 
 		if node1 is not None and node2 is not None:
+			print(f'-> node1: {node1}')
+			print(f'-> node2: {node2}')
+
 			id1 = node1.decode()
 			id2 = node2.decode()
 
