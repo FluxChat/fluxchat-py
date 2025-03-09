@@ -1,6 +1,6 @@
 
 import datetime as dt
-from json import dumps
+from json import dumps, loads
 from logging import getLogger, basicConfig, Logger
 from typing import Optional
 from sty import fg
@@ -8,9 +8,20 @@ from os import path
 from asyncio import create_task, gather, sleep as asleep
 from aiohttp import web, web_request
 
+from lib.database import Database
 from lib.helper import read_json_file
+from lib.mail import Mail
+from lib.overlay import Node, NodeError
 from lib.server import Server
 from lib.scheduler import Scheduler
+
+
+class RestApiError(Exception):
+	status: int = 500
+
+
+class RestApiServerError(RestApiError):
+	pass
 
 
 class ServerApp():
@@ -119,6 +130,13 @@ class ServerApp():
 			await self._api_app.shutdown()
 			await self._api_runner.shutdown()
 
+	async def get_database_for_restapi(self) -> Database:
+		server_db = self._server.get_database()
+		if server_db is None:
+			exception = RestApiServerError('Database is not available')
+			raise exception
+		return server_db
+
 	async def run_restapi(self, address: str, port: int):
 		self._api_app = web.Application()
 		self._api_app.add_routes([
@@ -127,6 +145,7 @@ class ServerApp():
 			web.get('/v1/infos', self._get_infos),
 			web.get('/v1/clients', self._get_clients),
 			web.get('/v1/mails', self._get_mails),
+			web.post('/v1/mails', self._post_mails),
 			web.get('/v1/mails/queue', self._get_queue),
 			web.get('/v1/nodes', self._get_nodes),
 			web.post('/v1/actions/save', self._post_save),
@@ -214,6 +233,64 @@ class ServerApp():
 			content_type='application/json',
 		)
 		return response
+
+	async def _post_mails(self, request: web_request.Request):
+		print(f'-> _post_mails')
+
+		try:
+			server_db = await self.get_database_for_restapi()
+
+			content = await request.json()
+
+			mail = Mail()
+			if 'target' in content:
+				mail.set_receiver(content['target'], True)
+			if 'subject' in content:
+				mail.subject = content['subject']
+			if 'body' in content:
+				mail.body = content['body']
+
+			queued_mails = server_db.add_queue_mail(mail)
+
+			json = {
+				'status': 'OK',
+				'request': content,
+				'mail': {
+					'uuid': mail.uuid,
+					'pubid': mail.pubid,
+					'valid_until': mail.valid_until,
+				},
+				'queued_mails': queued_mails,
+			}
+			response = web.Response(
+				text=dumps(json, indent=4, default=str),
+				content_type='application/json',
+			)
+			return response
+		except NodeError as error:
+			json = {'status': 'ERROR', 'message': str(error)}
+			response = web.Response(
+				status=400,
+				text=dumps(json, indent=4, default=str),
+				content_type='application/json',
+			)
+			return response
+		except RestApiError as error:
+			json = {'status': 'ERROR', 'message': str(error)}
+			response = web.Response(
+				status=error.status,
+				text=dumps(json, indent=4, default=str),
+				content_type='application/json',
+			)
+			return response
+		except Exception as error:
+			json = {'status': 'UNKNOWN_EXCEPTION', 'message': str(error)}
+			response = web.Response(
+				status=500,
+				text=dumps(json, indent=4, default=str),
+				content_type='application/json',
+			)
+			return response
 
 	async def _get_queue(self, request: web_request.Request):
 		print(f'-> _get_queue')

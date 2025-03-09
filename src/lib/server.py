@@ -1396,80 +1396,78 @@ class Server(Network):
 		self._logger.debug('handle_mail_queue() -> mails: %d', len(self._database.get_mails()))
 
 		for mail_uuid, mail in self._database.get_queue_mails().items():
-			self._logger.debug('mail %s', mail)
+			self._logger.debug('handle_mail_queue: mail %s', mail)
 
 			if mail.is_delivered:
-				self._logger.debug('mail is delivered')
+				self._logger.debug('handle_mail_queue: mail is delivered')
 				continue
 
 			if mail.target is None:
-				self._logger.debug('mail has no target')
+				self._logger.debug('handle_mail_queue: mail has no target')
 				continue
 
 			if mail.target == self._local_node.pubid:
-				self._logger.debug('mail is for me')
+				self._logger.debug('handle_mail_queue: mail is for me')
 				continue
 
 			clients = self._database.get_nearest_to(mail.target, with_contact_infos=True)
-			self._logger.debug('nearest clients to %s: %s', mail.target, clients)
+			self._logger.debug('handle_mail_queue: nearest clients to %s: %s', mail.target, clients)
 
 			if len(clients) == 0:
-				self._logger.debug('no nearest clients found. look for connected clients')
+				self._logger.debug('handle_mail_queue: no nearest clients found. look for connected clients')
 				def sort_key(_client: Client) -> Distance:
 					return _client.node.distance(mail.target)
 				clients = list(self._clients) # make copy
 				clients.sort(key=sort_key)
 
 			for client in clients:
-				self._logger.debug('client for mail: %s', client)
+				self._logger.debug('handle_mail_queue: client for mail: %s', client)
 				if self._client_is_connected(client):
 					# self._logger.debug('client is connected')
 					pass
 				else:
-					self._logger.debug('client is not connected C')
+					self._logger.debug('handle_mail_queue: client is not connected C')
 					self._client_connect(client)
 
 			if mail.is_encrypted:
-				self._logger.debug('mail is encrypted')
+				self._logger.debug('handle_mail_queue: mail is encrypted')
 
 				for client in clients:
-					self._logger.debug('client %s', client)
-					self._logger.debug('forwarded_to %s', mail.forwarded_to)
+					self._logger.debug('handle_mail_queue: client %s', client)
+					self._logger.debug('handle_mail_queue: forwarded_to %s', mail.forwarded_to)
 
 					if not self._client_is_connected(client):
-						self._logger.debug('client is not connected D')
+						self._logger.debug('handle_mail_queue: client is not connected D')
 						continue
 
 					if client.pubid in mail.forwarded_to:
-						self._logger.debug('client already received mail')
+						self._logger.debug('handle_mail_queue: client already received mail')
 						continue
 
 					if client.has_action('mail', mail.pubid):
-						self._logger.debug('client already has action')
+						self._logger.debug('handle_mail_queue: client already has action')
 						continue
 
-					self._logger.debug('add action for mail')
+					self._logger.debug('handle_mail_queue: add action for mail')
 					action = Action('mail', mail.pubid, data=mail)
 					action.valid_until = dt.datetime.now(dt.UTC) + self._client_action_retention_time
 					client.add_action(action)
 			else:
-				self._logger.debug('mail is not encrypted yet')
+				self._logger.debug('handle_mail_queue: mail is not encrypted yet')
 
 				client = self._database.get_client_by_pubid(mail.target.pubid)
 				if client is None or not client.has_public_key():
-					self._logger.debug('client is set and has no public key (clients=%d)', len(clients))
+					self._logger.debug('handle_mail_queue: client is set and has no public key (clients=%d)', len(clients))
 					for client in clients:
 
 						if client.has_action('request_public_key_for_node', mail.target.pubid):
-							self._logger.debug('client already has action request_public_key_for_node/%s', mail.target.pubid)
+							self._logger.debug('handle_mail_queue: client already has action request_public_key_for_node/%s', mail.target.pubid)
 						else:
-							self._logger.debug('create action request_public_key_for_node from client: %s', client)
+							self._logger.debug('handle_mail_queue: create action request_public_key_for_node from client: %s', client)
 
 							action = self._create_action_request_public_key_for_node(mail.target, 'o')
 
-							# TODO
 							action.func = lambda _client: self._encrypt_mail(mail, _client)
-							#action.func = lambda _client: print('-> HELLO CALLBACK')
 
 							client.add_action(action)
 				else:
@@ -1481,47 +1479,49 @@ class Server(Network):
 		self._logger.debug('handle_mail_db() -> len=%d', len(self._database.get_mails()))
 
 		for mail_uuid, mail in self._database.get_mails().items():
-			# self._logger.debug('mail %s', mail)
+			self._logger.debug('handle_mail_db: mail %s', mail)
 
 			clients = self._database.get_nearest_to(mail.origin, with_contact_infos=True)
-			# self._logger.debug('clients %s', clients)
+			self._logger.debug('handle_mail_db: clients %s', clients)
 
 			for client in clients:
-				# self._logger.debug('client for mail: %s', client)
+				self._logger.debug('handle_mail_db: client for mail: %s', client)
 				if self._client_is_connected(client):
 					pass
-					# self._logger.debug('client is connected')
+					self._logger.debug('handle_mail_db: client is connected')
 				else:
-					# self._logger.debug('client is not connected C')
+					self._logger.debug('handle_mail_db: client is not connected C')
 					self._client_connect(client)
 
 			if mail.verified == 'n':
-				self._logger.debug('mail is not verified')
+				self._logger.debug('handle_mail_db: mail is not verified')
 
 				_client = self._database.get_client_by_pubid(mail.origin.id)
 
 				request_public_key_for_node_action = False
 				if _client is None:
-					self._logger.debug('client not found by id: %s', mail.origin.id)
+					self._logger.debug('handle_mail_db: client not found by id: %s', mail.origin.id)
 					request_public_key_for_node_action = True
 				else:
-					self._logger.debug('client found by id: %s', mail.origin.id)
+					self._logger.debug('handle_mail_db: client found by id: %s', mail.origin.id)
 					if _client.has_public_key():
-						self._logger.debug('client has public key')
+						self._logger.debug('handle_mail_db: client has public key')
 						self._verify_mail(mail, _client)
 					else:
-						self._logger.debug('client has no public key')
+						self._logger.debug('handle_mail_db: client has no public key')
 						request_public_key_for_node_action = True
 
 				if request_public_key_for_node_action:
 					for client in clients:
 						if client.has_action('request_public_key_for_node', mail.origin.id):
-							self._logger.debug('client already has action request_public_key_for_node/%s', mail.origin.id)
+							self._logger.debug('handle_mail_db: client already has action request_public_key_for_node/%s', mail.origin.id)
 						else:
-							self._logger.debug('create action request_public_key_for_node from client: %s', client)
+							self._logger.debug('handle_mail_db: create action request_public_key_for_node from client: %s', client)
 							action = self._create_action_request_public_key_for_node(mail.origin, 'o')
 							action.func = lambda client: self._verify_mail(mail, client)
 							client.add_action(action)
+
+		self._logger.debug('handle_mail_db() end')
 
 	# Use public key to encrypt symmetric key.
 	# Use symmetric key to encrypt mail body.

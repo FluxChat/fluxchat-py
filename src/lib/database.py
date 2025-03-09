@@ -635,7 +635,7 @@ class Database():
 
 	### Queue
 
-	def add_queue_mail(self, mail: Mail) -> None:
+	def add_queue_mail(self, mail: Mail) -> int:
 		self._logger.debug('add_mail(%s)', mail)
 		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails))
 
@@ -643,12 +643,15 @@ class Database():
 		mail.changed()
 
 		self._new_queue_mails.append(mail)
+		qmails_l = len(self._new_queue_mails)
 		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
 		self.changed()
 		self.save()
 
 		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
+
+		return qmails_l
 
 	def get_queue_mails(self) -> dict[str, Mail]:
 		self._logger.debug('get_queue_mails() -> %d', len(self._new_queue_mails)) # TODO remove

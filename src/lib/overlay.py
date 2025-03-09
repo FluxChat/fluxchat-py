@@ -2,6 +2,10 @@ from os import getenv
 from base58 import b58decode
 
 
+class NodeError(ValueError):
+	pass
+
+
 class Node():
 	pubid: str
 
@@ -39,10 +43,9 @@ class Node():
 
 	@staticmethod
 	def parse(pubid: str):
-		# print(f'-> Node.parse() {pubid}')
 		node = Node(pubid)
 		if not getenv('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
-			raise ValueError('Invalid ID')
+			raise NodeError('Invalid Node PubID')
 
 		return node
 

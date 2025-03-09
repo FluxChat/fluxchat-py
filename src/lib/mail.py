@@ -9,7 +9,7 @@ from lib.helper import binary_encode, binary_decode
 
 
 class Mail():
-	uuid: int
+	uuid: int  # the name 'uuid' is actually misleading
 	pubid: str
 	sender: str
 	receiver: str
@@ -185,10 +185,12 @@ class Mail():
 		else:
 			self.sender = sender
 
-	def set_receiver(self, receiver: str):
+	def set_receiver(self, receiver: str, fail: bool = False):
 		try:
 			self.target = Node.parse(receiver)
-		except:
+		except Exception as error:
+			if fail:
+				raise error
 			self.target = None
 			self.receiver = None
 		else:
