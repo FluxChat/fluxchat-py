@@ -9,12 +9,13 @@ FluxChat uses asymetic-encryption to encrypt messages end-to-end. [TLS](https://
 Dependencies:
 
 - Python 3
-- [venv](https://docs.python.org/3/library/venv.html)
+- [virtualenv](https://docs.python.org/3/library/venv.html)
+- gettext
 
 Run this in your favourite shell, Bash.
 
 ```bash
-brew install libffi
+brew install gettext virtualenv
 git clone https://github.com/FluxChat/fluxchat-py.git
 cd fluxchat-py
 ./bin/setup.sh

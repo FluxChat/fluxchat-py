@@ -2,10 +2,6 @@
 
 SCRIPT_BASEDIR=$(dirname "$0")
 
-which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 1; }
-which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 1; }
-which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 1; }
-
 export FLUXCHAT_CONFIG=${FLUXCHAT_CONFIG:-./var/config1.json}
 export FLUXCHAT_ADDRESS=${FLUXCHAT_ADDRESS:-0.0.0.0}
 export FLUXCHAT_PORT=${FLUXCHAT_PORT:-25001}
@@ -13,11 +9,69 @@ export FLUXCHAT_CONTACT=${FLUXCHAT_CONTACT:-public} # public, private or ip:port
 export FLUXCHAT_DATA_DIR=${FLUXCHAT_DATA_DIR:-./var/data1}
 export FLUXCHAT_LOG_FILE=${FLUXCHAT_LOG_FILE:-fluxchat.log}
 export FLUXCHAT_IPC_PORT=${FLUXCHAT_IPC_PORT:-26001}
+export FLUXCHAT_RESTAPI_PORT=${FLUXCHAT_RESTAPI_PORT:-26002}
 export FLUXCHAT_KEY_PASSWORD=${FLUXCHAT_KEY_PASSWORD:-password}
 export FLUXCHAT_KEY_DERIVATION_ITERATIONS=${FLUXCHAT_KEY_DERIVATION_ITERATIONS:-600000}
 
+function catch_dep() {
+	local exit_code=$?
+	if [[ $exit_code -eq 3 ]] ; then
+		echo 'ERROR: missing dependencies'
+	fi
+}
+
+trap catch_dep EXIT
+
 cd "${SCRIPT_BASEDIR}/.."
-pwd
+echo "current directory: $PWD"
+
+arg1="$1"
+
+# Dependencies
+if [[ $arg1 == '--skip' ]] ; then
+	echo '-> skipping dependencies auto-install'
+else
+	kernel_name=$(uname -s)
+	if [[ -z "${kernel_name}" ]] ; then
+		echo '-> kernel name is empty'
+		echo '-> skipping dependencies auto-install'
+	else
+		if [[ "${kernel_name}" == Darwin ]] ; then
+			echo '-> macOS detected'
+			brew_bin=$(which brew)
+			if [[ -z "${brew_bin}" ]] ; then
+				echo '-> no brew binary found'
+				echo '-> skipping dependencies auto-install'
+			else
+				echo '-> homebrew detected'
+				if ${brew_bin} --version ; then
+					echo -n '-> Should we try to install the dependencies using homebrew? [y/n] '
+					read -r answer
+					if [[ "${answer}" == 'y' ]] ; then
+						echo '-> You selected "yes"'
+						sleep 2
+						echo '-> run brew install command'
+						if ${brew_bin} install gettext virtualenv ; then
+							echo '-> homebrew installation complete'
+						else
+							echo "ERROR: homebrew failed: $?"
+						fi
+					else
+						echo '-> You selected "no"'
+						echo '-> skipping dependencies auto-install'
+						sleep 2
+					fi
+				else
+					echo 'WARNING: cannot run homebrew. You have to install the dependecies manually.'
+				fi
+			fi
+		fi
+	fi
+fi
+
+which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 3; }
+which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 3; }
+which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 3; }
 
 echo "-> FLUXCHAT_CONFIG: ${FLUXCHAT_CONFIG}"
 echo "-> FLUXCHAT_ADDRESS: ${FLUXCHAT_ADDRESS}"
