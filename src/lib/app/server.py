@@ -3,6 +3,7 @@ import datetime as dt
 from logging import getLogger, basicConfig, Logger
 from sty import fg
 from os import path
+from asyncio import create_task, gather
 
 from lib.helper import read_json_file
 from lib.server import Server
@@ -84,9 +85,10 @@ class ServerApp():
 	def _load_config(self):
 		self._config = read_json_file(self._config_file)
 
-	def run(self):
+	async def run(self):
 		self._logger.info('run()')
-		self._scheduler.run()
+		scheduler_task = create_task(self._scheduler.run())
+		await gather(scheduler_task)
 		self._logger.info('run finished')
 
 	def shutdown(self, reason: str = None):

@@ -28,7 +28,7 @@ class Scheduler():
 		task = Task(execfunc, interval, one_shot)
 		self._tasks.append(task)
 
-	def run(self, max_cycles: int = None):
+	async def run(self, max_cycles: int = None):
 		self._logger.info('run()')
 		self._running = True
 		_sleep_time = self.SLEEP_TIME

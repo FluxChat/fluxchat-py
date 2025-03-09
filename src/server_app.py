@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+from asyncio import run as arun
 from signal import SIGINT, signal
 from argparse import ArgumentParser
 from lib.app.server import ServerApp
@@ -19,7 +19,7 @@ def main():
 
 	app.start()
 	try:
-		app.run()
+		arun(app.run())
 	except KeyboardInterrupt:
 		app.shutdown('KeyboardInterrupt')
 
