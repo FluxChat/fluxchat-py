@@ -116,8 +116,9 @@ class ServerApp():
 		self._running = False
 		self._logger.info('shutdown(%s)', reason)
 		self._scheduler.shutdown(reason)
-		await self._api_app.shutdown()
-		await self._api_runner.shutdown()
+		if self._api_app:
+			await self._api_app.shutdown()
+			await self._api_runner.shutdown()
 
 	async def run_restapi(self, address: str, port: int):
 		self._api_app = web.Application()
