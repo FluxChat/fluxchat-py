@@ -24,7 +24,7 @@ class Database():
 	_clients_to_remove: list[Client]
 	_mails_by_uuid: dict[int, Mail]
 	_new_queue_mails: list[Mail]
-	_queue_by_uuid: dict[str, Mail]
+	_queue_by_uuid: dict[int, Mail]
 	_queue_to_remove: list[Mail]
 	_changes: bool
 	_connection: Connection
@@ -105,8 +105,12 @@ class Database():
 				self._clients_by_pubid[client.pubid] = client
 
 				key_file_path = path.join(self._config['keys_dir'], client.pubid + '.pem')
+				self._logger.debug(f'load node public key: {key_file_path}')
 				if path.isfile(key_file_path):
+					self._logger.debug(f'is file: {key_file_path}')
 					client.load_public_key_from_pem_file(key_file_path)
+				else:
+					self._logger.debug(f'file not found: {key_file_path}')
 
 		# Load Mails
 		self._logger.debug('load queue')
@@ -155,7 +159,6 @@ class Database():
 
 			self._clients_by_uuid[client.uuid] = client
 			self._clients_by_pubid[client.pubid] = client
-
 		self._new_clients = []
 
 		self._logger.debug('save existing clients cbuuid=%d cbid=%d', len(self._clients_by_uuid), len(self._clients_by_pubid))
@@ -184,7 +187,7 @@ class Database():
 				is_bootstrap = ?,
 				is_trusted = ?,
 				debug_add = ?
-			WHERE uuid = ?
+			WHERE uuid = ?;
 			"""
 			self._cursor.execute(sql, (
 				client.pubid,
@@ -206,12 +209,12 @@ class Database():
 			sql = """DELETE FROM nodes WHERE uuid = ?;"""
 			self._cursor.execute(sql, (client.uuid,))
 			self._connection.commit()
-
 		self._clients_to_remove = []
 
+		### Queue
 		self._logger.debug('save new queue mails len=%d', len(self._new_queue_mails))
 		for mail in self._new_queue_mails:
-			self._logger.debug('new mail: %s', mail)
+			self._logger.debug('new queue mail: %s', mail)
 
 			# Insert Mail
 			sql = """
@@ -229,7 +232,40 @@ class Database():
 			mail.uuid = self._cursor.lastrowid
 
 			self._queue_by_uuid[mail.uuid] = mail
+		self._new_queue_mails = []
 
+		self._logger.debug('save existing queue mails len=%d', len(self._queue_by_uuid))
+		for mail_uuid, mail in self._queue_by_uuid.items():
+			sql = """
+			UPDATE queue
+			SET pubid = ?,
+				receiver = ?,
+				body = ?,
+				is_encrypted = ?,
+				created_at = ?,
+				valid_until = ?
+			WHERE uuid = ?;
+			"""
+			self._cursor.execute(sql, (
+				mail.pubid,
+				mail.receiver,
+				mail.body,
+				mail.is_encrypted,
+				mail.created_at,
+				mail.valid_until,
+				mail.uuid))
+			self._connection.commit()
+
+		self._logger.debug('queue to remove len=%d', len(self._queue_to_remove))
+		for mail in self._queue_to_remove:
+			self._logger.debug('remove mail: %s', mail)
+			# Remove Mail
+			sql = """DELETE FROM queue WHERE uuid = ?;"""
+			self._cursor.execute(sql, (mail.uuid,))
+			self._connection.commit()
+		self.queue_to_remove = []
+
+		### Mails
 		self._logger.debug('save mails len=%d', len(self._mails_by_uuid))
 		for mail_uuid, mail in self._mails_by_uuid.items():
 			self._logger.debug('save mail: %s', mail)
@@ -286,15 +322,7 @@ class Database():
 					mail.valid_until,
 					mail.uuid))
 				self._connection.commit()
-
-		self._logger.debug('queue to remove len=%d', len(self._queue_to_remove))
-		for mail in self._queue_to_remove:
-			self._logger.debug('remove mail: %s', mail)
-			# Remove Mail
-			sql = """DELETE FROM queue WHERE uuid = ?;"""
-			self._cursor.execute(sql, (mail.uuid,))
-			self._connection.commit()
-		self.queue_to_remove = []
+			mail.changed(False)
 
 		return True
 
@@ -607,24 +635,30 @@ class Database():
 
 	def add_queue_mail(self, mail: Mail) -> None:
 		self._logger.debug('add_mail(%s)', mail)
+		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails))
 
 		mail.valid_until = dt.datetime.now(dt.UTC) + self._mail_retention_time
 		mail.changed()
 
 		self._new_queue_mails.append(mail)
+		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
 		self.changed()
 		self.save()
 
+		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
+
 	def get_queue_mails(self) -> dict[str, Mail]:
+		self._logger.debug('get_queue_mails() -> %d', len(self._new_queue_mails)) # TODO remove
 		return self._queue_by_uuid
 
 	def has_queue_mail(self, mail_uuid: str) -> bool:
 		self._logger.debug('has_mail(%s)', mail_uuid)
+		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 		return mail_uuid in self._queue_by_uuid
 
 	def clean_queue_up(self) -> None:
-		self._logger.info('clean up')
+		self._logger.info('clean queue up')
 
 		def ffunc(_mail_t: tuple[str, Mail]):
 			_mail = cast(Mail, _mail_t[1])

@@ -9,7 +9,6 @@ from asyncio import create_task, gather, sleep as asleep
 from aiohttp import web, web_request
 
 from lib.helper import read_json_file
-# from lib.restapi import get_restapi_app
 from lib.server import Server
 from lib.scheduler import Scheduler
 
@@ -131,6 +130,7 @@ class ServerApp():
 			web.get('/v1/mails/queue', self._get_queue),
 			web.get('/v1/nodes', self._get_nodes),
 			web.post('/v1/actions/save', self._post_save),
+			web.post('/v1/actions/db', self._post_handle_mail_db),
 			web.post('/v1/actions/queue', self._post_handle_mail_queue),
 		])
 
@@ -159,9 +159,18 @@ class ServerApp():
 	async def _get_infos(self, request: web_request.Request):
 		print(f'-> _get_infos')
 
+		db_server = self._server.get_database()
+
 		json = {
+			'node': {
+				'id': self._server.get_local_node().pubid,
+				'contact': self._server.get_contact(),
+			},
 			'server': {
 				'is_bootstrap_phase': self._server.is_bootstrap_phase(),
+				'clients': len(db_server.get_clients()),
+				'mails': len(db_server.get_mails()),
+				'queue_mails': len(db_server.get_queue_mails()),
 			}
 		}
 		response = web.Response(
@@ -175,7 +184,9 @@ class ServerApp():
 
 		clients = []
 		for client in self._server.get_clients():
-			clients.append(client.as_dict())
+			client_d = client.as_dict()
+			client_d['has_public_key'] = client.has_public_key()
+			clients.append(client_d)
 		json = {'clients': clients}
 		response = web.Response(
 			text=dumps(json, indent=4, default=str),
@@ -233,6 +244,18 @@ class ServerApp():
 
 		if server_db := self._server.get_database():
 			server_db.save()
+
+		json = {'status': 'OK'}
+		response = web.Response(
+			text=dumps(json, indent=4, default=str),
+			content_type='application/json',
+		)
+		return response
+
+	async def _post_handle_mail_db(self, request: web_request.Request):
+		print(f'-> _post_handle_mail_db')
+
+		self._server.handle_mail_db()
 
 		json = {'status': 'OK'}
 		response = web.Response(

@@ -67,6 +67,10 @@ class Mail():
 		# self._logger.debug('as_dict()')
 
 		data = dict()
+		if self.uuid is not None:
+			data['uuid'] = self.uuid
+		if self.pubid is not None:
+			data['pubid'] = self.pubid
 		if self.sender is not None:
 			data['sender'] = self.sender
 		if self.receiver is not None:
@@ -139,7 +143,7 @@ class Mail():
 		mail.uuid = uuid
 		mail.set_receiver(receiver)
 		mail.body = body
-		mail.is_encrypted = is_encrypted
+		mail.is_encrypted = bool(is_encrypted)
 		mail.created_at = dt.datetime.fromisoformat(created_at)
 		mail.valid_until = dt.datetime.fromisoformat(valid_until)
 
@@ -157,9 +161,9 @@ class Mail():
 		mail.subject = subject
 		mail.body = body
 		mail.forwarded_to = loads(forwarded_to)
-		mail.is_encrypted = is_encrypted
-		mail.is_delivered = is_delivered
-		mail.is_new = is_new
+		mail.is_encrypted = bool(is_encrypted)
+		mail.is_delivered = bool(is_delivered)
+		mail.is_new = bool(is_new)
 		mail.verified = verified
 		mail.sign_hash = sign_hash
 		mail.sign = sign

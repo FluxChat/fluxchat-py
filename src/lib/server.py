@@ -8,7 +8,7 @@ from base64 import b64encode, b64decode
 from typing import Optional, cast
 from uuid import uuid4
 from os import path, getenv, getpid, mkdir, remove
-from logging import getLogger
+from logging import Logger, getLogger
 
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -31,6 +31,8 @@ SSL_HANDSHAKE_TIMEOUT = 5
 SSL_MINIMUM_VERSION = TLSVersion.TLSv1_2
 
 class Server(Network):
+	_logger: Logger
+	_ipc_logger: Logger
 	_config: dict
 	_selectors: DefaultSelector
 	_main_server_socket: Socket
@@ -64,6 +66,9 @@ class Server(Network):
 
 		self._logger = getLogger('app.server')
 		self._logger.info('init()')
+
+		self._ipc_logger = getLogger('app.ipc')
+		self._ipc_logger.info('init()')
 
 		self._config = config
 
@@ -209,7 +214,7 @@ class Server(Network):
 
 		if 'ipc' in self._config and self._config['ipc']['enabled']:
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
-			self._logger.debug('ipc %s', ipc_addr)
+			self._ipc_logger.debug('ipc %s', ipc_addr)
 
 			# IPv4
 			self._ipc_server_socket = Socket(AF_INET, SOCK_STREAM)
@@ -272,6 +277,9 @@ class Server(Network):
 			return self._config['contact']
 
 		return 'N/A'
+
+	def get_local_node(self) -> Node:
+		return self._local_node
 
 	def _client_is_connected(self, client: Client) -> bool:
 		# self._logger.debug('_client_is_connected()')
@@ -827,6 +835,7 @@ class Server(Network):
 							_client.load_public_key_from_pem(public_key_raw)
 							if _client.verify_public_key():
 								self._logger.debug('public key verified')
+								_client.changed()
 								self._database.changed()
 							else:
 								self._logger.debug('public key not verified')
@@ -967,10 +976,10 @@ class Server(Network):
 		try:
 			raw = sock.recv(2048)
 		except TimeoutError as e:
-			self._logger.error('IPC TimeoutError: %s', e)
+			self._ipc_logger.error('TimeoutError: %s', e)
 			return
 		except ConnectionResetError as e:
-			self._logger.error('IPC ConnectionResetError: %s', e)
+			self._ipc_logger.error('ConnectionResetError: %s', e)
 			raw = False
 
 		if raw:
@@ -989,8 +998,8 @@ class Server(Network):
 					command = raw[raw_pos]
 					raw_pos += 1
 				except IndexError as e:
-					self._logger.error('IPC IndexError: %s', e)
-					self._logger.error('IPC unregister socket')
+					self._ipc_logger.error('IndexError: %s', e)
+					self._ipc_logger.error('unregister socket')
 					self._selectors.unregister(sock)
 					return
 
@@ -1001,21 +1010,21 @@ class Server(Network):
 					length = int.from_bytes(raw[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
 				except StructError as e:
-					self._logger.error('IPC struct.error: %s', e)
-					self._logger.error('IPC unregister socket')
+					self._ipc_logger.error('struct.error: %s', e)
+					self._ipc_logger.error('unregister socket')
 					self._selectors.unregister(sock)
 					return
 
 				payload_raw = raw[raw_pos:]
 				payload_items = []
 
-				self._logger.debug('IPC group: %d', group)
-				self._logger.debug('IPC command: %d', command)
-				self._logger.debug('IPC length: %d %s', length, type(length))
+				self._ipc_logger.debug('group: %d', group)
+				self._ipc_logger.debug('command: %d', command)
+				self._ipc_logger.debug('length: %d %s', length, type(length))
 
 				pos = 0
 				while pos < length:
-					self._logger.debug('IPC pos: %d', pos)
+					self._ipc_logger.debug('pos: %d', pos)
 					if lengths_are_4_bytes:
 						# item_len = unpack('<I', payload_raw[pos:pos + 4])[0]
 						item_len = int.from_bytes(payload_raw[pos:pos + 4], 'little')
@@ -1024,10 +1033,10 @@ class Server(Network):
 						item_len = payload_raw[pos]
 					pos += 1
 
-					self._logger.debug('IPC item len: %d', item_len)
+					self._ipc_logger.debug('item len: %d', item_len)
 
 					item = payload_raw[pos:pos + item_len]
-					self._logger.debug('IPC item: %s', item)
+					self._ipc_logger.debug('item: %s', item)
 
 					payload_items.append(item.decode())
 					pos += item_len
@@ -1037,36 +1046,36 @@ class Server(Network):
 
 			self._ipc_client_commands(sock, commands)
 		else:
-			self._logger.debug('no data')
+			self._ipc_logger.debug('no data')
 
-			self._logger.debug('IPC unregister socket')
+			self._ipc_logger.debug('unregister socket')
 			self._selectors.unregister(sock)
 
 	def _ipc_client_commands(self, sock: Socket, commands: RawCommandsType):
-		self._logger.debug('_ipc_client_commands()')
-		self._logger.debug('commands: %s', commands)
+		self._ipc_logger.debug('_ipc_client_commands()')
+		self._ipc_logger.debug('commands: %s', commands)
 
 		for group_i, command_i, payload in commands:
 			payload_len = len(payload)
 
-			self._logger.debug('group %d, command %d', group_i, command_i)
-			self._logger.debug('payload_len: %d', payload_len)
-			self._logger.debug('payload: %s', payload)
+			self._ipc_logger.debug('group %d, command %d', group_i, command_i)
+			self._ipc_logger.debug('payload_len: %d', payload_len)
+			self._ipc_logger.debug('payload: %s', payload)
 
 			if group_i == 0: # Basic
 				if command_i == 0:
-					self._logger.info('OK command')
+					self._ipc_logger.info('OK command')
 
 			elif group_i == 1:
 				if command_i == 0:
-					self._logger.info('SEND MAIL command')
+					self._ipc_logger.info('SEND MAIL command')
 
 					print(f'-> payload: {payload}')
 
 					target = payload[0]
 					body = payload[1]
-					self._logger.debug('target: %s', target)
-					self._logger.debug('body: %s', body)
+					self._ipc_logger.debug('target: %s', target)
+					self._ipc_logger.debug('body: %s', body)
 
 					mail = Mail()
 					mail.set_receiver(target)
@@ -1074,17 +1083,17 @@ class Server(Network):
 
 					self._database.add_queue_mail(mail)
 
-					self._logger.debug('pubid: %s', mail.pubid)
+					self._ipc_logger.debug('pubid: %s', mail.pubid)
 
 					self._client_send_ok(sock)
 
 				elif command_i == 1:
-					self._logger.info('LIST MAILS command')
+					self._ipc_logger.info('LIST MAILS command')
 
 					flags_i = int.from_bytes(payload[0], 'little')
 					only_new = flags_i & 1 != 0
-					self._logger.debug('flags_i: %d', flags_i)
-					self._logger.debug('only_new: %s', only_new)
+					self._ipc_logger.debug('flags_i: %d', flags_i)
+					self._ipc_logger.debug('only_new: %s', only_new)
 
 					mails = list(self._database.get_mails())
 
@@ -1106,48 +1115,48 @@ class Server(Network):
 						chunks.append(encoded_mails)
 
 					chunks_len = len(chunks)
-					self._logger.debug('chunks_len: %d', chunks_len)
+					self._ipc_logger.debug('chunks_len: %d', chunks_len)
 
 					for n in range(chunks_len):
-						self._logger.debug('chunk n: %d', n)
+						self._ipc_logger.debug('chunk n: %d', n)
 						self._ipc_client_send_list_mail(sock, chunks_len, n, chunks[n])
 
 				elif command_i == 2:
-					self._logger.info('READ MAIL command')
+					self._ipc_logger.info('READ MAIL command')
 
 					m_uuid = payload[0].decode()
-					self._logger.debug('m_uuid: %s', m_uuid)
+					self._ipc_logger.debug('m_uuid: %s', m_uuid)
 
 					mail = self._database.get_mail(m_uuid)
 					if mail is None:
-						self._logger.error('mail not found')
+						self._ipc_logger.error('mail not found')
 						mail_encoded = None
 					else:
-						self._logger.debug('mail: %s', mail)
+						self._ipc_logger.debug('mail: %s', mail)
 
 						mail_encoded = mail.ipc_encode()
-						self._logger.debug('mail_encoded: %s', mail_encoded)
+						self._ipc_logger.debug('mail_encoded: %s', mail_encoded)
 
 					self._ipc_client_send_read_mail(sock, mail_encoded)
 
 			elif group_i == 2:
 				if command_i == 0:
-					self._logger.debug('SAVE command')
+					self._ipc_logger.debug('SAVE command')
 					self.save()
 
 				if command_i == 1:
-					self._logger.debug('STOP command')
+					self._ipc_logger.debug('STOP command')
 					# self._scheduler.shutdown('STOP command') # TODO
 
 	def _ipc_client_send_list_mail(self, sock: Socket, chunks_len: int, chunk_num: int, mails: list[bytes]):
-		self._logger.debug('_ipc_client_send_list_mail()')
-		self._logger.debug('mails: %s', mails)
+		self._ipc_logger.debug('_ipc_client_send_list_mail()')
+		self._ipc_logger.debug('mails: %s', mails)
 
 		self._client_write(sock, 1, 1, [chunks_len, chunk_num] + mails)
 
 	def _ipc_client_send_read_mail(self, sock: Socket, mail: str):
-		self._logger.debug('_ipc_client_send_read_mail()')
-		self._logger.debug('mail: %s', mail)
+		self._ipc_logger.debug('_ipc_client_send_read_mail()')
+		self._ipc_logger.debug('mail: %s', mail)
 
 		if mail is not None:
 			data = [1, mail]
@@ -1451,7 +1460,9 @@ class Server(Network):
 
 							action = self._create_action_request_public_key_for_node(mail.target, 'o')
 
+							# TODO
 							action.func = lambda _client: self._encrypt_mail(mail, _client)
+							#action.func = lambda _client: print('-> HELLO CALLBACK')
 
 							client.add_action(action)
 				else:
@@ -1460,7 +1471,7 @@ class Server(Network):
 		return True
 
 	def handle_mail_db(self) -> bool:
-		# self._logger.debug('handle_mail_db()')
+		self._logger.debug('handle_mail_db() -> len=%d', len(self._database.get_mails()))
 
 		for mail_uuid, mail in self._database.get_mails().items():
 			# self._logger.debug('mail %s', mail)
@@ -1508,7 +1519,7 @@ class Server(Network):
 	# Use public key to encrypt symmetric key.
 	# Use symmetric key to encrypt mail body.
 	def _encrypt_mail(self, mail: Mail, client: Client):
-		self._logger.debug('_encrypt_mail() -> {}'.format(mail.is_encrypted))
+		self._logger.debug('_encrypt_mail() -> is_encrypted={}'.format(mail.is_encrypted))
 		self._logger.debug('mail %s', mail)
 		self._logger.debug('client %s', client)
 
@@ -1582,6 +1593,7 @@ class Server(Network):
 
 		mail.body = encoded
 		mail.is_encrypted = True
+		mail.changed()
 
 		client.refresh_used_at()
 		self._database.changed()

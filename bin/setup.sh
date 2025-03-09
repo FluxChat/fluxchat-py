@@ -65,6 +65,8 @@ else
 					echo 'WARNING: cannot run homebrew. You have to install the dependecies manually.'
 				fi
 			fi
+		elif [[ "${kernel_name}" == Linux ]] ; then
+			echo '-> Linux detected'
 		fi
 	fi
 fi
