@@ -8,6 +8,10 @@ if test -f ${pid_file} ; then
 	echo "-> found pid file"
 
 	pid=$(cat ${pid_file})
+	if [[ -z "${pid}" ]]; then
+		echo "-> pid file is empty"
+		exit 1
+	fi
 	echo "-> pid: ${pid}"
 
 	echo "-> killing process with SIGINT"
