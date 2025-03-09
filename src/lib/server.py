@@ -72,7 +72,7 @@ class Server(Network):
 
 		self._config = config
 
-		# TODO: use below
+		# TODO: use self._contact
 		if 'contact' in self._config:
 			self._contact = Contact.resolve(self._config['contact'])
 		else:
@@ -916,7 +916,7 @@ class Server(Network):
 		])
 
 	def _client_send_id(self, sock: Socket, proof: str, nonce: int):
-		self._logger.debug('_client_send_id(%s, %d)', proof, nonce)
+		self._logger.debug('_client_send_id(p=%s, n=%d)', proof, nonce)
 		data = [
 			VERSION,
 			self._config['id'],
