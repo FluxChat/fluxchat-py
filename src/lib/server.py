@@ -1,6 +1,6 @@
 
 import datetime as dt
-from socket import socket as Socket, timeout as SocketTimeout, gaierror as SocketGetaddrinfo, gethostname, gethostbyname, create_server, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
+from socket import socket as Socket, timeout as SocketTimeout, gaierror as SocketGetaddrinfo, gethostname, gethostbyname, create_server, AF_INET, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
 from selectors import DefaultSelector, EVENT_READ
 from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT, CERT_NONE
 from struct import unpack, error as StructError
@@ -184,15 +184,10 @@ class Server(Network):
 		self._main_server_ssl.minimum_version = SSL_MINIMUM_VERSION
 		self._main_server_ssl.load_cert_chain(certfile=self._certificate_file, keyfile=self._config['private_key_file'], password=self._pkd)
 
-		# self._main_server_socket = Socket(AF_INET6, SOCK_STREAM, dualstack_ipv6=True)
-		# self._main_server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-
 		try:
-			# self._logger.debug('bind %s:%s', self._config['address'], self._config['port'])
-			# self._main_server_socket.bind((self._config['address'], self._config['port']))
-
 			self._logger.debug('create server %s:%s', self._config['address'], self._config['port'])
-			self._main_server_socket = create_server((self._config['address'], self._config['port']), family=AF_INET6, reuse_port=True, dualstack_ipv6=True)
+			# IPv4
+			self._main_server_socket = create_server((self._config['address'], self._config['port']), family=AF_INET, reuse_port=True)
 		except OSError as e:
 			self._logger.error('OSError: %s', e)
 			raise e
@@ -208,12 +203,13 @@ class Server(Network):
 		if 'discovery' in self._config and self._config['discovery']['enabled']:
 			self._logger.debug('discovery')
 
-			self._discovery_socket = Socket(AF_INET6, SOCK_DGRAM) # UDP
+			# IPv4
+			self._discovery_socket = Socket(AF_INET, SOCK_DGRAM) # UDP
 			self._discovery_socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
 			self._discovery_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 
 			try:
-				self._discovery_socket.bind(('::0', self._config['discovery']['port']))
+				self._discovery_socket.bind(('0.0.0.0', self._config['discovery']['port']))
 			except OSError as e:
 				self._logger.error('OSError: %s', e)
 				raise e
@@ -232,7 +228,8 @@ class Server(Network):
 			ipc_addr = (self._config['ipc']['address'], self._config['ipc']['port'])
 			self._logger.debug('ipc %s', ipc_addr)
 
-			self._ipc_server_socket = Socket(AF_INET6, SOCK_STREAM)
+			# IPv4
+			self._ipc_server_socket = Socket(AF_INET, SOCK_STREAM)
 			self._ipc_server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 			self._ipc_server_socket.bind(ipc_addr)
 			self._ipc_server_socket.listen()
@@ -397,7 +394,8 @@ class Server(Network):
 		client_ssl.check_hostname = False
 		client_ssl.verify_mode = CERT_NONE
 
-		client_sock = Socket(AF_INET6, SOCK_STREAM)
+		# IPv4
+		client_sock = Socket(AF_INET, SOCK_STREAM)
 		client_sock.settimeout(2)
 		try:
 			self._logger.debug('client sock connect to %s:%s', client.address, client.port)

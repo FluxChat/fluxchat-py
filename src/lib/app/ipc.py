@@ -2,7 +2,7 @@
 import datetime as dt
 from logging import getLogger, basicConfig, DEBUG
 from selectors import DefaultSelector, EVENT_READ
-from socket import socket as Socket, timeout as SocketTimeout, AF_INET6, SOCK_STREAM
+from socket import socket as Socket, timeout as SocketTimeout, AF_INET, AF_INET6, SOCK_STREAM
 from typing import Optional
 
 from lib.network import Network, SocketReadStatus
@@ -310,7 +310,8 @@ class IpcApp(Network):
 	def _client_connect(self):
 		self._logger.info('_client_connect()')
 
-		sock = Socket(AF_INET6, SOCK_STREAM)
+		# IPv4
+		sock = Socket(AF_INET, SOCK_STREAM)
 		sock.settimeout(2)
 		try:
 			self._logger.debug('sock.connect to %s:%s', self._ipc_config['address'], self._ipc_config['port'])
