@@ -643,7 +643,6 @@ class Database():
 		mail.changed()
 
 		self._new_queue_mails.append(mail)
-		qmails_l = len(self._new_queue_mails)
 		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
 		self.changed()
@@ -651,7 +650,7 @@ class Database():
 
 		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
-		return qmails_l
+		return len(self._queue_by_uuid)
 
 	def get_queue_mails(self) -> dict[str, Mail]:
 		self._logger.debug('get_queue_mails() -> %d', len(self._new_queue_mails)) # TODO remove
@@ -680,3 +679,13 @@ class Database():
 			self.changed()
 
 			self._queue_to_remove.append(mail)
+
+	def delete_queue_mails(self) -> int:
+		old_len = len(self._queue_by_uuid)
+		self._queue_by_uuid = dict()
+
+		sql = """DELETE FROM queue;"""
+		self._cursor.execute(sql)
+		self._connection.commit()
+
+		return old_len

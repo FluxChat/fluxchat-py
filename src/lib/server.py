@@ -1475,6 +1475,10 @@ class Server(Network):
 
 		return True
 
+	def delete_mail_queue(self) -> int:
+		self._logger.debug('delete_mail_queue()')
+		return self._database.delete_queue_mails()
+
 	def handle_mail_db(self) -> bool:
 		self._logger.debug('handle_mail_db() -> len=%d', len(self._database.get_mails()))
 
