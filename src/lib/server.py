@@ -1,6 +1,6 @@
 
 import datetime as dt
-from socket import socket as Socket, timeout as SocketTimeout, gethostname, gethostbyname, create_server, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
+from socket import socket as Socket, timeout as SocketTimeout, gaierror as SocketGetaddrinfo, gethostname, gethostbyname, create_server, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
 from selectors import DefaultSelector, EVENT_READ
 from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT, CERT_NONE
 from struct import unpack, error as StructError
@@ -411,6 +411,12 @@ class Server(Network):
 			return False
 		except SocketTimeout as e:
 			self._logger.error('SocketTimeout: %s', e)
+			return False
+		except SocketGetaddrinfo as e:
+			self._logger.error('SocketGetaddrinfo: %s', e)
+			return False
+		except OSError as e:
+			self._logger.error('OSError: %s', e)
 			return False
 
 		client_sock.settimeout(None)
