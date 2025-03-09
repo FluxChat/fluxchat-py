@@ -1,5 +1,4 @@
 
-# import os
 from os import path, remove
 from unittest import TestCase
 from lib.address_book import AddressBook
@@ -11,8 +10,10 @@ BOOTSTRAP_PATH = 'tmp/tests/bootstrap.json'
 class AddressBookTestCase(TestCase):
 	def setUp(self) -> None:
 		self.config = {
+			'data_dir': 'tmp/tests',
 			'keys_dir': 'tmp/tests/keys',
 			'address_book': {
+				'file_name': 'test.db',
 				'max_clients': 2,
 				'client_retention_time': 24,
 			},

@@ -3,16 +3,16 @@ import datetime as dt
 from base64 import b64encode
 from uuid import uuid4
 from logging import getLogger
-import lib.overlay as overlay
-from lib.helper import read_json_file, write_json_file, binary_encode, binary_decode
+from lib.overlay import Node
+from lib.helper import binary_encode, binary_decode
 
 
 class Mail():
 	uuid: str
 	sender: str
 	receiver: str
-	origin: overlay.Node
-	target: overlay.Node
+	origin: Node
+	target: Node
 	subject: str
 	body: str
 	created_at: dt.datetime
@@ -25,6 +25,7 @@ class Mail():
 	verified: str
 	sign_hash: str
 	sign: str
+	_changes: bool
 
 	def __init__(self, uuid_s: str = None):
 		if uuid_s is None:
@@ -47,6 +48,7 @@ class Mail():
 		self.verified = None
 		self.sign_hash = None
 		self.sign = None
+		self._changes = False
 
 		self._logger = getLogger('app.mail')
 
@@ -55,6 +57,9 @@ class Mail():
 
 	def __repr__(self): # pragma: no cover
 		return self.__str__()
+
+	def changed(self, value: bool = True):
+		self._changes = value
 
 	def as_dict(self) -> dict:
 		# self._logger.debug('as_dict()')
@@ -132,7 +137,7 @@ class Mail():
 		# self._logger.debug('set_sender(%s)', sender)
 
 		try:
-			self.origin = overlay.Node.parse(sender)
+			self.origin = Node.parse(sender)
 		except:
 			self.origin = None
 			self.sender = None
@@ -281,147 +286,89 @@ class Mail():
 		if 0x31 in data:
 			self.body = data[0x31].decode()
 
-class Queue():
-	_path: str
-	_config: dict
-	_mail_config: dict
-	_mails_by_uuid: dict[str, Mail]
-	_changes: bool
-	_retention_time: dt.timedelta
 
-	def __init__(self, path: str, config: dict = None):
-		self._path = path
-		self._config = config
-		self._mail_config = self._config['mail']
-		self._mails_by_uuid = dict()
-		self._changes = False
+# class Queue():
+# 	_path: str
+# 	_config: dict
+# 	_mail_config: dict
+# 	_mails_by_uuid: dict[str, Mail]
+# 	_changes: bool
+# 	_retention_time: dt.timedelta
 
-		self._retention_time = dt.timedelta(hours=self._mail_config['retention_time'])
+# 	def __init__(self, path: str, config: dict = None):
+# 		self._path = path
+# 		self._config = config
+# 		self._mail_config = self._config['mail']
+# 		self._mails_by_uuid = dict()
+# 		self._changes = False
 
-		self._logger = getLogger('app.mail.Queue')
-		self._logger.info('init()')
+# 		self._retention_time = dt.timedelta(hours=self._mail_config['retention_time'])
 
-	def load(self):
-		self._logger.info('load')
+# 		self._logger = getLogger('app.mail.Queue')
+# 		self._logger.info('init()')
 
-		_data = read_json_file(self._path, {})
-		for m_uuid, row in _data.items():
-			mail = Mail(m_uuid)
-			mail.from_dict(row)
+# 	def load(self):
+# 		self._logger.info('load')
 
-			self._logger.debug('load mail: %s', mail)
+# 		_data = read_json_file(self._path, {})
+# 		for m_uuid, row in _data.items():
+# 			mail = Mail(m_uuid)
+# 			mail.from_dict(row)
 
-			self._mails_by_uuid[m_uuid] = mail
+# 			self._logger.debug('load mail: %s', mail)
 
-	def save(self) -> bool:
-		self._logger.info('save() changes=%s', self._changes)
+# 			self._mails_by_uuid[m_uuid] = mail
 
-		if not self._changes:
-			return False
+# 	def save(self) -> bool:
+# 		self._logger.info('save() changes=%s', self._changes)
 
-		_data = dict()
-		for mail_uuid, mail in self._mails_by_uuid.items():
-			_data[mail_uuid] = mail.as_dict()
+# 		if not self._changes:
+# 			return False
 
-		write_json_file(self._path, _data)
-		self._changes = False
+# 		_data = dict()
+# 		for mail_uuid, mail in self._mails_by_uuid.items():
+# 			_data[mail_uuid] = mail.as_dict()
 
-		return True
+# 		write_json_file(self._path, _data)
+# 		self._changes = False
 
-	def add_mail(self, mail: Mail):
-		self._logger.debug('add_mail(%s)', mail)
+# 		return True
 
-		mail.valid_until = dt.datetime.now(dt.UTC) + self._retention_time
 
-		self._mails_by_uuid[mail.uuid] = mail
-		self._changes = True
+# class Database():
+# 	_path: str
+# 	_data: dict[str, Mail]
+# 	_changes: bool
 
-	def get_mails(self) -> dict[str, Mail]:
-		return self._mails_by_uuid
+# 	def __init__(self, path: str) -> None:
+# 		self._path = path
+# 		self._data = dict()
+# 		self._changes = False
 
-	def has_mail(self, mail_uuid: str) -> bool:
-		self._logger.debug('has_mail(%s)', mail_uuid)
-		return mail_uuid in self._mails_by_uuid
+# 		self._logger = getLogger('app.mail.Database')
+# 		self._logger.info('init()')
 
-	def changed(self):
-		self._changes = True
+# 	def load(self):
+# 		self._logger.info('load()')
 
-	def clean_up(self):
-		self._logger.info('clean up')
+# 		data = read_json_file(self._path, {})
+# 		for mail_uuid, mail_raw in data.items():
+# 			mail = Mail(mail_uuid)
+# 			mail.from_dict(mail_raw)
 
-		remove_mails = []
+# 			self._logger.debug('load mail: %s', mail)
 
-		def ffunc(_mail):
-			return _mail[1].valid_until is not None and dt.datetime.now(dt.UTC) >= _mail[1].valid_until
-		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
-		self._logger.debug('old mails A: %s', old_mails)
-		remove_mails += old_mails
+# 			self._data[mail_uuid] = mail
 
-		for mail_uuid, mail in remove_mails:
-			self._logger.debug('remove mail: %s', mail)
+# 	def save(self):
+# 		self._logger.info('save() changes=%s', self._changes)
 
-			del self._mails_by_uuid[mail_uuid]
-			self._changes = True
+# 		if not self._changes:
+# 			return
 
-class Database():
-	_path: str
-	_data: dict[str, Mail]
-	_changes: bool
+# 		data = dict()
+# 		for mail_uuid, mail in self._data.items():
+# 			data[mail_uuid] = mail.as_dict()
 
-	def __init__(self, path: str) -> None:
-		self._path = path
-		self._data = dict()
-		self._changes = False
-
-		self._logger = getLogger('app.mail.Database')
-		self._logger.info('init()')
-
-	def load(self):
-		self._logger.info('load()')
-
-		data = read_json_file(self._path, {})
-		for mail_uuid, mail_raw in data.items():
-			mail = Mail(mail_uuid)
-			mail.from_dict(mail_raw)
-
-			self._logger.debug('load mail: %s', mail)
-
-			self._data[mail_uuid] = mail
-
-	def save(self):
-		self._logger.info('save() changes=%s', self._changes)
-
-		if not self._changes:
-			return
-
-		data = dict()
-		for mail_uuid, mail in self._data.items():
-			data[mail_uuid] = mail.as_dict()
-
-		write_json_file(self._path, data)
-		self._changes = False
-
-	def changed(self):
-		self._changes = True
-
-	def add_mail(self, mail: Mail):
-		self._logger.debug('add_mail %s', mail)
-
-		self._data[mail.uuid] = mail
-		self._changes = True
-
-	def has_mail(self, mail_uuid: str) -> bool:
-		self._logger.debug('has_mail %s', mail_uuid)
-		return mail_uuid in self._data
-
-	def get_mails(self) -> dict[str, Mail]:
-		return self._data
-
-	def get_mail(self, mail_uuid: str) -> Mail:
-		self._logger.debug('get_mail %s', mail_uuid)
-		self._logger.debug('_data %s', self._data)
-
-		try:
-			return self._data[mail_uuid]
-		except KeyError:
-			return None
+# 		write_json_file(self._path, data)
+# 		self._changes = False

@@ -153,7 +153,7 @@ class Network():
 
 		return status
 
-	def _client_write(self, sock: Socket, group: int, command: int, data: list = []):
+	def _client_write(self, sock: Socket, group: int, command: int, data: list[bytes] = []):
 		self._logger.debug('_client_write(%d, %d, %s)', group, command, data)
 
 		flag_lengths_are_4_bytes = False

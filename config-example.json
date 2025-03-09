@@ -8,9 +8,13 @@
 		"min": 15,
 		"max": 20
 	},
-	"address_book": {
+	"database": {
+		"file_name": "fluxchat.db",
 		"max_clients": 20,
 		"client_retention_time": 24
+	},
+	"mail": {
+		"retention_time": 24
 	},
 	"client": {
 		"auth_timeout": 10,
@@ -30,9 +34,6 @@
 		"enabled": true,
 		"address": "127.0.0.1",
 		"port": ${FLUXCHAT_RESTAPI_PORT}
-	},
-	"mail": {
-		"retention_time": 24
 	},
 	"log": {
 		"level": "debug",

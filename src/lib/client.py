@@ -192,16 +192,20 @@ class Client():
 			self.address = data[1]
 			self.port = int(data[2])
 
-	def refresh_seen_at(self):
+	def from_db() -> 'Client':
+		# TODO sqlite3
+		pass
+
+	def refresh_seen_at(self) -> None:
 		self.seen_at = dt.datetime.now(dt.UTC)
 
-	def refresh_used_at(self):
+	def refresh_used_at(self) -> None:
 		self.used_at = dt.datetime.now(dt.UTC)
 
-	def inc_meetings(self):
+	def inc_meetings(self) -> None:
 		self.meetings += 1
 
-	def set_id(self, id: str):
+	def set_id(self, id: str) -> None:
 		self.id = id
 		self.node = Node.parse(id)
 
@@ -214,14 +218,14 @@ class Client():
 	def add_action(self, action: Action):
 		self.actions.append(action)
 
-	def get_actions(self, soft_reset: bool = False) -> list:
+	def get_actions(self, soft_reset: bool = False) -> list[Action]:
 		_actions = list(self.actions)
 		if soft_reset:
 			self.soft_reset_actions()
 		return _actions
 
 	# Remove actions with is_strong == False
-	def soft_reset_actions(self) -> list:
+	def soft_reset_actions(self) -> list[Action]:
 		strong_actions = list(filter(lambda _action: _action.is_strong, self.actions))
 		actions = list(self.actions)
 		self.actions = strong_actions
@@ -246,13 +250,13 @@ class Client():
 			return found[0]
 		return None
 
-	def remove_action(self, action: Action):
+	def remove_action(self, action: Action) -> None:
 		self.actions.remove(action)
 
 	def has_contact(self) -> bool:
 		return self.address is not None and self.port is not None
 
-	def load_public_key_from_pem_file(self, path: str):
+	def load_public_key_from_pem_file(self, path: str) -> None:
 		with open(path, 'rb') as f:
 			key = f.read()
 
@@ -273,7 +277,7 @@ class Client():
 
 		return True
 
-	def load_public_key_from_pem(self, raw: str):
+	def load_public_key_from_pem(self, raw: str) -> None:
 		print(f'-> load_public_key_from_pem: {raw}')
 		der_key = b64decode(raw)
 		# self.public_key = serialization.load_pem_public_key(raw)
@@ -291,7 +295,7 @@ class Client():
 
 		return b64encode(public_bin).decode()
 
-	def reset_public_key(self):
+	def reset_public_key(self) -> None:
 		self.public_key = None
 
 	def has_public_key(self) -> bool:
@@ -316,7 +320,7 @@ class Client():
 			)
 		)
 
-	def reset(self):
+	def reset(self) -> None:
 		self.sock = None
 		self.conn_mode = 0
 		self.dir_mode = None

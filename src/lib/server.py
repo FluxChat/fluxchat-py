@@ -5,6 +5,7 @@ from selectors import DefaultSelector, EVENT_READ
 from ssl import TLSVersion, SSLContext, PROTOCOL_TLS_SERVER, PROTOCOL_TLS_CLIENT, CERT_NONE
 from struct import unpack, error as StructError
 from base64 import b64encode, b64decode
+from typing import cast
 from uuid import uuid4
 from os import path, getenv, getpid, mkdir, remove
 from logging import getLogger
@@ -15,9 +16,9 @@ from cryptography.fernet import Fernet
 from cryptography.exceptions import InvalidSignature
 
 from lib.client import Client, Action
-from lib.address_book import AddressBook
+from lib.database import Database
 from lib.helper import is_valid_uuid, binary_encode, binary_decode, password_key_derivation
-from lib.mail import Mail, Queue as MailQueue, Database as MailDatabase
+from lib.mail import Mail
 from lib.network import Network, RawCommandsType, SslHandshakeError
 from lib.cash import Cash
 from lib.contact import Contact
@@ -35,9 +36,7 @@ class Server(Network):
 	_main_server_socket: Socket
 	_discovery_socket: Socket
 	_ipc_server_socket: Socket
-	_address_book: AddressBook
-	_mail_queue: MailQueue
-	_mail_db: MailDatabase
+	_databank: Database
 	_hostname: str
 	_lan_ip: str
 	_clients: list[Client]
@@ -57,9 +56,6 @@ class Server(Network):
 		self._public_key = None
 		self._public_key_b64 = None
 		self._private_key = None
-		self._address_book = None
-		self._mail_queue = None
-		self._mail_db = None
 		self._wrote_pid_file = False
 		self._client_auth_timeout = None
 		self._client_action_retention_time = None
@@ -106,21 +102,12 @@ class Server(Network):
 			if not path.isdir(self._config['keys_dir']):
 				mkdir(self._config['keys_dir'])
 
-			address_book_path = path.join(self._config['data_dir'], 'address_book.json')
-			self._address_book = AddressBook(address_book_path, self._config)
-			self._address_book.load()
+			self._database = Database(self._config)
+			self._database.load()
 
 			bootstrap_path = path.join(self._config['data_dir'], 'bootstrap.json')
 			if path.isfile(bootstrap_path):
-				self._address_book.add_bootstrap(bootstrap_path)
-
-			mail_queue_path = path.join(self._config['data_dir'], 'mail_queue.json')
-			self._mail_queue = MailQueue(mail_queue_path, self._config)
-			self._mail_queue.load()
-
-			mail_db_path = path.join(self._config['data_dir'], 'mail_db.json')
-			self._mail_db = MailDatabase(mail_db_path)
-			self._mail_db.load()
+				self._database.add_bootstrap(bootstrap_path)
 
 		if 'challenge' not in self._config:
 			self._config['challenge'] = {'min': 15, 'max': 20}
@@ -141,14 +128,7 @@ class Server(Network):
 		self._logger.info('__del__()')
 		self._selectors.close()
 
-		if self._address_book:
-			self._address_book.save()
-
-		if self._mail_queue:
-			self._mail_queue.save()
-
-		if self._mail_db:
-			self._mail_db.save()
+		self._database.save()
 
 		self._remove_pid_file()
 
@@ -350,9 +330,9 @@ class Server(Network):
 		if not c_contact.is_valid:
 			return
 
-		client = self._address_book.get_client_by_addr_port(c_contact.addr, c_contact.port)
+		client = self._database.get_client_by_addr_port(c_contact.addr, c_contact.port)
 		if client is None:
-			client = self._address_book.add_client(addr=c_contact.addr, port=c_contact.port)
+			client = self._database.add_client(addr=c_contact.addr, port=c_contact.port)
 			client.debug_add = 'discovery, contact: {}'.format(c_contact_raw)
 		else:
 			self._logger.debug('client: %s', client)
@@ -569,15 +549,15 @@ class Server(Network):
 
 						if c_has_contact_info:
 							# Client sent contact info
-							_client = self._address_book.get_client_by_id(c_id)
+							_client = self._database.get_client_by_id(c_id)
 							if _client is None:
 								self._logger.debug('client not found by ID (A)')
 
-								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
+								_client = self._database.get_client_by_addr_port(c_contact_addr, c_contact_port)
 								if _client is None:
 									self._logger.debug('client not found by Addr:Port (B)')
 
-									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
+									_client = self._database.add_client(c_id, c_contact_addr, c_contact_port)
 									_client.dir_mode = client.dir_mode
 									_client.debug_add = 'id command, incoming, contact infos, not found by id, not found by addr:port, original: ' + client.debug_add
 								else:
@@ -589,11 +569,11 @@ class Server(Network):
 							_client.port = c_contact_port
 						else:
 							# Client sent no contact info
-							_client = self._address_book.get_client_by_id(c_id)
+							_client = self._database.get_client_by_id(c_id)
 							if _client is None:
 								self._logger.debug('client not found C')
 
-								_client = self._address_book.add_client(c_id)
+								_client = self._database.add_client(c_id)
 								_client.dir_mode = client.dir_mode
 								_client.debug_add = 'id command, incoming, no contact infos, not found by id, original: ' + client.debug_add
 							else:
@@ -631,7 +611,7 @@ class Server(Network):
 					_client.challenge = client.challenge
 
 					# Update Address Book because also an existing client can be updated
-					self._address_book.changed()
+					self._database.changed()
 
 					if c_switch and _client != client:
 						self._logger.debug('switch client')
@@ -666,7 +646,7 @@ class Server(Network):
 						continue
 
 					client_ids = []
-					clients = self._address_book.get_nearest_to(node, with_contact_infos=True)
+					clients = self._database.get_nearest_to(node, with_contact_infos=True)
 					for _client in clients:
 						self._logger.debug('client: %s %s', _client, _client.distance(node))
 						if _client.id != self._local_node.id and _client.id != node.id:
@@ -700,15 +680,14 @@ class Server(Network):
 						if c_id == self._local_node.id:
 							continue
 
-						_client = self._address_book.get_client_by_id(c_id)
+						_client = self._database.get_client_by_id(c_id)
 						if _client is None:
 							self._logger.debug('client not found')
-							_client = self._address_book.add_client(c_id, c_contact.addr, c_contact.port)
+							_client = self._database.add_client(c_id, c_contact.addr, c_contact.port)
 							_client.debug_add = 'nearest response, not found by id'
 
 							_c_distance = _client.distance(self._local_node)
 							if _c_distance < distance:
-								# distance = _client.distance(self._local_node)
 								distance = _c_distance
 								self._logger.debug('new distance: %s', distance)
 
@@ -731,7 +710,7 @@ class Server(Network):
 					self._logger.info('REQUEST PUBLIC KEY FOR NODE command')
 
 					is_relay = False
-					fwd_clients = []
+					fwd_clients: list[Client] = []
 					node_id = payload[0].decode()
 					self._logger.debug('node id: %s', node_id)
 
@@ -747,12 +726,12 @@ class Server(Network):
 					else:
 						self._logger.debug('not local node')
 
-						_client = self._address_book.get_client_by_id(target.id)
+						_client = self._database.get_client_by_id(target.id)
 						if _client is None:
 							self._logger.debug('client not found')
 
 							is_relay = True
-							fwd_clients = self._address_book.get_nearest_to(target, with_contact_infos=True)
+							fwd_clients = self._database.get_nearest_to(target, with_contact_infos=True)
 						else:
 							self._logger.debug('client found: %s', _client)
 
@@ -782,8 +761,10 @@ class Server(Network):
 
 								action = self._create_action_request_public_key_for_node(target, 'r')
 
-								action.func = lambda _arg_client: self._client_response_public_key_for_node(sock, target.id, _arg_client.get_base64_public_key())
+								def _action_func(_arg_client: Client):
+									self._client_response_public_key_for_node(sock, target.id, _arg_client.get_base64_public_key())
 
+								action.func = _action_func
 								_client.add_action(action)
 
 				elif command_i == 4:
@@ -812,7 +793,7 @@ class Server(Network):
 
 					self._logger.debug('action: %s', action)
 
-					_client = self._address_book.get_client_by_id(node.id)
+					_client = self._database.get_client_by_id(node.id)
 					if _client is None:
 						self._logger.debug('client not found')
 
@@ -824,7 +805,7 @@ class Server(Network):
 						if _client.verify_public_key():
 							self._logger.debug('public key verified')
 
-							self._address_book.append_client(_client)
+							self._database.append_client(_client)
 							self._logger.debug('client added: %s', _client)
 						else:
 							self._logger.debug('public key not verified')
@@ -838,7 +819,7 @@ class Server(Network):
 							_client.load_public_key_from_pem(public_key_raw)
 							if _client.verify_public_key():
 								self._logger.debug('public key verified')
-								self._address_book.changed()
+								self._database.changed()
 							else:
 								self._logger.debug('public key not verified')
 								_client.reset_public_key()
@@ -863,11 +844,11 @@ class Server(Network):
 						self._logger.debug('invalid mail uuid')
 						continue
 
-					if self._mail_db.has_mail(mail_uuid):
+					if self._database.has_mail(mail_uuid):
 						self._logger.debug('DB, mail already exists')
 						continue
 
-					if self._mail_queue.has_mail(mail_uuid):
+					if self._database.has_queue_mail(mail_uuid):
 						self._logger.debug('QUEUE, mail already exists')
 						continue
 
@@ -890,11 +871,13 @@ class Server(Network):
 					if mail_target == self._local_node:
 						self._logger.debug('mail target is local node')
 						self._decrypt_mail(mail)
-						self._mail_db.add_mail(mail)
+
+						self._database.add_mail(mail)
 					else:
 						self._logger.debug('mail target is not local node')
 						mail.forwarded_to.append(client.id)
-						self._mail_queue.add_mail(mail)
+
+						self._database.get_queue_mails(mail)
 
 			else:
 				self._logger.debug('unknown group %d, command %d', group_i, command_i)
@@ -1080,7 +1063,8 @@ class Server(Network):
 					mail = Mail()
 					mail.set_receiver(target)
 					mail.body = body
-					self._mail_queue.add_mail(mail)
+
+					self._database.add_queue_mail(mail)
 
 					self._logger.debug('uuid: %s', mail.uuid)
 
@@ -1094,17 +1078,23 @@ class Server(Network):
 					self._logger.debug('flags_i: %d', flags_i)
 					self._logger.debug('only_new: %s', only_new)
 
-					mails = list(self._mail_db.get_mails())
+					mails = list(self._database.get_mails())
 
 					if only_new:
-						mails = list(filter(lambda _mail: _mail[1].is_new, mails))
-						# mails = dict(filter(lambda _mail: _mail[1].is_new, mails))
+						def filter_mails(_mail_t: tuple[str, Mail]) -> bool:
+							_mail = cast(Mail, _mail_t[1])
+							return _mail.is_new
+						mails = list(filter(filter_mails, self._database.get_mails()))
 
-					# print('mails: %s' % mails)
+					print(f'mails: {mails}')
 
-					chunks = []
+					def filter_encoded_mails(_mail_t: tuple[str, Mail]) -> bytes:
+						_mail = cast(Mail, _mail_t[1])
+						return _mail.ipc_encode()
+
+					chunks: list[bytes] = []
 					for n in range(0, len(mails), 5):
-						encoded_mails = list(map(lambda _mail: _mail[1].ipc_encode(), mails[n:n + 5]))
+						encoded_mails = list(map(filter_encoded_mails, mails[n:n + 5]))
 						chunks.append(encoded_mails)
 
 					chunks_len = len(chunks)
@@ -1120,7 +1110,7 @@ class Server(Network):
 					m_uuid = payload[0].decode()
 					self._logger.debug('m_uuid: %s', m_uuid)
 
-					mail = self._mail_db.get_mail(m_uuid)
+					mail = self._database.get_mail(m_uuid)
 					if mail is None:
 						self._logger.error('mail not found')
 						mail_encoded = None
@@ -1139,9 +1129,9 @@ class Server(Network):
 
 				if command_i == 1:
 					self._logger.debug('STOP command')
-					self._scheduler.shutdown('STOP command')
+					# self._scheduler.shutdown('STOP command') # TODO
 
-	def _ipc_client_send_list_mail(self, sock: Socket, chunks_len: int, chunk_num: int, mails: list):
+	def _ipc_client_send_list_mail(self, sock: Socket, chunks_len: int, chunk_num: int, mails: list[bytes]):
 		self._logger.debug('_ipc_client_send_list_mail()')
 		self._logger.debug('mails: %s', mails)
 
@@ -1198,7 +1188,7 @@ class Server(Network):
 	def contact_address_book(self) -> bool:
 		self._logger.debug('contact_address_book()')
 
-		_clients = list(self._address_book.get_clients().values())
+		_clients = list(self._database.get_clients().values())
 		_clients.sort(key=lambda _client: _client.meetings, reverse=True)
 
 		# self._logger.debug('clients: %d', len(_clients))
@@ -1286,21 +1276,14 @@ class Server(Network):
 
 	def save(self) -> bool:
 		self._logger.debug('save()')
-
-		self._address_book.save()
-		self._mail_queue.save()
-		self._mail_db.save()
-
+		self._database.save()
 		return True
 
 	def clean_up(self) -> bool:
 		self._logger.debug('clean_up')
-
-		# self._address_book.hard_clean_up(self._local_node.id)
-		self._address_book.soft_clean_up(self._local_node.id)
-
-		self._mail_queue.clean_up()
-
+		self._database.hard_clean_up(self._local_node.id)
+		self._database.soft_clean_up(self._local_node.id)
+		self._database.clean_queue_up()
 		return True
 
 	def debug_clients(self) -> bool:
@@ -1333,15 +1316,16 @@ class Server(Network):
 					action.data['try'] += 1
 
 				elif action.id == 'mail':
-					mail = action.data
+					mail = cast(Mail, action.data)
 					self._logger.debug('mail %s', mail)
 
 					self._client_send_mail(client.sock, mail)
 
 					mail.forwarded_to.append(client.id)
 					mail.is_delivered = client.id == mail.target
+					mail.changed()
 
-					self._mail_queue.changed()
+					self._database.changed()
 
 				elif action.id == 'test':
 					had_actions = True
@@ -1369,8 +1353,8 @@ class Server(Network):
 
 	def is_bootstrap_phase(self) -> bool:
 		if self._config['bootstrap'] == 'default':
-			clients_len = self._address_book.get_clients_len()
-			bootstrap_clients_len = self._address_book.get_bootstrap_clients_len()
+			clients_len = self._database.get_clients_len()
+			bootstrap_clients_len = self._database.get_bootstrap_clients_len()
 			return clients_len <= bootstrap_clients_len
 
 		return bool(self._config['bootstrap'])
@@ -1378,7 +1362,7 @@ class Server(Network):
 	def handle_mail_queue(self) -> bool:
 		self._logger.debug('handle_mail_queue()')
 
-		for mail_uuid, mail in self._mail_queue.get_mails().items():
+		for mail_uuid, mail in self._database.get_mails().items():
 			self._logger.debug('mail %s', mail)
 
 			if mail.is_delivered:
@@ -1393,7 +1377,7 @@ class Server(Network):
 				self._logger.debug('mail is for me')
 				continue
 
-			clients = self._address_book.get_nearest_to(mail.target, with_contact_infos=True)
+			clients = self._database.get_nearest_to(mail.target, with_contact_infos=True)
 			self._logger.debug('clients %s', clients)
 
 			for client in clients:
@@ -1431,7 +1415,7 @@ class Server(Network):
 			else:
 				self._logger.debug('mail is not encrypted yet')
 
-				client = self._address_book.get_client_by_id(mail.target.id)
+				client = self._database.get_client_by_id(mail.target.id)
 				if client is None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
@@ -1454,10 +1438,10 @@ class Server(Network):
 	def handle_mail_db(self) -> bool:
 		# self._logger.debug('handle_mail_db()')
 
-		for mail_uuid, mail in self._mail_db.get_mails():
+		for mail_uuid, mail in self._database.get_mails().items():
 			# self._logger.debug('mail %s', mail)
 
-			clients = self._address_book.get_nearest_to(mail.origin, with_contact_infos=True)
+			clients = self._database.get_nearest_to(mail.origin, with_contact_infos=True)
 			# self._logger.debug('clients %s', clients)
 
 			for client in clients:
@@ -1472,7 +1456,7 @@ class Server(Network):
 			if mail.verified == 'n':
 				self._logger.debug('mail is not verified')
 
-				_client = self._address_book.get_client_by_id(mail.origin.id)
+				_client = self._database.get_client_by_id(mail.origin.id)
 
 				request_public_key_for_node_action = False
 				if _client is None:
@@ -1575,10 +1559,8 @@ class Server(Network):
 		mail.body = encoded
 		mail.is_encrypted = True
 
-		self._mail_queue.changed()
-
 		client.refresh_used_at()
-		self._address_book.changed()
+		self._database.changed()
 
 	def _decrypt_mail(self, mail: Mail):
 		self._logger.debug('_decrypt_mail()')
@@ -1636,7 +1618,7 @@ class Server(Network):
 		mail.sign = b64encode(signature).decode()
 		mail.decode(raw_body)
 
-		self._mail_db.changed()
+		self._database.changed()
 
 	def _verify_mail(self, mail: Mail, client: Client):
 		self._logger.debug('_verify_mail()')
@@ -1670,13 +1652,7 @@ class Server(Network):
 			mail.sign_hash = None
 			mail.sign = None
 
-		self._mail_db.changed()
+		self._database.changed()
 
-	def get_addressbook(self) -> AddressBook:
-		return self._address_book
-
-	def get_mail_db(self) -> MailDatabase:
-		return self._mail_db
-
-	def get_mail_queue(self) -> MailQueue:
-		return self._mail_queue
+	def get_database(self) -> Database:
+		return self._database
