@@ -303,8 +303,8 @@ class Database():
 		CREATE TABLE IF NOT EXISTS nodes (
 			uuid INTEGER PRIMARY KEY,
 			pubid VARCHAR(255) NULL,
-			address VARCHAR(15) NOT NULL,
-			port INTEGER NOT NULL,
+			address VARCHAR(15) NULL,
+			port INTEGER NULL,
 			meetings INTEGER NOT NULL DEFAULT 0,
 			is_bootstrap BOOLEAN NOT NULL DEFAULT FALSE,
 			is_trusted BOOLEAN NOT NULL DEFAULT FALSE,
