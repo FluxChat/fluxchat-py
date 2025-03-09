@@ -594,6 +594,8 @@ class Database():
 		return _clients_removed_c
 
 	def get_nearest_to(self, node: Node, limit: int = 20, with_contact_infos: bool = None) -> list[Client]:
+		self._logger.debug('get_nearest_to(%s)', node)
+
 		def sort_key(_client: Client) -> Distance:
 			print(f'-> sort_key client: {_client}')
 			print(f'-> sort_key node: {_client.node}')

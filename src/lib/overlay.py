@@ -6,7 +6,7 @@ class Node():
 	pubid: str
 
 	def __init__(self, pubid: str):
-		print(f'-> Node.__init__() {pubid}')
+		# print(f'-> Node.__init__() {pubid}')
 		self.pubid = pubid
 
 	def __str__(self): # pragma: no cover
@@ -25,7 +25,7 @@ class Node():
 		return self.pubid == other.pubid
 
 	def decode(self) -> bytes:
-		print(f'-> Node.decode() -> {self.pubid}')
+		# print(f'-> Node.decode() -> {self.pubid}')
 		return b58decode(self.pubid[3:])
 
 	def has_valid_id(self) -> bool:
@@ -39,7 +39,7 @@ class Node():
 
 	@staticmethod
 	def parse(pubid: str):
-		print(f'-> Node.parse() {pubid}')
+		# print(f'-> Node.parse() {pubid}')
 		node = Node(pubid)
 		if not getenv('IS_UNITTEST') and not node.has_valid_id(): # pragma: no cover
 			raise ValueError('Invalid ID')
@@ -53,8 +53,8 @@ class Distance():
 		self._distance = 256
 
 		if node1 is not None and node2 is not None:
-			print(f'-> node1: {node1}')
-			print(f'-> node2: {node2}')
+			# print(f'-> node1: {node1}')
+			# print(f'-> node2: {node2}')
 
 			id1 = node1.decode()
 			id2 = node2.decode()

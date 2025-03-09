@@ -1411,7 +1411,14 @@ class Server(Network):
 				continue
 
 			clients = self._database.get_nearest_to(mail.target, with_contact_infos=True)
-			self._logger.debug('clients %s', clients)
+			self._logger.debug('nearest clients to %s: %s', mail.target, clients)
+
+			if len(clients) == 0:
+				self._logger.debug('no nearest clients found. look for connected clients')
+				def sort_key(_client: Client) -> Distance:
+					return _client.node.distance(mail.target)
+				clients = list(self._clients) # make copy
+				clients.sort(key=sort_key)
 
 			for client in clients:
 				self._logger.debug('client for mail: %s', client)
@@ -1450,7 +1457,7 @@ class Server(Network):
 
 				client = self._database.get_client_by_pubid(mail.target.pubid)
 				if client is None or not client.has_public_key():
-					self._logger.debug('client is set and has no public key')
+					self._logger.debug('client is set and has no public key (clients=%d)', len(clients))
 					for client in clients:
 
 						if client.has_action('request_public_key_for_node', mail.target.pubid):

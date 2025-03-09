@@ -186,6 +186,12 @@ class ServerApp():
 		for client in self._server.get_clients():
 			client_d = client.as_dict()
 			client_d['has_public_key'] = client.has_public_key()
+			client_d['has_contact_info'] = client.has_contact()
+			client_d['conn_mode'] = client.conn_mode
+			client_d['conn_msg'] = client.conn_msg
+			client_d['dir_mode'] = client.dir_mode
+			client_d['auth'] = client.auth
+			client_d['cash'] = client.cash
 			clients.append(client_d)
 		json = {'clients': clients}
 		response = web.Response(
