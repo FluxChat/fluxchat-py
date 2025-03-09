@@ -27,7 +27,7 @@ class Mail():
 	sign: str
 
 	def __init__(self, uuid_s: str = None):
-		if uuid_s == None:
+		if uuid_s is None:
 			self.uuid = str(uuid4())
 		else:
 			self.uuid = uuid_s
@@ -60,33 +60,33 @@ class Mail():
 		# self._logger.debug('as_dict()')
 
 		data = dict()
-		if self.sender != None:
+		if self.sender is not None:
 			data['sender'] = self.sender
-		if self.receiver != None:
+		if self.receiver is not None:
 			data['receiver'] = self.receiver
-		if self.subject != None:
+		if self.subject is not None:
 			data['subject'] = self.subject
-		if self.body != None:
+		if self.body is not None:
 			data['body'] = self.body
-		if self.created_at != None:
+		if self.created_at is not None:
 			data['created_at'] = self.created_at.isoformat()
-		if self.received_at != None:
+		if self.received_at is not None:
 			data['received_at'] = self.received_at.isoformat()
-		if self.valid_until != None:
+		if self.valid_until is not None:
 			data['valid_until'] = self.valid_until.isoformat()
-		if self.forwarded_to != None and len(self.forwarded_to) > 0:
+		if self.forwarded_to is not None and len(self.forwarded_to) > 0:
 			data['forwarded_to'] = self.forwarded_to
-		if self.is_encrypted != None:
+		if self.is_encrypted is not None:
 			data['is_encrypted'] = self.is_encrypted
-		if self.is_delivered != None:
+		if self.is_delivered is not None:
 			data['is_delivered'] = self.is_delivered
-		if self.is_new != None:
+		if self.is_new is not None:
 			data['is_new'] = self.is_new
-		if self.verified != None:
+		if self.verified is not None:
 			data['verified'] = self.verified
-		if self.sign_hash != None:
+		if self.sign_hash is not None:
 			data['sign_hash'] = self.sign_hash
-		if self.sign != None:
+		if self.sign is not None:
 			data['sign'] = self.sign
 		return data
 
@@ -228,23 +228,23 @@ class Mail():
 		self._logger.debug('ipc_encode()')
 
 		data = {}
-		if self.uuid != None:
+		if self.uuid is not None:
 			data[0x00] = self.uuid
-		if self.created_at != None:
+		if self.created_at is not None:
 			data[0x01] = self.created_at.strftime('%FT%T')
-		if self.received_at != None:
+		if self.received_at is not None:
 			data[0x02] = self.received_at.strftime('%FT%T')
-		if self.valid_until != None:
+		if self.valid_until is not None:
 			data[0x03] = self.valid_until.strftime('%FT%T')
-		if self.verified != None:
+		if self.verified is not None:
 			data[0x10] = self.verified
-		if self.sender != None:
+		if self.sender is not None:
 			data[0x20] = self.sender
-		if self.receiver != None:
+		if self.receiver is not None:
 			data[0x21] = self.receiver
-		if self.subject != None:
+		if self.subject is not None:
 			data[0x30] = self.subject
-		if self.body != None:
+		if self.body is not None:
 			data[0x31] = self.body
 
 		self._logger.debug('data: %s', data)
@@ -351,7 +351,7 @@ class Queue():
 
 		remove_mails = []
 
-		ffunc = lambda _mail: _mail[1].valid_until != None and dt.datetime.utcnow() >= _mail[1].valid_until
+		ffunc = lambda _mail: _mail[1].valid_until is not None and dt.datetime.utcnow() >= _mail[1].valid_until
 		old_mails = list(filter(ffunc, self._mails_by_uuid.items()))
 		self._logger.debug('old mails A: %s', old_mails)
 		remove_mails += old_mails

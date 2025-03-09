@@ -34,7 +34,7 @@ class Scheduler():
 		_sleep_time = self.SLEEP_TIME
 
 		_cycle = 0
-		while (self._running and max_cycles == None) or (max_cycles != None and _cycle < max_cycles):
+		while (self._running and max_cycles is None) or (max_cycles is not None and _cycle < max_cycles):
 			_start = dt.datetime.utcnow()
 
 			tasks_running = 0

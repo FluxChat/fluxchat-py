@@ -75,7 +75,7 @@ def write_json_file(file_path: str, data):
 		dump(data, write_file, indent=4)
 
 def read_json_file(file_path: str, default = None) -> dict:
-	if not path.exists(file_path) and default != None:
+	if not path.exists(file_path) and default is not None:
 		write_json_file(file_path, default)
 
 	with open(file_path, 'r') as read_file:

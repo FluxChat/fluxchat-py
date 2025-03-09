@@ -22,8 +22,8 @@ def main():
 	if args.command == 'ab':
 		print('-> AddressBook')
 
-		seen_at = dt.datetime.strptime(args.seen_at[0], '%Y-%m-%d %H:%M:%S')  if args.seen_at != None else None
-		meetings = args.meetings[0] if args.meetings != None else None
+		seen_at = dt.datetime.strptime(args.seen_at[0], '%Y-%m-%d %H:%M:%S')  if args.seen_at is not None else None
+		meetings = args.meetings[0] if args.meetings is not None else None
 		bootstrap = args.bootstrap
 
 		address_book = AddressBook(args.file[0])
@@ -32,11 +32,11 @@ def main():
 			c_id = generate_test_id()
 			print('-> c_id: {}'.format(c_id))
 			client = address_book.add_client(c_id, 'public', 26000 + i)
-			if seen_at != None:
+			if seen_at is not None:
 				client.seen_at = seen_at
-			if meetings != None:
+			if meetings is not None:
 				client.meetings = meetings
-			if bootstrap != None:
+			if bootstrap is not None:
 				client.is_bootstrap = bootstrap
 
 		address_book.save()

@@ -353,7 +353,7 @@ class Server(Network):
 			return
 
 		client = self._address_book.get_client_by_addr_port(c_contact.addr, c_contact.port)
-		if client == None:
+		if client is None:
 			client = self._address_book.add_client(addr=c_contact.addr, port=c_contact.port)
 			client.debug_add = 'discovery, contact: {}'.format(c_contact_raw)
 		else:
@@ -383,8 +383,8 @@ class Server(Network):
 		if client.node == self._local_node:
 			self._logger.debug('skip, client.node == self._local_node')
 			return False
-		if client.address == None or client.port == None:
-			self._logger.debug('skip, client.address == None or client.port == None')
+		if client.address is None or client.port is None:
+			self._logger.debug('skip, client.address is None or client.port is None')
 			return False
 
 		client.conn_mode = 1
@@ -565,11 +565,11 @@ class Server(Network):
 						if c_has_contact_info:
 							# Client sent contact info
 							_client = self._address_book.get_client_by_id(c_id)
-							if _client == None:
+							if _client is None:
 								self._logger.debug('client not found by ID (A)')
 
 								_client = self._address_book.get_client_by_addr_port(c_contact_addr, c_contact_port)
-								if _client == None:
+								if _client is None:
 									self._logger.debug('client not found by Addr:Port (B)')
 
 									_client = self._address_book.add_client(c_id, c_contact_addr, c_contact_port)
@@ -585,7 +585,7 @@ class Server(Network):
 						else:
 							# Client sent no contact info
 							_client = self._address_book.get_client_by_id(c_id)
-							if _client == None:
+							if _client is None:
 								self._logger.debug('client not found C')
 
 								_client = self._address_book.add_client(c_id)
@@ -609,7 +609,7 @@ class Server(Network):
 						else:
 							self._logger.debug('client has NO contact infos')
 
-					if _client.id == None:
+					if _client.id is None:
 						_client.id = c_id
 
 					self._logger.debug('Client A: %s', client)
@@ -675,7 +675,7 @@ class Server(Network):
 					self._logger.info('GET_NEAREST_TO RESPONSE command')
 
 					action = client.resolve_action('nearest_response')
-					if action == None:
+					if action is None:
 						self._logger.warning('skip, not requested')
 						continue
 
@@ -696,7 +696,7 @@ class Server(Network):
 							continue
 
 						_client = self._address_book.get_client_by_id(c_id)
-						if _client == None:
+						if _client is None:
 							self._logger.debug('client not found')
 							_client = self._address_book.add_client(c_id, c_contact.addr, c_contact.port)
 							_client.debug_add = 'nearest response, not found by id'
@@ -711,7 +711,7 @@ class Server(Network):
 						else:
 							self._logger.debug('client found: %s', _client)
 
-					if nearest_client != None:
+					if nearest_client is not None:
 						self._logger.debug('nearest client: %s', nearest_client)
 
 						bootstrap_count = action.data - 1
@@ -742,7 +742,7 @@ class Server(Network):
 						self._logger.debug('not local node')
 
 						_client = self._address_book.get_client_by_id(target.id)
-						if _client == None:
+						if _client is None:
 							self._logger.debug('client not found')
 
 							is_relay = True
@@ -795,7 +795,7 @@ class Server(Network):
 						continue
 
 					action = client.resolve_action('request_public_key_for_node', node.id, force_remove=True)
-					if action == None:
+					if action is None:
 						self._logger.warning('skip, not requested')
 						continue
 
@@ -806,7 +806,7 @@ class Server(Network):
 					self._logger.debug('action: %s', action)
 
 					_client = self._address_book.get_client_by_id(node.id)
-					if _client == None:
+					if _client is None:
 						self._logger.debug('client not found')
 
 						_client = Client()
@@ -836,11 +836,11 @@ class Server(Network):
 								self._logger.debug('public key not verified')
 								_client.reset_public_key()
 
-					if _client != None and _client.has_public_key():
+					if _client is not None and _client.has_public_key():
 						self._logger.debug('client is set and has public key')
 						self._logger.debug('client: %s', _client)
 
-						if action.func != None:
+						if action.func is not None:
 							self._logger.debug('action has func')
 							self._logger.debug('call func')
 							action.func(_client)
@@ -1113,7 +1113,7 @@ class Server(Network):
 					self._logger.debug('m_uuid: %s', m_uuid)
 
 					mail = self._mail_db.get_mail(m_uuid)
-					if mail == None:
+					if mail is None:
 						self._logger.error('mail not found')
 						mail_encoded = None
 					else:
@@ -1143,7 +1143,7 @@ class Server(Network):
 		self._logger.debug('_ipc_client_send_read_mail()')
 		self._logger.debug('mail: %s', mail)
 
-		if mail != None:
+		if mail is not None:
 			data = [1, mail]
 		else:
 			data = [0]
@@ -1159,7 +1159,7 @@ class Server(Network):
 		for key, mask in events:
 			self._logger.debug('handle_sockets mask: %d', mask)
 
-			if key.data != None:
+			if key.data is not None:
 				if key.data['type'] == 'main_server':
 					self._accept_main_server(key.fileobj)
 
@@ -1335,7 +1335,7 @@ class Server(Network):
 				elif action.id == 'test':
 					had_actions = True
 
-				if action.valid_until != None and dt.datetime.utcnow() >= action.valid_until:
+				if action.valid_until is not None and dt.datetime.utcnow() >= action.valid_until:
 					self._logger.debug('action is invalid: %s', action)
 					client.remove_action(action)
 
@@ -1374,7 +1374,7 @@ class Server(Network):
 				self._logger.debug('mail is delivered')
 				continue
 
-			if mail.target == None:
+			if mail.target is None:
 				self._logger.debug('mail has no target')
 				continue
 
@@ -1421,7 +1421,7 @@ class Server(Network):
 				self._logger.debug('mail is not encrypted yet')
 
 				client = self._address_book.get_client_by_id(mail.target.id)
-				if client == None or not client.has_public_key():
+				if client is None or not client.has_public_key():
 					self._logger.debug('client is set and has no public key')
 					for client in clients:
 
@@ -1464,7 +1464,7 @@ class Server(Network):
 				_client = self._address_book.get_client_by_id(mail.origin.id)
 
 				request_public_key_for_node_action = False
-				if _client == None:
+				if _client is None:
 					self._logger.debug('client not found by id: %s', mail.origin.id)
 					request_public_key_for_node_action = True
 				else:

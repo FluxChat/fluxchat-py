@@ -272,7 +272,7 @@ class IpcApp(Network):
 					self._logger.debug('mails_encoded: %s', mails_encoded)
 
 					_command = self.get_command_by_type('_list_mails')
-					if _command == None:
+					if _command is None:
 						self._logger.debug('command not found')
 						_command = IpcCommand('_list_mails', [])
 						_command.waiting = True

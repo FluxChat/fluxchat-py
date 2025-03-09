@@ -130,35 +130,35 @@ class Client():
 		if self.id == '' or other.id == '':
 			return False
 
-		if self.uuid != None and other.uuid != None and self.uuid == other.uuid:
+		if self.uuid is not None and other.uuid is not None and self.uuid == other.uuid:
 			return True
 
-		if self.id == None or other.id == None:
+		if self.id is None or other.id is None:
 			return False
 
 		return self.id == other.id
 
 	def as_dict(self) -> dict:
 		data = dict()
-		if self.address != None:
+		if self.address is not None:
 			data['address'] = self.address
-		if self.port != None:
+		if self.port is not None:
 			data['port'] = self.port
-		if self.id != None:
+		if self.id is not None:
 			data['id'] = self.id
-		if self.created_at != None:
+		if self.created_at is not None:
 			data['created_at'] = self.created_at.isoformat()
-		if self.seen_at != None:
+		if self.seen_at is not None:
 			data['seen_at'] = self.seen_at.isoformat()
-		if self.used_at != None:
+		if self.used_at is not None:
 			data['used_at'] = self.used_at.isoformat()
-		if self.meetings != None:
+		if self.meetings is not None:
 			data['meetings'] = self.meetings
 		if self.is_bootstrap:
 			data['is_bootstrap'] = self.is_bootstrap
 		if self.is_trusted:
 			data['is_trusted'] = self.is_trusted
-		if self.debug_add != None:
+		if self.debug_add is not None:
 			data['debug_add'] = self.debug_add
 
 		return data
@@ -206,7 +206,7 @@ class Client():
 		self.node = Node.parse(id)
 
 	def distance(self, node: Node) -> int:
-		if self.node == None:
+		if self.node is None:
 			return Distance()
 
 		return self.node.distance(node)
@@ -248,7 +248,7 @@ class Client():
 		self.actions.remove(action)
 
 	def has_contact(self) -> bool:
-		return self.address != None and self.port != None
+		return self.address is not None and self.port is not None
 
 	def load_public_key_from_pem_file(self, path: str):
 		with open(path, 'rb') as f:
@@ -291,7 +291,7 @@ class Client():
 		self.public_key = None
 
 	def has_public_key(self) -> bool:
-		return self.public_key != None
+		return self.public_key is not None
 
 	def verify_public_key(self) -> bool:
 		if not self.has_public_key():

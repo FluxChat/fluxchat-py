@@ -31,7 +31,7 @@ class AddressBook():
 		self._logger = getLogger('app.address_book')
 		self._logger.info('init()')
 
-		if self._ab_config == None:
+		if self._ab_config is None:
 			self._clients_ttl = dt.timedelta(hours=1)
 		else:
 			self._clients_ttl = dt.timedelta(hours=self._ab_config['client_retention_time'])
@@ -50,7 +50,7 @@ class AddressBook():
 			self._logger.debug('load client: %s', client)
 
 			self._clients_by_uuid[client_uuid] = client
-			if client.id != None:
+			if client.id is not None:
 				if client.id in self._clients_by_id:
 					self._logger.warning('Client ID already exists: %s', client.id)
 
@@ -72,7 +72,7 @@ class AddressBook():
 
 			_data[client_uuid] = client.as_dict()
 
-			if client.id != None:
+			if client.id is not None:
 				key_file_path = path.join(self._config['keys_dir'], client.id + '.pem')
 				if not path.isfile(key_file_path):
 					client.write_public_key_to_pem_file(key_file_path)
@@ -128,17 +128,17 @@ class AddressBook():
 
 		client = Client()
 
-		if id != None:
+		if id is not None:
 			client.set_id(id)
 
-		if addr != None:
+		if addr is not None:
 			client.address = addr
 
-		if port != None:
+		if port is not None:
 			client.port = port
 
 		self._clients_by_uuid[client.uuid] = client
-		if client.id != None:
+		if client.id is not None:
 			self._clients_by_id[client.id] = client
 
 		self.changed()
@@ -149,7 +149,7 @@ class AddressBook():
 		self._logger.debug('append_client(%s)', client)
 
 		self._clients_by_uuid[client.uuid] = client
-		if client.id != None:
+		if client.id is not None:
 			self._clients_by_id[client.id] = client
 
 		self.changed()
@@ -165,7 +165,7 @@ class AddressBook():
 			remove(key_file_path)
 
 		del self._clients_by_uuid[client.uuid]
-		if client.id != None:
+		if client.id is not None:
 			del self._clients_by_id[client.id]
 
 		self.changed()
@@ -179,7 +179,7 @@ class AddressBook():
 			contact = Contact.parse(row)
 
 			_client = self.get_client_by_addr_port(contact.addr, contact.port)
-			if _client != None:
+			if _client is not None:
 				self._logger.debug('bootstrap client already exists: %s', _client)
 				continue
 
@@ -190,7 +190,7 @@ class AddressBook():
 			client.debug_add = 'bootstrap'
 
 			self._clients_by_uuid[client.uuid] = client
-			if client.id != None:
+			if client.id is not None:
 				self._clients_by_id[client.id] = client
 
 			self.changed()
@@ -204,7 +204,7 @@ class AddressBook():
 		self._logger.debug('hard_clean_up(%s)', local_id)
 
 		# remove local_id
-		if local_id != None and local_id in self._clients_by_id:
+		if local_id is not None and local_id in self._clients_by_id:
 			del self._clients_by_id[local_id]
 
 		_clients = list(self._clients_by_uuid.values())
@@ -245,7 +245,7 @@ class AddressBook():
 		self._logger.debug('soft_clean_up(%s)', local_id)
 
 		# remove local_id
-		if local_id != None and local_id in self._clients_by_id:
+		if local_id is not None and local_id in self._clients_by_id:
 			del self._clients_by_id[local_id]
 
 		_clients = list(self._clients_by_uuid.values())

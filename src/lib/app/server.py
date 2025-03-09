@@ -32,17 +32,17 @@ class ServerApp():
 		self._load_config()
 
 		# Logging
-		if not 'log' in self._config:
+		if 'log' not in self._config:
 			self._config['log'] = {}
 
 		if 'file' in self._config['log'] and self._config['log']['file']:
 			if '/' not in self._config['log']['file'] and self._config['log']['file'][0] != '/':
 				self._config['log']['file'] = path.join(self._config['data_dir'], self._config['log']['file'])
 
-		if not 'level' in self._config['log']:
+		if 'level' not in self._config['log']:
 			self._config['log']['level'] = 'warning'
 
-		if self._loglevel != None:
+		if self._loglevel is not None:
 			self._config['log']['level'] = self._loglevel
 		self._config['log']['level'] = self._config['log']['level'].upper()
 

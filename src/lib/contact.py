@@ -79,5 +79,5 @@ class Contact:
 				except gaierror:
 					contact.addr = None
 
-		contact.is_valid = contact.addr != None and contact.port != None
+		contact.is_valid = contact.addr is not None and contact.port is not None
 		return contact

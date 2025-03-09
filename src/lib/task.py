@@ -15,7 +15,7 @@ class Task():
 		self._last_run = None
 		self.is_one_shot = one_shot
 
-		if self._interval != None and one_shot:
+		if self._interval is not None and one_shot:
 			self._last_run = dt.datetime.utcnow()
 
 	def __str__(self): # pragma: no cover

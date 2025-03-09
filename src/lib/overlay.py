@@ -49,7 +49,7 @@ class Distance():
 	def __init__(self, node1: Node = None, node2: Node = None):
 		self._distance = 256
 
-		if node1 != None and node2 != None:
+		if node1 is not None and node2 is not None:
 			id1 = node1.decode()
 			id2 = node2.decode()
 
