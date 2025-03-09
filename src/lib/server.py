@@ -691,7 +691,7 @@ class Server(Network):
 					for c_contact in payload:
 						self._logger.debug('client contact A: %s', c_contact)
 
-						c_id, c_contact_raw = c_contact.encode().split(':', 1)
+						c_id, c_contact_raw = c_contact.decode().split(':', 1)
 						self._logger.debug('client contact B: %s %s', c_id, c_contact_raw)
 
 						c_contact = Contact.resolve(c_contact_raw)
@@ -724,7 +724,8 @@ class Server(Network):
 
 						if bootstrap_count > 0 and not self._client_is_connected(nearest_client):
 							self._client_connect(nearest_client)
-							nearest_client.add_action('bootstrap', bootstrap_count)
+
+							nearest_client.add_action(Action('bootstrap', data=bootstrap_count))
 
 				elif command_i == 3:
 					self._logger.info('REQUEST PUBLIC KEY FOR NODE command')
@@ -788,7 +789,8 @@ class Server(Network):
 				elif command_i == 4:
 					self._logger.info('RESPONSE PUBLIC KEY FOR NODE command')
 
-					node_id, public_key_raw = payload
+					node_id = payload[0].decode()
+					public_key_raw = payload[1].decode()
 					self._logger.debug('node id: %s', node_id)
 					self._logger.debug('public key raw: %s', public_key_raw)
 

@@ -274,8 +274,10 @@ class Client():
 		return True
 
 	def load_public_key_from_pem(self, raw: str):
-		raw = b64decode(raw)
-		self.public_key = serialization.load_pem_public_key(raw)
+		print(f'-> load_public_key_from_pem: {raw}')
+		der_key = b64decode(raw)
+		# self.public_key = serialization.load_pem_public_key(raw)
+		self.public_key = serialization.load_der_public_key(der_key)
 
 	def get_base64_public_key(self) -> str:
 		if not self.has_public_key():
