@@ -110,6 +110,7 @@ class ServerApp():
 	async def run(self):
 		self._running = True
 		self._logger.info('run()')
+
 		tasks = []
 		tasks.append(create_task(self._scheduler.run()))
 
@@ -118,8 +119,15 @@ class ServerApp():
 			if 'enabled' in restapi_config and restapi_config['enabled'] \
 				and 'address' in restapi_config \
 				and 'port' in restapi_config:
+
+				self._logger.debug('create API thread')
 				tasks.append(create_task(self.run_restapi(restapi_config['address'], restapi_config['port'])))
+
+		# Wait for threads.
+		self._logger.debug('wait for threads')
 		await gather(*tasks)
+
+		# End
 		self._logger.info('run finished')
 
 	async def shutdown(self, reason: str = None):
