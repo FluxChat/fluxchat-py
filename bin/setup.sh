@@ -51,7 +51,7 @@ else
 						echo '-> You selected "yes"'
 						sleep 2
 						echo '-> run brew install command'
-						if ${brew_bin} install gettext virtualenv ; then
+						if ${brew_bin} install gettext virtualenv python-tk ; then
 							echo '-> homebrew installation complete'
 						else
 							echo "ERROR: homebrew failed: $?"
@@ -81,7 +81,7 @@ else
 						echo '-> You selected "yes"'
 						sleep 2
 						echo '-> run sudo apt-get install command'
-						if ${sudo_bin} ${aptget_bin} install python3-virtualenv ; then
+						if ${sudo_bin} ${aptget_bin} install python3-virtualenv python-tk python3-tk tk-dev ; then
 							echo '-> apt-get installation complete'
 						else
 							echo "ERROR: apt-get failed: $?"

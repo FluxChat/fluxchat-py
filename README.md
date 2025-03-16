@@ -11,15 +11,24 @@ Dependencies:
 - Python 3
 - [virtualenv](https://docs.python.org/3/library/venv.html)
 - gettext
+- python-tk
 
 Run this in your favourite shell, Bash.
 
+macOS:
+
 ```bash
-brew install gettext virtualenv
+brew install gettext virtualenv python-tk
 git clone https://github.com/FluxChat/fluxchat-py.git
 cd fluxchat-py
 ./bin/setup.sh
 ./bin/start.sh
+```
+
+Debian:
+
+```bash
+sudo apt-get install python3-virtualenv python-tk python3-tk tk-dev
 ```
 
 ## Features
