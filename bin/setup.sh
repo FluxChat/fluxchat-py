@@ -67,6 +67,34 @@ else
 			fi
 		elif [[ "${kernel_name}" == Linux ]] ; then
 			echo '-> Linux detected'
+			sudo_bin=$(which sudo)
+			aptget_bin=$(which apt-get)
+			if [[ -z "${aptget_bin}" ]] ; then
+				echo '-> no apt-get binary found'
+				echo '-> skipping dependencies auto-install'
+			else
+				echo '-> apt-get detected'
+				if ${aptget_bin} --version ; then
+					echo -n '-> Should we try to install the dependencies using sudo apt-get? [y/n] '
+					read -r answer
+					if [[ "${answer}" == 'y' ]] ; then
+						echo '-> You selected "yes"'
+						sleep 2
+						echo '-> run sudo apt-get install command'
+						if ${sudo_bin} ${aptget_bin} install python3-virtualenv ; then
+							echo '-> apt-get installation complete'
+						else
+							echo "ERROR: apt-get failed: $?"
+						fi
+					else
+						echo '-> You selected "no"'
+						echo '-> skipping dependencies auto-install'
+						sleep 2
+					fi
+				else
+					echo 'WARNING: cannot run apt-get. You have to install the dependecies manually.'
+				fi
+			fi
 		fi
 	fi
 fi
