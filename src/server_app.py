@@ -9,13 +9,13 @@ from lib.app.server import ServerApp
 
 async def main():
 	parser = ArgumentParser(prog='server_app', description='Server App')
-	parser.add_argument('-c', '--config', type=str, nargs=1, required=True, help='Path to Config File')
+	parser.add_argument('-c', '--config', type=str, required=True, help='Path to Config File')
 	parser.add_argument('--dev', default=False, action='store_true')
 	parser.add_argument('-l', '--loglevel', help='Provide logging level. Example --loglevel debug')
 
 	args = parser.parse_args()
 
-	app = ServerApp(args.config[0], args.dev, args.loglevel)
+	app = ServerApp(args.config, args.dev, args.loglevel)
 
 	async def asigint_fn(sig, frame=None):
 		print('-> server_app.py sigint_fn')
