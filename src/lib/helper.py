@@ -95,10 +95,10 @@ def binary_encode(data: dict, max_len: int = 4) -> bytes:
 
 		try:
 			items.append(key.to_bytes(1, 'little'))
-		except AttributeError as e:
+		except AttributeError as error:
 			# print('type:', type(key))
 			# print('key:', key)
-			raise e
+			raise error
 
 		items.append(d_len.to_bytes(max_len, 'little'))
 
