@@ -317,14 +317,14 @@ class IpcApp(Network):
 			self._logger.debug('sock.connect to %s:%s', self._ipc_config['address'], self._ipc_config['port'])
 			sock.connect((self._ipc_config['address'], self._ipc_config['port']))
 			self._logger.debug('sock.connect done')
-		except ConnectionRefusedError as e:
-			self._logger.error('ConnectionRefusedError: %s', e)
+		except ConnectionRefusedError as error:
+			self._logger.error('ConnectionRefusedError: %s', error)
 			return False
-		except TimeoutError as e:
-			self._logger.error('TimeoutError: %s', e)
+		except TimeoutError as error:
+			self._logger.error('TimeoutError: %s', error)
 			return False
-		except SocketTimeout as e:
-			self._logger.error('SocketTimeout: %s', e)
+		except SocketTimeout as error:
+			self._logger.error('SocketTimeout: %s', error)
 			return False
 		sock.settimeout(None)
 		sock.setblocking(False)

@@ -176,12 +176,12 @@ class Server(Network):
 			self._logger.debug('create server %s:%s', self._config['address'], self._config['port'])
 			# IPv4
 			self._main_server_socket = create_server((self._config['address'], self._config['port']), family=AF_INET, reuse_port=True)
-		except OSError as e:
-			self._logger.error('OSError: %s', e)
-			raise e
-		except Exception as e:
-			self._logger.error('Exception: %s', e)
-			raise e
+		except OSError as error:
+			self._logger.error('OSError: %s', error)
+			raise error
+		except Exception as error:
+			self._logger.error('Exception: %s', error)
+			raise error
 
 		self._logger.debug('listen')
 		self._main_server_socket.listen()
@@ -198,9 +198,9 @@ class Server(Network):
 
 			try:
 				self._discovery_socket.bind(('0.0.0.0', self._config['discovery']['port']))
-			except OSError as e:
-				self._logger.error('OSError: %s', e)
-				raise e
+			except OSError as error:
+				self._logger.error('OSError: %s', error)
+				raise error
 
 			self._discovery_socket.setblocking(False)
 
@@ -303,8 +303,8 @@ class Server(Network):
 
 		try:
 			self._ssl_handshake(client_ssl)
-		except SslHandshakeError as e:
-			self._logger.error('ssl handshake error: %s', e)
+		except SslHandshakeError as error:
+			self._logger.error('ssl handshake error: %s', error)
 			return
 
 		self._logger.debug('client_sock: %s', client_sock)
@@ -395,20 +395,20 @@ class Server(Network):
 			self._logger.debug('client sock connect to %s:%s', client.address, client.port)
 			client_sock.connect((client.address, client.port))
 			self._logger.debug('client sock connect done')
-		except ConnectionRefusedError as e:
-			self._logger.error('ConnectionRefusedError: %s', e)
+		except ConnectionRefusedError as error:
+			self._logger.error('ConnectionRefusedError: %s', error)
 			return False
-		except TimeoutError as e:
-			self._logger.error('TimeoutError: %s', e)
+		except TimeoutError as error:
+			self._logger.error('TimeoutError: %s', error)
 			return False
-		except SocketTimeout as e:
-			self._logger.error('SocketTimeout: %s', e)
+		except SocketTimeout as error:
+			self._logger.error('SocketTimeout: %s', error)
 			return False
-		except SocketGetaddrinfo as e:
-			self._logger.error('SocketGetaddrinfo: %s', e)
+		except SocketGetaddrinfo as error:
+			self._logger.error('SocketGetaddrinfo: %s', error)
 			return False
-		except OSError as e:
-			self._logger.error('OSError: %s', e)
+		except OSError as error:
+			self._logger.error('OSError: %s', error)
 			return False
 
 		client_sock.settimeout(None)
@@ -427,8 +427,8 @@ class Server(Network):
 
 		try:
 			self._ssl_handshake(client_ssl)
-		except SslHandshakeError as e:
-			self._logger.error('ssl handshake error: %s', e)
+		except SslHandshakeError as error:
+			self._logger.error('ssl handshake error: %s', error)
 			return False
 
 		self._logger.debug('_client_connect done')
@@ -975,11 +975,11 @@ class Server(Network):
 
 		try:
 			raw = sock.recv(2048)
-		except TimeoutError as e:
-			self._ipc_logger.error('TimeoutError: %s', e)
+		except TimeoutError as error:
+			self._ipc_logger.error('TimeoutError: %s', error)
 			return
-		except ConnectionResetError as e:
-			self._ipc_logger.error('ConnectionResetError: %s', e)
+		except ConnectionResetError as error:
+			self._ipc_logger.error('ConnectionResetError: %s', error)
 			raw = False
 
 		if raw:
@@ -997,8 +997,8 @@ class Server(Network):
 
 					command = raw[raw_pos]
 					raw_pos += 1
-				except IndexError as e:
-					self._ipc_logger.error('IndexError: %s', e)
+				except IndexError as error:
+					self._ipc_logger.error('IndexError: %s', error)
 					self._ipc_logger.error('unregister socket')
 					self._selectors.unregister(sock)
 					return
@@ -1009,8 +1009,8 @@ class Server(Network):
 					# length = unpack('<I', raw[raw_pos:raw_pos + 4])[0]
 					length = int.from_bytes(raw[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
-				except StructError as e:
-					self._ipc_logger.error('struct.error: %s', e)
+				except StructError as error:
+					self._ipc_logger.error('struct.error: %s', error)
 					self._ipc_logger.error('unregister socket')
 					self._selectors.unregister(sock)
 					return

@@ -54,20 +54,20 @@ class Network():
 				self._logger.debug('recv raw A: %d %s', raw_len, raw)
 
 				raw_total += raw
-			except TimeoutError as e:
-				self._logger.debug('TimeoutError: %s', e)
+			except TimeoutError as error:
+				self._logger.debug('TimeoutError: %s', error)
 
 				status.disconnect = True
 				status.msg = 'TimeoutError'
 				reading = False
-			except ConnectionResetError as e:
-				self._logger.debug('ConnectionResetError: %s', e)
+			except ConnectionResetError as error:
+				self._logger.debug('ConnectionResetError: %s', error)
 
 				status.disconnect = True
 				status.msg = 'ConnectionResetError'
 				reading = False
-			except SSLWantReadError as e:
-				self._logger.debug('SSLWantReadError: %s', e)
+			except SSLWantReadError as error:
+				self._logger.debug('SSLWantReadError: %s', error)
 
 				status.disconnect = True
 				status.msg = 'SSLWantReadError'
@@ -103,8 +103,8 @@ class Network():
 
 					command = raw_total[raw_pos]
 					raw_pos += 1
-				except IndexError as e:
-					self._logger.debug('IndexError: %s', e)
+				except IndexError as error:
+					self._logger.debug('IndexError: %s', error)
 
 					status.disconnect = True
 					status.msg = 'array index out of range'
@@ -115,8 +115,8 @@ class Network():
 				try:
 					length = int.from_bytes(raw_total[raw_pos:raw_pos + 4], 'little')
 					raw_pos += 4
-				except StructError as e:
-					self._logger.debug('struct.error: %s', e)
+				except StructError as error:
+					self._logger.debug('struct.error: %s', error)
 
 					status.disconnect = True
 					status.msg = 'unpack error'
@@ -226,17 +226,17 @@ class Network():
 				self._logger.debug('ssl handshake: %d', tries)
 				socket_ssl.do_handshake()
 				break
-			except SSLWantReadError as e:
+			except SSLWantReadError as error:
 				pass
-				# self._logger.debug('ssl.SSLWantReadError: %s', e)
+				# self._logger.debug('ssl.SSLWantReadError: %s', error)
 				select([socket_ssl], [], [], 0.3)
-			except SSLWantWriteError as e:
+			except SSLWantWriteError as error:
 				pass
-				# self._logger.debug('ssl.SSLWantWriteError: %s', e)
+				# self._logger.debug('ssl.SSLWantWriteError: %s', error)
 				select([], [socket_ssl], [], 0.3)
-			except SSLError as e:
-				self._logger.error('ssl.SSLError: %s', e)
-				raise SslHandshakeError(e)
+			except SSLError as error:
+				self._logger.error('ssl.SSLError: %s', error)
+				raise SslHandshakeError(error)
 
 			now = dt.datetime.now()
 			if now - start >= self._ssl_handshake_timeout:
