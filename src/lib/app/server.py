@@ -2,11 +2,12 @@
 import datetime as dt
 from json import dumps, loads
 from logging import getLogger, basicConfig, Logger
-from typing import Optional
+from typing import Optional, cast
 from sty import fg
 from os import path
 from asyncio import create_task, gather, sleep as asleep
 from aiohttp import web, web_request
+from base64 import b64encode, b64decode
 
 from lib.database import Database
 from lib.helper import read_json_file
@@ -257,7 +258,8 @@ class ServerApp():
 			if 'subject' in content:
 				mail.subject = content['subject']
 			if 'body' in content:
-				mail.body = content['body']
+				body = cast(str, content['body'])
+				mail.body = b64encode(body.encode()).decode()
 
 			queued_mails = server_db.add_queue_mail(mail)
 

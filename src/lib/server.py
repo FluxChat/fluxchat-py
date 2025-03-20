@@ -1,4 +1,5 @@
 
+import binascii
 import datetime as dt
 from socket import socket as Socket, timeout as SocketTimeout, gaierror as SocketGetaddrinfo, gethostname, gethostbyname, create_server, AF_INET, AF_INET6, SOCK_STREAM, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
 from selectors import DefaultSelector, EVENT_READ
@@ -1542,9 +1543,10 @@ class Server(Network):
 
 	# Use public key to encrypt symmetric key.
 	# Use symmetric key to encrypt mail body.
-	def _encrypt_mail(self, mail: Mail, client: Client):
+	def _encrypt_mail(self, mail: Mail, client: Client) -> bool:
 		self._logger.debug('_encrypt_mail() -> is_encrypted={}'.format(mail.is_encrypted))
 		self._logger.debug('mail %s', mail)
+		self._logger.debug('mail.body (%s) "%s"', type(mail.body), mail.body)
 		self._logger.debug('client %s', client)
 
 		if mail.is_encrypted:
@@ -1552,7 +1554,12 @@ class Server(Network):
 			return
 
 		# Raw Body
-		raw_body = b64decode(mail.body)
+		try:
+			raw_body = b64decode(mail.body)
+		except binascii.Error as error:
+			self._logger.error(str(error))
+			return False
+
 		raw_body_len = len(raw_body).to_bytes(2, 'little')
 		self._logger.debug('raw body "%s"', raw_body)
 		self._logger.debug('raw body len %s', raw_body_len)
@@ -1621,6 +1628,8 @@ class Server(Network):
 
 		client.refresh_used_at()
 		self._database.changed()
+
+		return True
 
 	def _decrypt_mail(self, mail: Mail):
 		self._logger.debug('_decrypt_mail()')

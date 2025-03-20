@@ -3,7 +3,7 @@
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
-./bin/server.sh 1> /dev/null 2> /dev/null < /dev/null &
+./bin/server.sh 1> /dev/null 2> var/data1/fluxchat.err < /dev/null &
 if test $? -eq 0 ; then
 	sleep 1
 	pid_file=var/data1/server.pid
