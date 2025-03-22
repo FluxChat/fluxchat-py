@@ -340,7 +340,7 @@ class Server(Network):
 			self._logger.debug('skip self')
 			return
 
-		c_contact = Contact.resolve(c_contact_raw, addr[0])
+		c_contact = Contact.resolve(c_contact_raw, addr)
 
 		if not c_contact.is_valid:
 			return
@@ -552,7 +552,8 @@ class Server(Network):
 
 					# Contact info
 					addr = sock.getpeername()
-					c_contact = Contact.resolve(c_contact_s, addr[0])
+					self._logger.debug(f'getpeername: {addr}')
+					c_contact = Contact.resolve(c_contact_s, addr)
 					c_contact_addr = c_contact.addr
 					c_contact_port = c_contact.port
 					c_has_contact_info = c_contact.is_valid
@@ -855,7 +856,10 @@ class Server(Network):
 				if command_i == 1:
 					self._logger.debug('SEND MAIL command')
 
-					mail_uuid, mail_target, mail_data = payload
+					# mail_uuid, mail_target, mail_data = payload
+					mail_uuid = payload[0].decode()
+					mail_target = payload[1].decode()
+					mail_data = payload[2].decode()
 
 					self._logger.debug('mail uuid: %s', mail_uuid)
 					if not is_valid_uuid(mail_uuid):

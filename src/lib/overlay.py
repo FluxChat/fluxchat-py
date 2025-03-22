@@ -38,7 +38,7 @@ class Node():
 
 		return len(self.decode()) == 32
 
-	def distance(self, other):
+	def distance(self, other) -> 'Distance':
 		return Distance(self, other)
 
 	@staticmethod

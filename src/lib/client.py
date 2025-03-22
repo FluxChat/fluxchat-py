@@ -228,7 +228,7 @@ class Client():
 		client.is_bootstrap = is_bootstrap
 		client.is_trusted = is_trusted
 		client.debug_add = debug_add
-		client.set_pubid(pubid)
+		client.node = Node(pubid)
 
 		return client
 
@@ -247,7 +247,7 @@ class Client():
 		self.pubid = pubid
 		self.node = Node.parse(pubid)
 
-	def distance(self, node: Node) -> int:
+	def distance(self, node: Node) -> Distance:
 		if self.node is None:
 			return Distance()
 

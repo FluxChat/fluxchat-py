@@ -1,16 +1,16 @@
 
-from socket import getaddrinfo, gaierror
+from typing import Optional
+from socket import getaddrinfo, gaierror as SocketGaiError
 from ipaddress import ip_address
+from lib.types import PeerAddress
 
 
 class Contact:
-	addr: str = None
-	port: int = None
-	is_valid: bool = False
-	is_ipv6: bool = False
-
 	def __init__(self) -> None:
-		pass
+		self.addr: Optional[str] = None
+		self.port: Optional[int] = None
+		self.is_valid: bool = False
+		self.is_ipv6: bool = False
 
 	def __str__(self) -> str:
 		return f'{self.addr}:{self.port}'
@@ -52,31 +52,38 @@ class Contact:
 		return contact
 
 	@staticmethod
-	def resolve(raw: str, raddr: str = None) -> 'Contact':
+	def resolve(raw: str, raddr: PeerAddress = None) -> 'Contact':
 		contact = Contact.parse(raw)
+		print(f'-> contact after parse: {contact}')
 
 		if contact.addr == 'public':
-			contact.addr = raddr
+			contact.addr = raddr[0]
+			contact.port = raddr[1]
 		elif contact.addr == 'private':
 			contact.addr = None
 			contact.port = None
 		else:
 			try:
 				ip_add = str(ip_address(contact.addr))
+				print(f'-> ip address: {ip_add}')
 				if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
+					print(f'-> localhost is invalid')
 					# Localhost is invalid.
 					contact.addr = None
 			except ValueError:
 				# Contact is hostname
 				try:
+					print(f'-> getaddrinfo({contact.addr})')
 					results = getaddrinfo(contact.addr, None)
 					for result in results:
 						ip_add = result[4][0]
+						print(f'-> getaddrinfo result: {ip_add}')
 						if ip_add[0:4] == '127.' or ip_add[0:4] == '0.0.' or ip_add == '::1':
 							# Localhost is invalid.
 							contact.addr = None
 							break
-				except gaierror:
+				except SocketGaiError:
+					print('-> SocketGaiError')
 					contact.addr = None
 
 		contact.is_valid = contact.addr is not None and contact.port is not None
