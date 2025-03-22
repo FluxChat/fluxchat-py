@@ -888,6 +888,7 @@ class Server(Network):
 					mail.body = mail_data
 					mail.is_encrypted = True
 					mail.received_now()
+					# TODO add mail.origin?
 
 					if mail_target == self._local_node:
 						self._logger.debug('mail target is local node')
@@ -1517,14 +1518,18 @@ class Server(Network):
 			if mail.verified == 'n':
 				self._logger.debug('handle_mail_db: mail is not verified')
 
-				_client = self._database.get_client_by_pubid(mail.origin.id)
+				if mail.origin is None:
+					self._logger.error(f'Mail.origin is None: {mail_uuid} {mail}')
+					continue
+
+				_client = self._database.get_client_by_pubid(mail.origin.pubid)
 
 				request_public_key_for_node_action = False
 				if _client is None:
-					self._logger.debug('handle_mail_db: client not found by id: %s', mail.origin.id)
+					self._logger.debug('handle_mail_db: client not found by id: %s', mail.origin.pubid)
 					request_public_key_for_node_action = True
 				else:
-					self._logger.debug('handle_mail_db: client found by id: %s', mail.origin.id)
+					self._logger.debug('handle_mail_db: client found by id: %s', mail.origin.pubid)
 					if _client.has_public_key():
 						self._logger.debug('handle_mail_db: client has public key')
 						self._verify_mail(mail, _client)
@@ -1534,8 +1539,8 @@ class Server(Network):
 
 				if request_public_key_for_node_action:
 					for client in clients:
-						if client.has_action('request_public_key_for_node', mail.origin.id):
-							self._logger.debug('handle_mail_db: client already has action request_public_key_for_node/%s', mail.origin.id)
+						if client.has_action('request_public_key_for_node', mail.origin.pubid):
+							self._logger.debug('handle_mail_db: client already has action request_public_key_for_node/%s', mail.origin.pubid)
 						else:
 							self._logger.debug('handle_mail_db: create action request_public_key_for_node from client: %s', client)
 							action = self._create_action_request_public_key_for_node(mail.origin, 'o')

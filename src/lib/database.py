@@ -23,6 +23,7 @@ class Database():
 	_clients_by_pubid: dict[str, Client]
 	_clients_to_remove: list[Client]
 	_mails_by_uuid: dict[int, Mail]
+	_new_mails: list[Mail]
 	_new_queue_mails: list[Mail]
 	_queue_by_uuid: dict[int, Mail]
 	_queue_to_remove: list[Mail]
@@ -50,6 +51,7 @@ class Database():
 		self._clients_by_pubid = dict()
 		self._clients_to_remove = []
 		self._mails_by_uuid = dict()
+		self._new_mails = []
 		self._new_queue_mails = []
 		self._queue_by_uuid = dict()
 		self._queue_to_remove = []
@@ -265,63 +267,73 @@ class Database():
 			self._connection.commit()
 		self.queue_to_remove = []
 
-		### Mails
-		self._logger.debug('save mails len=%d', len(self._mails_by_uuid))
+		### New Mails
+		self._logger.debug('new mails len=%d', len(self._new_mails))
+		for mail in self._new_mails:
+			self._logger.debug('save mail: %s', mail)
+
+			forwarded_to = dumps(mail.forwarded_to, default=str)
+
+			# Insert Mail
+			sql = """
+			INSERT INTO mails (pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+			"""
+			self._cursor.execute(sql, (
+				mail.pubid,
+				mail.sender, mail.receiver,
+				mail.subject, mail.body,
+				forwarded_to,
+				mail.is_encrypted,
+				mail.is_delivered,
+				mail.is_new,
+				mail.verified,
+				mail.sign_hash,
+				mail.sign,
+				mail.created_at,
+				mail.received_at,
+				mail.valid_until))
+			self._connection.commit()
+			mail.uuid = self._cursor.lastrowid
+			self._mails_by_uuid[mail.uuid] = mail
+		self._new_mails = []
+
+		### Update Mails
+		self._logger.debug('update mails len=%d', len(self._mails_by_uuid))
 		for mail_uuid, mail in self._mails_by_uuid.items():
 			self._logger.debug('save mail: %s', mail)
 
 			forwarded_to = dumps(mail.forwarded_to, default=str)
-			# Insert Mail
-			if mail.uuid is None:
-				sql = """
-				INSERT INTO mails (pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-				"""
-				self._cursor.execute(sql, (
-					mail.pubid,
-					mail.sender, mail.receiver,
-					mail.subject, mail.body,
-					forwarded_to,
-					mail.is_encrypted,
-					mail.is_delivered,
-					mail.is_new,
-					mail.verified,
-					mail.sign_hash,
-					mail.sign,
-					mail.created_at,
-					mail.received_at,
-					mail.valid_until))
-				self._connection.commit()
-				mail.uuid = self._cursor.lastrowid
-			else:
-				# Update Mail
-				sql = """
-				UPDATE mails
-				SET pubid = ?,
-					sender = ?, receiver = ?,
-					subject = ?, body = ?,
-					forwarded_to = ?,
-					is_encrypted = ?, is_delivered = ?, is_new = ?,
-					verified = ?, sign_hash = ?, sign = ?,
-					created_at = ?, received_at = ?, valid_until = ?
-				WHERE uuid = ?
-				"""
-				self._cursor.execute(sql, (
-					mail.pubid,
-					mail.sender, mail.receiver,
-					mail.subject, mail.body,
-					forwarded_to,
-					mail.is_encrypted,
-					mail.is_delivered,
-					mail.is_new,
-					mail.verified,
-					mail.sign_hash,
-					mail.sign,
-					mail.created_at,
-					mail.received_at,
-					mail.valid_until,
-					mail.uuid))
-				self._connection.commit()
+
+			# Update Mail
+			sql = """
+			UPDATE mails
+			SET pubid = ?,
+				sender = ?, receiver = ?,
+				subject = ?, body = ?,
+				forwarded_to = ?,
+				is_encrypted = ?, is_delivered = ?, is_new = ?,
+				verified = ?, sign_hash = ?, sign = ?,
+				created_at = ?, received_at = ?, valid_until = ?
+			WHERE uuid = ?
+			"""
+			self._cursor.execute(sql, (
+				mail.pubid,
+				mail.sender, mail.receiver,
+				mail.subject, mail.body,
+				forwarded_to,
+				mail.is_encrypted,
+				mail.is_delivered,
+				mail.is_new,
+				mail.verified,
+				mail.sign_hash,
+				mail.sign,
+				mail.created_at,
+				mail.received_at,
+				mail.valid_until,
+				mail.uuid))
+			self._connection.commit()
+
 			mail.changed(False)
 
 		return True
@@ -375,14 +387,14 @@ class Database():
 			sign_hash TEXT NULL,
 			sign TEXT NULL,
 			created_at TIMESTAMP NOT NULL,
-			received_at TIMESTAMP NOT NULL,
-			valid_until TIMESTAMP NOT NULL
+			received_at TIMESTAMP,
+			valid_until TIMESTAMP
 		);
 		"""
 		self._cursor.execute(sql)
 		self._connection.commit()
 
-	def get_clients(self) -> dict[str, Client]:
+	def get_clients(self) -> dict[int, Client]:
 		return self._clients_by_uuid
 
 	def get_clients_len(self) -> int:
@@ -614,17 +626,17 @@ class Database():
 	def add_mail(self, mail: Mail) -> None:
 		self._logger.debug('add_mail %s', mail)
 
-		self._mails_by_uuid[mail.uuid] = mail
+		self._new_mails.append(mail)
 		self._changes = True
 
 	def has_mail(self, mail_uuid: str) -> bool:
 		self._logger.debug('has_mail %s', mail_uuid)
 		return mail_uuid in self._mails_by_uuid
 
-	def get_mails(self) -> dict[str, Mail]:
+	def get_mails(self) -> dict[int, Mail]:
 		return self._mails_by_uuid
 
-	def get_mail(self, mail_uuid: str) -> Mail:
+	def get_mail(self, mail_uuid: str) -> Optional[Mail]:
 		self._logger.debug('get_mail %s', mail_uuid)
 		self._logger.debug('_data %s', self._mails_by_uuid)
 

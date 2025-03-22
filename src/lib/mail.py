@@ -33,6 +33,7 @@ class Mail():
 	status: str
 
 	def __init__(self, pubid_s: str = None):
+		self.uuid = None
 		if pubid_s is None:
 			self.pubid = str(uuid4())
 		else:
@@ -48,7 +49,7 @@ class Mail():
 		self.valid_until = None
 		self.forwarded_to = []
 		self.is_encrypted = False
-		self.is_delivered = None
+		self.is_delivered = False
 		self.is_new = None
 		self.verified = None
 		self.sign_hash = None
@@ -145,7 +146,7 @@ class Mail():
 
 	@staticmethod
 	def from_queue_db(data: tuple) -> 'Mail':
-		print(f'from_db() -> {data}', )
+		print(f'Mail.from_queue_db() -> {data}', )
 		uuid, pubid, receiver, body, is_encrypted, created_at, valid_until = data
 
 		mail = Mail(pubid)
@@ -154,13 +155,14 @@ class Mail():
 		mail.body = body
 		mail.is_encrypted = bool(is_encrypted)
 		mail.created_at = dt.datetime.fromisoformat(created_at)
-		mail.valid_until = dt.datetime.fromisoformat(valid_until)
+		if valid_until is not None:
+			mail.valid_until = dt.datetime.fromisoformat(valid_until)
 
 		return mail
 
 	@staticmethod
 	def from_mail_db(data: tuple) -> 'Mail':
-		print(f'from_db() -> {data}', )
+		print(f'Mail.from_mail_db() -> {data}', )
 		uuid, pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until = data
 
 		mail = Mail(pubid)
@@ -178,7 +180,8 @@ class Mail():
 		mail.sign = sign
 		mail.created_at = dt.datetime.fromisoformat(created_at)
 		mail.received_at = dt.datetime.fromisoformat(received_at)
-		mail.valid_until = dt.datetime.fromisoformat(valid_until)
+		if valid_until is not None:
+			mail.valid_until = dt.datetime.fromisoformat(valid_until)
 
 		return mail
 
