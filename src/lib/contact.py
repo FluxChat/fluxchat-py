@@ -57,8 +57,9 @@ class Contact:
 		print(f'-> contact after parse: {contact}')
 
 		if contact.addr == 'public':
-			contact.addr = raddr[0]
-			contact.port = raddr[1]
+			if raddr is not None:
+				contact.addr = raddr[0]
+				contact.port = raddr[1]
 		elif contact.addr == 'private':
 			contact.addr = None
 			contact.port = None
