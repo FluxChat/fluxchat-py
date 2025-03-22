@@ -49,7 +49,6 @@ class Server(Network):
 	_wrote_pid_file: bool
 	_client_auth_timeout: dt.timedelta
 	_client_action_retention_time: dt.timedelta
-	_contact: Contact
 
 	def __init__(self, config: dict = {}):
 		self._host_name = gethostname()
@@ -899,7 +898,7 @@ class Server(Network):
 						self._logger.debug('mail target is not local node')
 						mail.forwarded_to.append(client.pubid)
 
-						self._database.get_queue_mails(mail)
+						self._database.add_queue_mail(mail)
 
 			else:
 				self._logger.debug('unknown group %d, command %d', group_i, command_i)

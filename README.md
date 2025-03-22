@@ -50,6 +50,10 @@ python3 -m unittest tests/test_mail.py
 
 ./src/ipc_app.py -c var/config2.json list
 ./src/ipc_app.py -c var/config2.json read --uuid 4fbd8a82-05ac-4a30-9bad-4d9ff02661b2
+
+curl http://127.0.0.1:26002/v1/mails -s | jq
+curl http://127.0.0.1:26002/v1/mails -s -X POST -d '{"subject":"hi","body":"SGVsbG8gV29ybGQ=","target":""}' | jq
+curl http://127.0.0.1:26002/v1/queue -s | jq
 ```
 
 ```bash
