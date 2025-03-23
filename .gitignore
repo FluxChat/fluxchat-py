@@ -8,3 +8,4 @@ __pycache__
 /poc/
 /src/dev.py
 /resources/debian
+/.skip_bootstrap

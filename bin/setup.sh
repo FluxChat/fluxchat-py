@@ -155,7 +155,7 @@ if ! test -f ${FLUXCHAT_CONFIG}; then
 	chmod go-rwx ${FLUXCHAT_CONFIG}
 	envsubst < ./config-example.json > ${FLUXCHAT_CONFIG}
 fi
-if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json; then
+if ! test -f ${FLUXCHAT_DATA_DIR}/bootstrap.json && ! test -f .skip_bootstrap ; then
 	echo '-> generating bootstrap'
 	echo '["bootstrap.fluxchat.dev:25001"]' > ${FLUXCHAT_DATA_DIR}/bootstrap.json
 fi
