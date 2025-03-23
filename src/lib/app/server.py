@@ -258,19 +258,20 @@ class ServerApp():
 		print(f'-> _post_mails')
 
 		try:
+			local_node = self._server.get_local_node()
 			server_db = await self.get_database_for_restapi()
 
 			content = await request.json()
 
 			mail = Mail()
+			mail.set_sender(local_node.pubid)
 			if 'target' in content:
 				mail.set_receiver(content['target'], True)
 			if 'subject' in content:
 				mail.subject = content['subject']
 			if 'body' in content:
 				body = cast(str, content['body'])
-				#mail.body = b64encode(body.encode()).decode()
-				mail.body = body # TODO: OK?
+				mail.body = body
 				mail.mcompile()
 
 			queued_mails = server_db.add_queue_mail(mail)
