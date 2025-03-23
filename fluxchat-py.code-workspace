@@ -6,5 +6,18 @@
 	],
 	"settings": {
 		"editor.hover.enabled": true
-	}
+	},
+	"launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Attach Port 5678",
+                "type": "python",
+                "request": "attach",
+                "host": "127.0.0.1",
+                "port": 5678,
+                "justMyCode": false
+            }
+        ]
+    }
 }

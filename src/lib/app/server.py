@@ -26,7 +26,7 @@ class RestApiError(Exception):
 class RestApiServerError(RestApiError):
 	pass
 
-
+# TODO rename file to server_app.py
 class ServerApp():
 	_running: bool
 	_config_file: str
@@ -34,7 +34,8 @@ class ServerApp():
 	_server: Server
 	_scheduler: Scheduler
 	_is_dev: bool
-	_logger: Logger
+	_main_logger: Logger
+	_http_logger: Logger
 	_loglevel: Optional[str]
 	_api_app: Optional[WebApplication]
 	_api_runner: Optional[WebAppRunner]
@@ -47,7 +48,8 @@ class ServerApp():
 		self._server = None
 		self._scheduler = None
 		self._is_dev = is_dev
-		self._logger = None
+		self._main_logger = None
+		self._http_logger = None
 		self._loglevel = loglevel
 		self._api_app = None
 		self._api_runner = None
@@ -82,8 +84,10 @@ class ServerApp():
 			logConfig['filemode'] = 'a'
 		basicConfig(**logConfig)
 
-		self._logger = getLogger('app.server')
-		self._logger.info('start')
+		self._main_logger = getLogger('app.server')
+		self._main_logger.info('start')
+		self._http_logger = getLogger('app.http')
+		self._http_logger.info('start')
 
 		# Server
 		self._server = Server(self._config)
@@ -112,7 +116,7 @@ class ServerApp():
 
 	async def run(self):
 		self._running = True
-		self._logger.info('run()')
+		self._main_logger.info('run()')
 
 		tasks = []
 		tasks.append(create_task(self._scheduler.run()))
@@ -123,23 +127,26 @@ class ServerApp():
 				and 'address' in restapi_config \
 				and 'port' in restapi_config:
 
-				self._logger.debug('create API thread')
+				self._main_logger.debug('create API thread')
+				self._http_logger.debug('create API thread')
 				tasks.append(create_task(self.run_restapi(restapi_config['address'], restapi_config['port'])))
 
 		# Wait for threads.
-		self._logger.debug('wait for threads')
+		self._main_logger.debug('wait for threads')
 		await gather(*tasks)
 
 		# End
-		self._logger.info('run finished')
+		self._main_logger.info('run finished')
 
 	async def shutdown(self, reason: Optional[str] = None):
 		self._running = False
-		self._logger.info('shutdown(%s)', reason)
+		self._main_logger.info('shutdown(%s)', reason)
 		self._scheduler.shutdown(reason)
 		if self._api_app:
+			self._http_logger.info('api_app shutdown')
 			await self._api_app.shutdown()
 		if self._api_runner:
+			self._http_logger.info('api_runner shutdown')
 			await self._api_runner.shutdown()
 
 	async def get_database_for_restapi(self) -> Database:
@@ -150,6 +157,8 @@ class ServerApp():
 		return server_db
 
 	async def run_restapi(self, address: str, port: int):
+		self._http_logger.info('run_restapi()')
+
 		self._api_app = WebApplication()
 		self._api_app.add_routes([
 			wget('/', self._handle_restapi),
@@ -162,6 +171,7 @@ class ServerApp():
 			wpost('/v1/queue', self._post_handle_mail_queue),
 			wdelete('/v1/queue', self._delete_mail_queue),
 			wget('/v1/nodes', self._get_nodes),
+			wdelete('/v1/nodes/{uuid}', self._delete_node),
 			wpost('/v1/save', self._post_save),
 			wpost('/v1/db', self._post_handle_mail_db),
 		])
@@ -178,7 +188,7 @@ class ServerApp():
 			tick += 1
 
 	async def _handle_restapi(self, request: WebRequest):
-		print(f'-> request: {request} {type(request)}')
+		self._http_logger.debug('request: {request} {type(request)}')
 
 		json = {'status': f'OK'}
 		response = WebResponse(
@@ -188,7 +198,7 @@ class ServerApp():
 		return response
 
 	async def _get_infos(self, request: WebRequest):
-		print(f'-> _get_infos')
+		self._http_logger.debug('_get_infos')
 
 		db_server = self._server.get_database()
 		if db_server is None:
@@ -221,7 +231,7 @@ class ServerApp():
 		return response
 
 	async def _get_clients(self, request: WebRequest):
-		print(f'-> _get_clients')
+		self._http_logger.debug('_get_clients')
 
 		clients = []
 		for client in self._server.get_clients():
@@ -241,7 +251,7 @@ class ServerApp():
 		return response
 
 	async def _get_mails(self, request: WebRequest):
-		print(f'-> _get_mails')
+		self._http_logger.debug('_get_mails')
 
 		mails = []
 		if server_db := self._server.get_database():
@@ -255,7 +265,7 @@ class ServerApp():
 		return response
 
 	async def _post_mails(self, request: WebRequest):
-		print(f'-> _post_mails')
+		self._http_logger.debug('_post_mails')
 
 		try:
 			local_node = self._server.get_local_node()
@@ -336,7 +346,7 @@ class ServerApp():
 			return response
 
 	async def _get_queue(self, request: WebRequest):
-		print(f'-> _get_queue')
+		self._http_logger.debug('_get_queue')
 
 		messages = []
 		if server_db := self._server.get_database():
@@ -350,7 +360,7 @@ class ServerApp():
 		return response
 
 	async def _get_nodes(self, request: WebRequest):
-		print(f'-> _get_nodes')
+		self._http_logger.debug('_get_nodes')
 
 		nodes = []
 		if server_db := self._server.get_database():
@@ -363,8 +373,37 @@ class ServerApp():
 		)
 		return response
 
+	async def _delete_node(self, request: WebRequest):
+		uuid = int(request.match_info.get('uuid'))
+		self._http_logger.debug(f'_delete_node({uuid})')
+
+		status = 200
+		if uuid is None:
+			json = {'status': 'UUID not provided'}
+		else:
+			if server_db := self._server.get_database():
+				client = server_db.get_client_by_uuid(uuid)
+				if client is None:
+					json = {'status': f'Node not found by UUID {uuid}'}
+					status = 404
+				else:
+					if server_db.remove_client(client, force=True):
+						json = {'status': 'OK'}
+					else:
+						json = {'status': 'Not removed'}
+			else:
+				status = 500
+				json = {'status': 'Database Server not running'}
+
+		response = WebResponse(
+			text=dumps(json, indent=4, default=str),
+			content_type='application/json',
+			status=status,
+		)
+		return response
+
 	async def _post_save(self, request: WebRequest):
-		print(f'-> _post_save')
+		self._http_logger.debug('_post_save')
 
 		if server_db := self._server.get_database():
 			server_db.save()
@@ -377,7 +416,7 @@ class ServerApp():
 		return response
 
 	async def _post_handle_mail_db(self, request: WebRequest):
-		print(f'-> _post_handle_mail_db')
+		self._http_logger.debug('_post_handle_mail_db')
 
 		self._server.handle_mail_db()
 
@@ -389,7 +428,7 @@ class ServerApp():
 		return response
 
 	async def _post_handle_mail_queue(self, request: WebRequest):
-		print(f'-> _post_handle_mail_queue')
+		self._http_logger.debug('_post_handle_mail_queue')
 
 		self._server.handle_mail_queue()
 
@@ -401,7 +440,7 @@ class ServerApp():
 		return response
 
 	async def _delete_mail_queue(self, request: WebRequest):
-		print(f'-> _delete_mail_queue')
+		self._http_logger.debug('_delete_mail_queue')
 
 		json = {
 			'status': 'OK',

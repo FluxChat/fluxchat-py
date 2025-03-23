@@ -41,6 +41,7 @@ See [wiki](https://github.com/FluxChat/fluxchat-py/wiki) for more informations a
 ```bash
 source ./.venv/bin/activate
 ./src/server_app.py --dev -c var/config1.json
+env WAIT=2 python3 -m debugpy --listen 0.0.0.0:5678 ./src/server_app.py --dev -c var/config1.json
 
 cd src
 python3 -m unittest tests/test_mail.py

@@ -139,6 +139,7 @@ class Database():
 			return False
 		self._changes = False
 
+		### New Nodes
 		self._logger.debug('save new clients len=%d', len(self._new_clients))
 		for client in self._new_clients:
 			self._logger.debug('new client: %s', client)
@@ -164,6 +165,7 @@ class Database():
 			self._clients_by_pubid[client.pubid] = client
 		self._new_clients = []
 
+		### Update Nodes
 		self._logger.debug('save existing clients cbuuid=%d cbid=%d', len(self._clients_by_uuid), len(self._clients_by_pubid))
 		for client_uuid, client in self._clients_by_uuid.items():
 			self._logger.debug('save client: c=%s %s', client.has_changed, client)
@@ -205,6 +207,7 @@ class Database():
 
 			self._connection.commit()
 
+		### Remove Nodes
 		self._logger.debug('clients to remove len=%d', len(self._clients_to_remove))
 		for client in self._clients_to_remove:
 			self._logger.debug('remove client: %s', client)
@@ -214,7 +217,7 @@ class Database():
 			self._connection.commit()
 		self._clients_to_remove = []
 
-		### Queue
+		### Queue Insert
 		self._logger.debug('save new queue mails len=%d', len(self._new_queue_mails))
 		for mail in self._new_queue_mails:
 			self._logger.debug('new queue mail: %s', mail)
@@ -237,6 +240,7 @@ class Database():
 			self._queue_by_uuid[mail.uuid] = mail
 		self._new_queue_mails = []
 
+		### Queue Update
 		self._logger.debug('save existing queue mails len=%d', len(self._queue_by_uuid))
 		for mail_uuid, mail in self._queue_by_uuid.items():
 			sql = """
@@ -259,6 +263,7 @@ class Database():
 				mail.uuid))
 			self._connection.commit()
 
+		### Queue Remove
 		self._logger.debug('queue to remove len=%d', len(self._queue_to_remove))
 		for mail in self._queue_to_remove:
 			self._logger.debug('remove mail: %s', mail)
@@ -415,7 +420,7 @@ class Database():
 		bootstrap_clients = list(filter(ffunc, self._clients_by_uuid.items()))
 		return len(bootstrap_clients)
 
-	def get_client_by_uuid(self, uuid: str) -> Optional[Client]:
+	def get_client_by_uuid(self, uuid: int) -> Optional[Client]:
 		self._logger.debug('get_client_by_uuid(%s)', uuid)
 		if uuid in self._clients_by_uuid:
 			return self._clients_by_uuid[uuid]

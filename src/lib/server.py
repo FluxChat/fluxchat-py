@@ -31,6 +31,8 @@ SSL_HANDSHAKE_WAIT = 0.3
 SSL_HANDSHAKE_TIMEOUT = 5
 SSL_MINIMUM_VERSION = TLSVersion.TLSv1_2
 
+# TODO rename to ServerNetwork
+# TODO rename file to server_network.py
 class Server(Network):
 	_logger: Logger
 	_config: dict
@@ -363,7 +365,7 @@ class Server(Network):
 
 		# IPv4
 		client_sock = Socket(AF_INET, SOCK_STREAM)
-		client_sock.settimeout(2)
+		client_sock.settimeout(0.5)
 		try:
 			self._logger.debug('client sock connect to %s:%s', client.address, client.port)
 			client_sock.connect((client.address, client.port))

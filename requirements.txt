@@ -8,3 +8,4 @@ aiohttp==3.11.13
 
 # Dev
 coverage==7.2.*
+debugpy==1.8.*

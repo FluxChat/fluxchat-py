@@ -158,6 +158,8 @@ class Client():
 
 	def as_dict(self) -> dict:
 		data = dict()
+		if self.uuid is not None:
+			data['uuid'] = self.uuid
 		if self.address is not None:
 			data['address'] = self.address
 		if self.port is not None:

@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 
+import signal
+from os import getenv
+from time import sleep
 from asyncio import run as arun, create_task, get_event_loop, ensure_future
 from signal import SIGINT, signal as signal_fn
-import signal
 from argparse import ArgumentParser
 from lib.app.server import ServerApp
+
+# TODO rename to server_cli
 
 
 async def main():
@@ -35,4 +39,8 @@ async def main():
 		await app.shutdown('KeyboardInterrupt')
 
 if __name__ == '__main__':
+	wait = int(getenv('WAIT', 0))
+	if wait > 0:
+		print(f'-> wait {wait} seconds')
+		sleep(wait)
 	arun(main())
