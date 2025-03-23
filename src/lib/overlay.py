@@ -3,6 +3,9 @@ from typing import Optional
 from base58 import b58decode
 
 
+MAX_DISTANCE_I = 256
+
+
 class NodeError(ValueError):
 	pass
 
@@ -54,7 +57,7 @@ class Distance():
 	_distance: int
 
 	def __init__(self, node1: Optional[Node] = None, node2: Optional[Node] = None):
-		self._distance = 256
+		self._distance = MAX_DISTANCE_I
 
 		if node1 is not None and node2 is not None:
 			id1 = node1.decode()

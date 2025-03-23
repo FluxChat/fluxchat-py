@@ -609,13 +609,18 @@ class Database():
 
 		return _clients_removed_c
 
-	def get_nearest_to(self, node: Node, limit: int = 20, with_contact_infos: bool = None) -> list[Client]:
+	def get_nearest_to(self, node: Node, limit: int = 20, with_contact_infos: bool = False) -> list[Client]:
 		self._logger.debug('get_nearest_to(%s)', node)
 
 		def sort_key(_client: Client) -> Distance:
-			print(f'-> sort_key client: {_client}')
-			print(f'-> sort_key node: {_client.node}')
-			return _client.node.distance(node)
+			print(f'-> sort_key node: {node}')
+			print(f'-> sort_key _client.node: {_client.node}')
+			if _client.node is not None:
+				return _client.node.distance(node)
+			if node is not None:
+				return node.distance(_client.node)
+			# both are None
+			return Distance()
 
 		_clients = list(self._clients_by_pubid.values())
 		_clients.sort(key=sort_key)

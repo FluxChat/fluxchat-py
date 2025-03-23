@@ -165,6 +165,7 @@ class ServerApp():
 			wget('/v1', self._handle_restapi),
 			wget('/v1/infos', self._get_infos),
 			wget('/v1/clients', self._get_clients),
+			wdelete('/v1/clients/{uuid}', self._delete_client),
 			wget('/v1/mails', self._get_mails),
 			wpost('/v1/mails', self._post_mails),
 			wget('/v1/queue', self._get_queue),
@@ -250,6 +251,34 @@ class ServerApp():
 		)
 		return response
 
+	async def _delete_client(self, request: WebRequest):
+		# This endpoint will probably reconnect the client.
+		# If you want to permanently want to disconnect and remove
+		# the node use the delete-node API endpoint.
+
+		uuid = int(request.match_info.get('uuid', 0))
+		self._http_logger.debug(f'_delete_client({uuid})')
+
+		status = 200
+		if uuid is None or uuid == 0:
+			jresp = {'status': 'UUID not provided'}
+			status = 400
+		else:
+			client = self._server.get_client_by_uuid(uuid)
+			if client is None:
+				jresp = {'status': f'Client not found by UUID {uuid}'}
+				status = 404
+			else:
+				self._server.remove_client(client)
+				jresp = {'status': 'OK'}
+
+		response = WebResponse(
+			text=dumps(jresp, indent=4, default=str),
+			content_type='application/json',
+			status=status,
+		)
+		return response
+
 	async def _get_mails(self, request: WebRequest):
 		self._http_logger.debug('_get_mails')
 
@@ -293,7 +322,7 @@ class ServerApp():
 
 			queued_mails = server_db.add_queue_mail(mail)
 
-			json = {
+			jresp = {
 				'status': 'OK',
 				'request': content,
 				'mail': {
@@ -304,43 +333,43 @@ class ServerApp():
 				'queued_mails': queued_mails,
 			}
 			response = WebResponse(
-				text=dumps(json, indent=4, default=str),
+				text=dumps(jresp, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except NodeError as error:
-			json = {
+			jresp = {
 				'status': 'ERROR',
 				'message': str(error),
 				'exception_traceback': format_exc(),
 			}
 			response = WebResponse(
 				status=400,
-				text=dumps(json, indent=4, default=str),
+				text=dumps(jresp, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except RestApiError as error:
-			json = {
+			jresp = {
 				'status': 'ERROR',
 				'message': str(error),
 				'exception_traceback': format_exc(),
 			}
 			response = WebResponse(
 				status=error.status,
-				text=dumps(json, indent=4, default=str),
+				text=dumps(jresp, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except Exception as error:
-			json = {
+			jresp = {
 				'status': 'UNKNOWN_EXCEPTION',
 				'message': str(error),
 				'exception_traceback': format_exc(),
 			}
 			response = WebResponse(
 				status=500,
-				text=dumps(json, indent=4, default=str),
+				text=dumps(jresp, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
@@ -374,29 +403,30 @@ class ServerApp():
 		return response
 
 	async def _delete_node(self, request: WebRequest):
-		uuid = int(request.match_info.get('uuid'))
+		uuid = int(request.match_info.get('uuid', 0))
 		self._http_logger.debug(f'_delete_node({uuid})')
 
 		status = 200
-		if uuid is None:
-			json = {'status': 'UUID not provided'}
+		if uuid is None or uuid == 0:
+			jresp = {'status': 'UUID not provided'}
+			status = 400
 		else:
 			if server_db := self._server.get_database():
 				client = server_db.get_client_by_uuid(uuid)
 				if client is None:
-					json = {'status': f'Node not found by UUID {uuid}'}
+					jresp = {'status': f'Node not found by UUID {uuid}'}
 					status = 404
 				else:
 					if server_db.remove_client(client, force=True):
-						json = {'status': 'OK'}
+						jresp = {'status': 'OK'}
 					else:
-						json = {'status': 'Not removed'}
+						jresp = {'status': 'Not removed'}
 			else:
 				status = 500
-				json = {'status': 'Database Server not running'}
+				jresp = {'status': 'Database Server not running'}
 
 		response = WebResponse(
-			text=dumps(json, indent=4, default=str),
+			text=dumps(jresp, indent=4, default=str),
 			content_type='application/json',
 			status=status,
 		)
@@ -408,9 +438,9 @@ class ServerApp():
 		if server_db := self._server.get_database():
 			server_db.save()
 
-		json = {'status': 'OK'}
+		jresp = {'status': 'OK'}
 		response = WebResponse(
-			text=dumps(json, indent=4, default=str),
+			text=dumps(jresp, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
@@ -420,9 +450,9 @@ class ServerApp():
 
 		self._server.handle_mail_db()
 
-		json = {'status': 'OK'}
+		jresp = {'status': 'OK'}
 		response = WebResponse(
-			text=dumps(json, indent=4, default=str),
+			text=dumps(jresp, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
@@ -432,9 +462,9 @@ class ServerApp():
 
 		self._server.handle_mail_queue()
 
-		json = {'status': 'OK'}
+		jresp = {'status': 'OK'}
 		response = WebResponse(
-			text=dumps(json, indent=4, default=str),
+			text=dumps(jresp, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
@@ -442,12 +472,12 @@ class ServerApp():
 	async def _delete_mail_queue(self, request: WebRequest):
 		self._http_logger.debug('_delete_mail_queue')
 
-		json = {
+		jresp = {
 			'status': 'OK',
 			'old_mail_queue': self._server.delete_mail_queue(),
 		}
 		response = WebResponse(
-			text=dumps(json, indent=4, default=str),
+			text=dumps(jresp, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response

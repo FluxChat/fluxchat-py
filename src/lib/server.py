@@ -1023,14 +1023,23 @@ class Server(Network):
 	def get_clients(self) -> list[Client]:
 		return self._clients
 
+	def get_client_by_uuid(self, uuid: int) -> Optional[Client]:
+		for client in self._clients:
+			if client.uuid == uuid:
+				return client
+		return None
+
 	def add_client(self, client: Client):
 		self._clients.append(client)
+
+	def remove_client(self, client: Client):
+		client.conn_mode = 0
 
 	def handle_clients(self) -> bool:
 		for client in self._clients:
 
-			# Remove clients that are not connected
 			if client.conn_mode == 0:
+				# Remove clients that are not connected
 				self._logger.debug('remove client: %s', client)
 				self._logger.debug('reason: %s', client.conn_msg)
 				self._selectors.unregister(client.sock)
