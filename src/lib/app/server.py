@@ -1,12 +1,14 @@
 
 import datetime as dt
+from traceback import format_exc
 from json import dumps, loads
 from logging import getLogger, basicConfig, Logger
 from typing import Optional, cast
 from sty import fg
 from os import path
 from asyncio import create_task, gather, sleep as asleep
-from aiohttp import web, web_request
+from aiohttp.web import TCPSite, Application as WebApplication, AppRunner as WebAppRunner, Response as WebResponse, get as wget, post as wpost, delete as wdelete
+from aiohttp.web_request import Request as WebRequest
 from base64 import b64encode, b64decode
 
 from lib.database import Database
@@ -33,12 +35,12 @@ class ServerApp():
 	_scheduler: Scheduler
 	_is_dev: bool
 	_logger: Logger
-	_loglevel: str
-	_api_app: Optional[web.Application]
-	_api_runner: Optional[web.AppRunner]
-	_api_site: Optional[web.TCPSite]
+	_loglevel: Optional[str]
+	_api_app: Optional[WebApplication]
+	_api_runner: Optional[WebAppRunner]
+	_api_site: Optional[TCPSite]
 
-	def __init__(self, config_file: str = None, is_dev: bool = False, loglevel: str = None):
+	def __init__(self, config_file: str, is_dev: bool = False, loglevel: Optional[str] = None):
 		self._running = False
 		self._config_file = config_file
 		self._config = None
@@ -131,12 +133,13 @@ class ServerApp():
 		# End
 		self._logger.info('run finished')
 
-	async def shutdown(self, reason: str = None):
+	async def shutdown(self, reason: Optional[str] = None):
 		self._running = False
 		self._logger.info('shutdown(%s)', reason)
 		self._scheduler.shutdown(reason)
 		if self._api_app:
 			await self._api_app.shutdown()
+		if self._api_runner:
 			await self._api_runner.shutdown()
 
 	async def get_database_for_restapi(self) -> Database:
@@ -147,26 +150,26 @@ class ServerApp():
 		return server_db
 
 	async def run_restapi(self, address: str, port: int):
-		self._api_app = web.Application()
+		self._api_app = WebApplication()
 		self._api_app.add_routes([
-			web.get('/', self._handle_restapi),
-			web.get('/v1', self._handle_restapi),
-			web.get('/v1/infos', self._get_infos),
-			web.get('/v1/clients', self._get_clients),
-			web.get('/v1/mails', self._get_mails),
-			web.post('/v1/mails', self._post_mails),
-			web.get('/v1/queue', self._get_queue),
-			web.post('/v1/queue', self._post_handle_mail_queue),
-			web.delete('/v1/queue', self._delete_mail_queue),
-			web.get('/v1/nodes', self._get_nodes),
-			web.post('/v1/save', self._post_save),
-			web.post('/v1/db', self._post_handle_mail_db),
+			wget('/', self._handle_restapi),
+			wget('/v1', self._handle_restapi),
+			wget('/v1/infos', self._get_infos),
+			wget('/v1/clients', self._get_clients),
+			wget('/v1/mails', self._get_mails),
+			wpost('/v1/mails', self._post_mails),
+			wget('/v1/queue', self._get_queue),
+			wpost('/v1/queue', self._post_handle_mail_queue),
+			wdelete('/v1/queue', self._delete_mail_queue),
+			wget('/v1/nodes', self._get_nodes),
+			wpost('/v1/save', self._post_save),
+			wpost('/v1/db', self._post_handle_mail_db),
 		])
 
-		self._api_runner = web.AppRunner(self._api_app)
+		self._api_runner = WebAppRunner(self._api_app)
 		await self._api_runner.setup()
 
-		self._api_site = web.TCPSite(self._api_runner, 'localhost', 26002)
+		self._api_site = TCPSite(self._api_runner, address, port)
 		await self._api_site.start()
 
 		tick = 0
@@ -174,18 +177,17 @@ class ServerApp():
 			await asleep(1)
 			tick += 1
 
-	async def _handle_restapi(self, request: web_request.Request):
+	async def _handle_restapi(self, request: WebRequest):
 		print(f'-> request: {request} {type(request)}')
 
-		# name = request.match_info.get('api_version', 'v1')
 		json = {'status': f'OK'}
-		response = web.Response(
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _get_infos(self, request: web_request.Request):
+	async def _get_infos(self, request: WebRequest):
 		print(f'-> _get_infos')
 
 		db_server = self._server.get_database()
@@ -212,13 +214,13 @@ class ServerApp():
 				**db_infos,
 			}
 		}
-		response = web.Response(
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _get_clients(self, request: web_request.Request):
+	async def _get_clients(self, request: WebRequest):
 		print(f'-> _get_clients')
 
 		clients = []
@@ -232,14 +234,13 @@ class ServerApp():
 			client_d['auth'] = client.auth
 			client_d['cash'] = client.cash
 			clients.append(client_d)
-		json = {'clients': clients}
-		response = web.Response(
-			text=dumps(json, indent=4, default=str),
+		response = WebResponse(
+			text=dumps(clients, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _get_mails(self, request: web_request.Request):
+	async def _get_mails(self, request: WebRequest):
 		print(f'-> _get_mails')
 
 		mails = []
@@ -247,14 +248,13 @@ class ServerApp():
 			for uuid, message in server_db.get_mails().items():
 				mails.append(message.as_dict())
 
-		json = {'mails': mails}
-		response = web.Response(
-			text=dumps(json, indent=4, default=str),
+		response = WebResponse(
+			text=dumps(mails, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _post_mails(self, request: web_request.Request):
+	async def _post_mails(self, request: WebRequest):
 		print(f'-> _post_mails')
 
 		try:
@@ -285,37 +285,49 @@ class ServerApp():
 				},
 				'queued_mails': queued_mails,
 			}
-			response = web.Response(
+			response = WebResponse(
 				text=dumps(json, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except NodeError as error:
-			json = {'status': 'ERROR', 'message': str(error)}
-			response = web.Response(
+			json = {
+				'status': 'ERROR',
+				'message': str(error),
+				'exception_traceback': format_exc(),
+			}
+			response = WebResponse(
 				status=400,
 				text=dumps(json, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except RestApiError as error:
-			json = {'status': 'ERROR', 'message': str(error)}
-			response = web.Response(
+			json = {
+				'status': 'ERROR',
+				'message': str(error),
+				'exception_traceback': format_exc(),
+			}
+			response = WebResponse(
 				status=error.status,
 				text=dumps(json, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 		except Exception as error:
-			json = {'status': 'UNKNOWN_EXCEPTION', 'message': str(error)}
-			response = web.Response(
+			json = {
+				'status': 'UNKNOWN_EXCEPTION',
+				'message': str(error),
+				'exception_traceback': format_exc(),
+			}
+			response = WebResponse(
 				status=500,
 				text=dumps(json, indent=4, default=str),
 				content_type='application/json',
 			)
 			return response
 
-	async def _get_queue(self, request: web_request.Request):
+	async def _get_queue(self, request: WebRequest):
 		print(f'-> _get_queue')
 
 		messages = []
@@ -323,14 +335,13 @@ class ServerApp():
 			for uuid, message in server_db.get_queue_mails().items():
 				messages.append(message.as_dict())
 
-		json = {'queue': messages}
-		response = web.Response(
-			text=dumps(json, indent=4, default=str),
+		response = WebResponse(
+			text=dumps(messages, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _get_nodes(self, request: web_request.Request):
+	async def _get_nodes(self, request: WebRequest):
 		print(f'-> _get_nodes')
 
 		nodes = []
@@ -338,57 +349,57 @@ class ServerApp():
 			for cuuid, client in server_db.get_clients().items():
 				nodes.append(client.as_dict())
 
-		json = {'nodes': nodes}
-		response = web.Response(
-			text=dumps(json, indent=4, default=str),
+		response = WebResponse(
+			text=dumps(nodes, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _post_save(self, request: web_request.Request):
+	async def _post_save(self, request: WebRequest):
 		print(f'-> _post_save')
 
 		if server_db := self._server.get_database():
 			server_db.save()
 
 		json = {'status': 'OK'}
-		response = web.Response(
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _post_handle_mail_db(self, request: web_request.Request):
+	async def _post_handle_mail_db(self, request: WebRequest):
 		print(f'-> _post_handle_mail_db')
 
 		self._server.handle_mail_db()
 
 		json = {'status': 'OK'}
-		response = web.Response(
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _post_handle_mail_queue(self, request: web_request.Request):
+	async def _post_handle_mail_queue(self, request: WebRequest):
 		print(f'-> _post_handle_mail_queue')
 
 		self._server.handle_mail_queue()
 
 		json = {'status': 'OK'}
-		response = web.Response(
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
 		return response
 
-	async def _delete_mail_queue(self, request: web_request.Request):
+	async def _delete_mail_queue(self, request: WebRequest):
 		print(f'-> _delete_mail_queue')
 
-		l = self._server.delete_mail_queue()
-
-		json = {'status': 'OK', 'old_mail_queue': l}
-		response = web.Response(
+		json = {
+			'status': 'OK',
+			'old_mail_queue': self._server.delete_mail_queue(),
+		}
+		response = WebResponse(
 			text=dumps(json, indent=4, default=str),
 			content_type='application/json',
 		)
