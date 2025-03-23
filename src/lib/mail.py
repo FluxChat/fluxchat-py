@@ -2,6 +2,7 @@
 import datetime as dt
 from base64 import b64encode
 from json import loads
+from typing import Optional
 from uuid import uuid4
 from logging import getLogger
 from lib.overlay import Node
@@ -13,8 +14,8 @@ class Mail():
 	pubid: str
 	sender: str
 	receiver: str
-	origin: Node
-	target: Node
+	origin: Optional[Node] # sender field as Node
+	target: Optional[Node] # receiver field as Node
 	subject: str
 	body: str
 	created_at: dt.datetime
@@ -208,8 +209,8 @@ class Mail():
 		else:
 			self.receiver = receiver
 
-	def encode(self) -> str:
-		self._logger.debug('encode()')
+	def mcompile(self) -> None:
+		self._logger.debug('mcompile()')
 
 		# uuid_len = len(self.pubid).to_bytes(1, 'little')
 		sender_len = len(self.sender).to_bytes(1, 'little')
@@ -225,11 +226,12 @@ class Mail():
 			b'\x21', body_len, self.body.encode(),
 		]
 		raw = b''.join(items)
-		return b64encode(raw).decode()
+		self.body = b64encode(raw).decode()
 
-	def decode(self, data: bytes):
-		self._logger.debug('decode(%s)', data)
-		# print('data', data)
+		self._logger.debug(f'mcompile DONE: body={self.body}')
+
+	def mdecompile(self, data: bytes) -> None:
+		self._logger.debug('mdecompile(%s)', data)
 
 		data_len = len(data)
 
@@ -238,51 +240,54 @@ class Mail():
 			item_t = int.from_bytes(data[pos:pos+1], 'little')
 			pos += 1
 
-			# if item_t == 0x00:
 			if item_t == 0x01:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode()
 				self.created_at = dt.datetime.fromisoformat(val)
+				self._logger.debug('mdecompile created_at: %s', self.created_at)
 
 			elif item_t == 0x10:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode()
 				self.set_sender(val)
+				self._logger.debug('mdecompile sender: %s', self.sender)
 
 			elif item_t == 0x11:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode()
 				self.set_receiver(val)
+				self._logger.debug('mdecompile receiver: %s', self.receiver)
 
 			elif item_t == 0x20:
 				item_l = int.from_bytes(data[pos:pos+1], 'little')
 				pos += 1
 				val = data[pos:pos+item_l].decode()
 				self.subject = val
+				self._logger.debug('mdecompile subject: %s', self.subject)
 
 			elif item_t == 0x21:
 				item_l = int.from_bytes(data[pos:pos+4], 'little')
 				pos += 4
-				self._logger.debug('body length: %d', item_l)
+				self._logger.debug('mdecompile body length: %d', item_l)
 
-				val = data[pos:pos+item_l].decode()
-				self._logger.debug('body: "%s"', val)
-
-				self.body = val
+				self.body = data[pos:pos+item_l].decode()
+				self._logger.debug('mdecompile body: "%s"', val)
 
 			else:
-				self._logger.warning('unknown type: %s', item_t)
+				self._logger.warning('mdecompile unknown type: %s', item_t)
 				val = None
 				item_l = 0
 
 			pos += item_l
 
-			self._logger.debug('type=%s(%s), length=%d(%s), value=%s(%s)', item_t, type(item_t), item_l, type(item_l), val, type(val))
+			self._logger.debug('mdecompile type=%s(%s), length=%d(%s), value=%s(%s)', item_t, type(item_t), item_l, type(item_l), val, type(val))
 
-	def ipc_encode(self) -> bytes:
+		self._logger.debug('mdecompile DONE')
+
+	def ipc_encode(self) -> bytes: # TODO remove
 		self._logger.debug('ipc_encode()')
 
 		data = {}
@@ -309,7 +314,7 @@ class Mail():
 
 		return binary_encode(data)
 
-	def ipc_decode(self, raw):
+	def ipc_decode(self, raw): # TODO remove
 		self._logger.debug('ipc_decode()')
 		self._logger.debug('raw: %s "%s"', type(raw), raw)
 

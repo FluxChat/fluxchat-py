@@ -189,6 +189,18 @@ class ServerApp():
 		print(f'-> _get_infos')
 
 		db_server = self._server.get_database()
+		if db_server is None:
+			db_infos = {
+				'clients': 'N/A',
+				'mails': 'N/A',
+				'queue': 'N/A',
+			}
+		else:
+			db_infos = {
+				'clients': db_server.get_clients_len(),
+				'mails': len(db_server.get_mails()),
+				'queue': len(db_server.get_queue_mails()),
+			}
 
 		json = {
 			'node': {
@@ -197,9 +209,7 @@ class ServerApp():
 			},
 			'server': {
 				'is_bootstrap_phase': self._server.is_bootstrap_phase(),
-				'clients': len(db_server.get_clients()),
-				'mails': len(db_server.get_mails()),
-				'queue_mails': len(db_server.get_queue_mails()),
+				**db_infos,
 			}
 		}
 		response = web.Response(
@@ -259,7 +269,9 @@ class ServerApp():
 				mail.subject = content['subject']
 			if 'body' in content:
 				body = cast(str, content['body'])
-				mail.body = b64encode(body.encode()).decode()
+				#mail.body = b64encode(body.encode()).decode()
+				mail.body = body # TODO: OK?
+				mail.mcompile()
 
 			queued_mails = server_db.add_queue_mail(mail)
 

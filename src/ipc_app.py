@@ -5,7 +5,7 @@ from signal import SIGINT, signal
 from argparse import ArgumentParser
 from lib.app.ipc import IpcApp
 
-async def main():
+async def main(): # TODO remove all IPC code
 	parser = ArgumentParser(prog='ipc_app', description='IPC App')
 	parser.add_argument('-c', '--config', type=str, required=True, help='Path to Config File')
 	parser.add_argument('-t', '--target', type=str, nargs='?', required=False, help='Target to send mail to')

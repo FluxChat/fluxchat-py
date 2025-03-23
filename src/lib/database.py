@@ -33,7 +33,7 @@ class Database():
 	_clients_ttl: dt.timedelta
 	_mail_retention_time: dt.timedelta
 
-	def __init__(self, config: dict = None):
+	def __init__(self, config: dict):
 		self._logger = getLogger('app.database')
 		self._logger.info('init()')
 
@@ -114,7 +114,7 @@ class Database():
 				else:
 					self._logger.debug(f'file not found: {key_file_path}')
 
-		# Load Mails
+		# Load Queue
 		self._logger.debug('load queue')
 		queued_mails = self._cursor.execute('SELECT uuid, pubid, receiver, body, is_encrypted, created_at, valid_until FROM queue').fetchall()
 		for mail in queued_mails:
@@ -123,6 +123,7 @@ class Database():
 
 			self._queue_by_uuid[mail.uuid] = mail
 
+		# Load Mails
 		self._logger.debug('load mails')
 		mails = self._cursor.execute('SELECT uuid, pubid, sender, receiver, subject, body, forwarded_to, is_encrypted, is_delivered, is_new, verified, sign_hash, sign, created_at, received_at, valid_until FROM mails').fetchall()
 		for mail in mails:
@@ -438,8 +439,9 @@ class Database():
 			return _clients[0][1]
 		return None
 
-	def add_client(self, pubid: str = None, addr: str = None, port: int = None) -> Client:
-		self._logger.debug('add_client(%s, %s, %s)', id, addr, port)
+	def add_client(self, pubid: Optional[str] = None, addr: Optional[str] = None, port: Optional[int] = None) -> Client:
+		self._logger.debug('add_client(%s, %s, %s)', pubid, addr, port)
+
 		if pubid in self._clients_by_pubid:
 			self._logger.debug('client already exists: (%s, %s, %s)', pubid, addr, port)
 			return self._clients_by_pubid[pubid]
@@ -451,9 +453,6 @@ class Database():
 			client.address = addr
 		if port is not None:
 			client.port = port
-
-		# if client.pubid is not None:
-		# 	self._clients_by_pubid[client.pubid] = client
 
 		self._new_clients.append(client)
 

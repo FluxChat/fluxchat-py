@@ -198,7 +198,7 @@ class IpcApp(Network):
 		mail.subject = subject
 		mail.body = body
 
-		raw = mail.encode()
+		raw = mail.mcompile()
 
 		command = IpcCommand('send_mail')
 		command.data = {

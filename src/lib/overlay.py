@@ -1,4 +1,5 @@
 from os import getenv
+from typing import Optional
 from base58 import b58decode
 
 
@@ -10,7 +11,7 @@ class Node():
 	pubid: str
 
 	def __init__(self, pubid: str):
-		# print(f'-> Node.__init__() {pubid}')
+		print(f'-> Node.__init__({pubid})')
 		self.pubid = pubid
 
 	def __str__(self): # pragma: no cover
@@ -29,7 +30,7 @@ class Node():
 		return self.pubid == other.pubid
 
 	def decode(self) -> bytes:
-		# print(f'-> Node.decode() -> {self.pubid}')
+		print(f'-> Node.decode() -> {self.pubid}')
 		return b58decode(self.pubid[3:])
 
 	def has_valid_id(self) -> bool:
@@ -52,13 +53,10 @@ class Node():
 class Distance():
 	_distance: int
 
-	def __init__(self, node1: Node = None, node2: Node = None):
+	def __init__(self, node1: Optional[Node] = None, node2: Optional[Node] = None):
 		self._distance = 256
 
 		if node1 is not None and node2 is not None:
-			# print(f'-> node1: {node1}')
-			# print(f'-> node2: {node2}')
-
 			id1 = node1.decode()
 			id2 = node2.decode()
 

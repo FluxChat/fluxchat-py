@@ -656,8 +656,9 @@ class Server(Network):
 				if command_i == 1:
 					self._logger.info('GET_NEAREST_TO command')
 
+					node_pubid = payload[0].decode()
 					try:
-						node = Node(payload[0].decode())
+						node = Node(node_pubid)
 					except:
 						self._logger.warning('skip, invalid node')
 						continue
@@ -853,14 +854,16 @@ class Server(Network):
 
 			elif group_i == 3: # Mail
 				if command_i == 1:
-					self._logger.debug('SEND MAIL command')
+					self._logger.info('SEND MAIL command')
 
-					# mail_uuid, mail_target, mail_data = payload
 					mail_uuid = payload[0].decode()
 					mail_target = payload[1].decode()
-					mail_data = payload[2].decode()
+					mail_body = payload[2].decode()
 
 					self._logger.debug('mail uuid: %s', mail_uuid)
+					self._logger.debug('mail target: %s', mail_target)
+					self._logger.debug('mail body: %s', mail_body)
+
 					if not is_valid_uuid(mail_uuid):
 						self._logger.debug('invalid mail uuid')
 						continue
@@ -880,15 +883,11 @@ class Server(Network):
 						self._logger.debug('invalid mail target')
 						continue
 
-					self._logger.debug('mail data: %s', mail_data)
-
 					mail = Mail(mail_uuid)
-					mail.receiver = mail_target.pubid
-					mail.target = mail_target
-					mail.body = mail_data
+					mail.set_receiver(mail_target.pubid)
+					mail.body = mail_body
 					mail.is_encrypted = True
 					mail.received_now()
-					# TODO add mail.origin?
 
 					if mail_target == self._local_node:
 						self._logger.debug('mail target is local node')
@@ -902,7 +901,7 @@ class Server(Network):
 						self._database.add_queue_mail(mail)
 
 			else:
-				self._logger.debug('unknown group %d, command %d', group_i, command_i)
+				self._logger.warning('unknown group %d, command %d', group_i, command_i)
 				self._logger.debug('conn mode 0')
 				client.conn_mode = 0
 				client.conn_msg = 'unknown group %d, command %d' % (group_i, command_i)
@@ -1077,8 +1076,8 @@ class Server(Network):
 
 					print(f'-> payload: {payload}')
 
-					target = payload[0]
-					body = payload[1]
+					target = payload[0].decode()
+					body = payload[1].decode()
 					self._ipc_logger.debug('target: %s', target)
 					self._ipc_logger.debug('body: %s', body)
 
@@ -1497,11 +1496,18 @@ class Server(Network):
 		self._logger.debug('delete_mail_queue()')
 		return self._database.delete_queue_mails()
 
-	def handle_mail_db(self) -> bool:
+	def handle_mail_db(self) -> None:
 		self._logger.debug('handle_mail_db() -> len=%d', len(self._database.get_mails()))
 
 		for mail_uuid, mail in self._database.get_mails().items():
 			self._logger.debug('handle_mail_db: mail %s', mail)
+
+			# TODO mail.origin is None?
+			if mail.origin is None:
+				self._logger.error(f'Mail.origin is None: {mail_uuid} {mail}')
+				continue
+
+			mail_origin = cast(Node, mail.origin)
 
 			clients = self._database.get_nearest_to(mail.origin, with_contact_infos=True)
 			self._logger.debug('handle_mail_db: clients %s', clients)
@@ -1509,7 +1515,6 @@ class Server(Network):
 			for client in clients:
 				self._logger.debug('handle_mail_db: client for mail: %s', client)
 				if self._client_is_connected(client):
-					pass
 					self._logger.debug('handle_mail_db: client is connected')
 				else:
 					self._logger.debug('handle_mail_db: client is not connected C')
@@ -1518,18 +1523,20 @@ class Server(Network):
 			if mail.verified == 'n':
 				self._logger.debug('handle_mail_db: mail is not verified')
 
-				if mail.origin is None:
-					self._logger.error(f'Mail.origin is None: {mail_uuid} {mail}')
-					continue
-
-				_client = self._database.get_client_by_pubid(mail.origin.pubid)
-
 				request_public_key_for_node_action = False
+
+				# if mail_origin is None:
+				# 	self._logger.debug('handle_mail_db: mail origin is None')
+				# 	request_public_key_for_node_action = True
+				# else:
+				self._logger.debug('handle_mail_db: mail origin: %s', mail_origin)
+				_client = self._database.get_client_by_pubid(mail_origin.pubid)
+
 				if _client is None:
-					self._logger.debug('handle_mail_db: client not found by id: %s', mail.origin.pubid)
+					self._logger.debug('handle_mail_db: client not found by id: %s', mail_origin.pubid)
 					request_public_key_for_node_action = True
 				else:
-					self._logger.debug('handle_mail_db: client found by id: %s', mail.origin.pubid)
+					self._logger.debug('handle_mail_db: client found by id: %s', mail_origin.pubid)
 					if _client.has_public_key():
 						self._logger.debug('handle_mail_db: client has public key')
 						self._verify_mail(mail, _client)
@@ -1539,11 +1546,11 @@ class Server(Network):
 
 				if request_public_key_for_node_action:
 					for client in clients:
-						if client.has_action('request_public_key_for_node', mail.origin.pubid):
-							self._logger.debug('handle_mail_db: client already has action request_public_key_for_node/%s', mail.origin.pubid)
+						if client.has_action('request_public_key_for_node', mail_origin.pubid):
+							self._logger.debug('handle_mail_db: client already has action request_public_key_for_node/%s', mail_origin.pubid)
 						else:
 							self._logger.debug('handle_mail_db: create action request_public_key_for_node from client: %s', client)
-							action = self._create_action_request_public_key_for_node(mail.origin, 'o')
+							action = self._create_action_request_public_key_for_node(mail_origin, 'o')
 							action.func = lambda client: self._verify_mail(mail, client)
 							client.add_action(action)
 
@@ -1559,7 +1566,7 @@ class Server(Network):
 
 		if mail.is_encrypted:
 			self._logger.debug('mail is already encrypted')
-			return
+			return True # TODO True correct here?
 
 		# Raw Body
 		try:
@@ -1693,7 +1700,7 @@ class Server(Network):
 		mail.verified = 'n'
 		mail.sign_hash = b64encode(sign_token).decode()
 		mail.sign = b64encode(signature).decode()
-		mail.decode(raw_body)
+		mail.mdecompile(raw_body)
 
 		self._database.changed()
 
