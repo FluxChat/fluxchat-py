@@ -654,22 +654,18 @@ class Database():
 		mail.changed()
 
 		self._new_queue_mails.append(mail)
-		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
 		self.changed()
 		self.save()
 
-		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 
 		return len(self._queue_by_uuid)
 
 	def get_queue_mails(self) -> dict[str, Mail]:
-		self._logger.debug('get_queue_mails() -> %d', len(self._new_queue_mails)) # TODO remove
 		return self._queue_by_uuid
 
 	def has_queue_mail(self, mail_uuid: str) -> bool:
 		self._logger.debug('has_mail(%s)', mail_uuid)
-		self._logger.debug('_new_queue_mails=%d', len(self._new_queue_mails)) # TODO remove
 		return mail_uuid in self._queue_by_uuid
 
 	def clean_queue_up(self) -> None:

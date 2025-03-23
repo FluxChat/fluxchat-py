@@ -25,11 +25,6 @@
 		"port": 26000
 	},
 	"bootstrap": "default",
-	"ipc": {
-		"enabled": true,
-		"address": "127.0.0.1",
-		"port": ${FLUXCHAT_IPC_PORT}
-	},
 	"restapi": {
 		"enabled": true,
 		"address": "127.0.0.1",

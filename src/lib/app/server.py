@@ -263,6 +263,10 @@ class ServerApp():
 
 			content = await request.json()
 
+			body_is_base64 = False
+			if 'is_base64' in content:
+				body_is_base64 = bool(content['is_base64'])
+
 			mail = Mail()
 			mail.set_sender(local_node.pubid)
 			if 'target' in content:
@@ -271,7 +275,10 @@ class ServerApp():
 				mail.subject = content['subject']
 			if 'body' in content:
 				body = cast(str, content['body'])
-				mail.body = body
+				if body_is_base64:
+					mail.body = b64decode(body).decode()
+				else:
+					mail.body = body
 				mail.mcompile()
 
 			queued_mails = server_db.add_queue_mail(mail)
