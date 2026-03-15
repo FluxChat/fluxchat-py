@@ -179,15 +179,17 @@ class Network():
 		payload_len_i = 0
 		payload_items = []
 		for item in data:
-			enconded_item = None
+			encoded_item = None
 			if isinstance(item, str):
-				enconded_item = item.encode()
+				encoded_item = item.encode()
 			elif isinstance(item, bytes):
-				enconded_item = item
+				encoded_item = item
 			elif isinstance(item, int):
-				enconded_item = item.to_bytes(4, 'little')
+				encoded_item = item.to_bytes(4, 'little')
+			else:
+				raise TypeError(f'invalid payload item type: {type(item)}')
 
-			item_content_len = len(enconded_item)
+			item_content_len = len(encoded_item)
 			payload_len_i += item_content_len
 			self._logger.debug('item: l=%d t=%s i=%s', item_content_len, type(item), item)
 
@@ -199,7 +201,7 @@ class Network():
 				payload_items.append(item_content_len.to_bytes(1, 'little'))
 
 			payload_len_i += 1
-			payload_items.append(enconded_item)
+			payload_items.append(encoded_item)
 
 		self._logger.debug('payload_len_i: %d', payload_len_i)
 		self._logger.debug('payload_items: %s', payload_items)
