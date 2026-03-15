@@ -72,6 +72,12 @@ class Network():
 				status.disconnect = True
 				status.msg = 'SSLWantReadError'
 				reading = False
+			except SSLError as error:
+				self._logger.debug('SSLError: %s', error)
+
+				status.disconnect = True
+				status.msg = 'SSLError'
+				reading = False
 			else:
 				if raw_len >= CLIENT_READ_SIZE:
 					self._logger.debug('raw_len(%d) >= CLIENT_READ_SIZE(%d)', raw_len, CLIENT_READ_SIZE)
