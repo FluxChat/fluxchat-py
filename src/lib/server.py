@@ -39,7 +39,6 @@ class Server(Network):
 	_selectors: DefaultSelector
 	_main_server_socket: Socket
 	_discovery_socket: Socket
-	_database: Database
 	_hostname: str
 	_lan_ip: str
 	_clients: list[Client]
@@ -54,7 +53,7 @@ class Server(Network):
 		self._host_name = gethostname()
 		self._lan_ip = gethostbyname(self._host_name)
 		self._clients = []
-		self._database = None
+		self._database: Optional[Database] = None
 		self._selectors = DefaultSelector()
 		self._public_key = None
 		self._public_key_b64 = None
