@@ -4,6 +4,8 @@ export IS_UNITTEST=true
 SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
+source .venv/bin/activate
+
 rm -rf tmp/tests
 mkdir -p tmp/tests/data_default
 mkdir -p tmp/tests/data_custom
@@ -11,5 +13,5 @@ mkdir -p tmp/tests/keys
 
 set -e
 
-uv run coverage run -m unittest discover -s src
-uv run coverage html -d tmp/coverage
+coverage run -m unittest discover -s src
+coverage html -d tmp/coverage

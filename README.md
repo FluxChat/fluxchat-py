@@ -18,7 +18,7 @@ Run this in your favourite shell, Bash.
 brew install gettext uv
 git clone https://github.com/FluxChat/fluxchat-py.git
 cd fluxchat-py
-./bin/setup.sh
+./bin/install.sh
 ./bin/start.sh
 ```
 

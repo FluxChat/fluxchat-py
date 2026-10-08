@@ -4,4 +4,4 @@ SCRIPT_BASEDIR=$(dirname "$0")
 cd "${SCRIPT_BASEDIR}/.."
 
 ./bin/cleanup.sh
-./bin/setup.sh --skip
+./bin/install.sh --skip
