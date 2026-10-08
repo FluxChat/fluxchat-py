@@ -11,9 +11,5 @@ mkdir -p tmp/tests/keys
 
 set -e
 
-if [[ -z ${CI} ]]; then
-	. .venv/bin/activate
-fi
-
-coverage run -m unittest discover -s src
-coverage html -d tmp/coverage
+uv run coverage run -m unittest discover -s src
+uv run coverage html -d tmp/coverage

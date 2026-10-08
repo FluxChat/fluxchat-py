@@ -8,14 +8,14 @@ FluxChat uses asymetic-encryption to encrypt messages end-to-end. [TLS](https://
 
 Dependencies:
 
-- Python 3
-- [virtualenv](https://docs.python.org/3/library/venv.html)
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/)
 - gettext
 
 Run this in your favourite shell, Bash.
 
 ```bash
-brew install gettext virtualenv
+brew install gettext uv
 git clone https://github.com/FluxChat/fluxchat-py.git
 cd fluxchat-py
 ./bin/setup.sh
@@ -39,12 +39,11 @@ See [wiki](https://github.com/FluxChat/fluxchat-py/wiki) for more informations a
 ## Dev
 
 ```bash
-source ./.venv/bin/activate
-./src/server_app.py --dev -c var/config1.json
-env WAIT=2 python3 -m debugpy --listen 0.0.0.0:5678 ./src/server_app.py --dev -c var/config1.json
+uv run ./src/server_app.py --dev -c var/config1.json
+uv run python -m debugpy --listen 0.0.0.0:5678 ./src/server_app.py --dev -c var/config1.json
 
 cd src
-python3 -m unittest tests/test_mail.py
+uv run python -m unittest tests/test_mail.py
 
 curl http://127.0.0.1:26002/v1/mails -s | jq
 curl http://127.0.0.1:26002/v1/mails -s -X POST -d '{"subject":"hi","body":"SGVsbG8gV29ybGQ=","target":""}' | jq
@@ -54,7 +53,7 @@ curl http://127.0.0.1:26002/v1/queue -s | jq
 ```bash
 export IS_UNITTEST=true
 export PYTHONPATH=$PWD/src
-coverage run -m unittest tests.test_address_book.AddressBookTestCase.test_save_load
+uv run coverage run -m unittest tests.test_address_book.AddressBookTestCase.test_save_load
 ```
 
 openssl rsa -pubin -inform PEM -in var/data1/public_key.pem -outform DER | openssl dgst -sha256 -c

@@ -5,7 +5,7 @@
 		}
 	],
 	"settings": {
-		"editor.hover.enabled": true
+		"editor.hover.enabled": "on"
 	},
 	"launch": {
         "version": "0.2.0",

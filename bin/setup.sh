@@ -50,7 +50,7 @@ else
 						echo '-> You selected "yes"'
 						sleep 2
 						echo '-> run brew install command'
-						if ${brew_bin} install gettext virtualenv ; then
+						if ${brew_bin} install gettext uv ; then
 							echo '-> homebrew installation complete'
 						else
 							echo "ERROR: homebrew failed: $?"
@@ -80,10 +80,20 @@ else
 						echo '-> You selected "yes"'
 						sleep 2
 						echo '-> run sudo apt-get install command'
-						if ${sudo_bin} ${aptget_bin} install python3-virtualenv ; then
+						if ${sudo_bin} ${aptget_bin} install gettext-base curl ca-certificates ; then
 							echo '-> apt-get installation complete'
 						else
 							echo "ERROR: apt-get failed: $?"
+						fi
+						if ! which uv &> /dev/null ; then
+							echo '-> run uv installer (https://astral.sh/uv/install.sh)'
+							if curl -LsSf https://astral.sh/uv/install.sh | sh ; then
+								echo '-> uv installation complete'
+								#export PATH="${HOME}/.local/bin:${PATH}"
+							else
+								echo "ERROR: uv installer failed: $?"
+								exit 1
+							fi
 						fi
 					else
 						echo '-> You selected "no"'
@@ -98,8 +108,7 @@ else
 	fi
 fi
 
-which pip3 &> /dev/null || { echo 'ERROR: pip3 not found in PATH'; exit 3; }
-which virtualenv &> /dev/null || { echo 'ERROR: virtualenv not found in PATH'; exit 3; }
+which uv &> /dev/null || { echo 'ERROR: uv not found in PATH (see https://docs.astral.sh/uv/)'; exit 3; }
 which envsubst &> /dev/null || { echo 'ERROR: envsubst not found in PATH'; exit 3; }
 
 echo "-> FLUXCHAT_CONFIG: ${FLUXCHAT_CONFIG}"
@@ -113,19 +122,13 @@ echo "-> FLUXCHAT_KEY_DERIVATION_ITERATIONS: ${FLUXCHAT_KEY_DERIVATION_ITERATION
 mkdir -p ${FLUXCHAT_DATA_DIR}
 chmod go-rwx ${FLUXCHAT_DATA_DIR}
 
-if ! virtualenv --system-site-packages -p python3 ./.venv ; then
-	echo 'ERROR: could not install venv'
-	exit 1
-fi
-if [[ -d ./.venv ]]; then
-	source ./.venv/bin/activate
-fi
 echo '-> installing requirements'
-if ! pip3 install -r requirements.txt ; then
+if ! uv sync ; then
 	echo 'ERROR: could not install requirements'
 	exit 1
 fi
 
+source .venv/bin/activate
 
 rsa_priv_key_file=${FLUXCHAT_DATA_DIR}/private_key.pem
 if test -f ${rsa_priv_key_file} ; then
